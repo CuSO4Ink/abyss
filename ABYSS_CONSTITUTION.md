@@ -68,7 +68,7 @@ Secrets, tokens, credentials, machine-local config, and caches must not enter sy
 
 Abyss may not add self-evolution targets, feature backlog items, implementation slices, scheduled tasks, agent roles, integrations, or delivery commitments to `ROADMAP.md` unless the user explicitly approves each item one by one. Self-discovered capabilities may be proposed, but they must not be implemented or added to the approved roadmap without explicit user approval.
 
-During the bootstrapping transition, direct and timely human-assistant modification is allowed only when the user explicitly authorizes the specific modification in the current conversation. This temporary mode must remain subordinate to the roadmap approval rule, the P0 external interface boundary, and human review for meaningful risk. It should be retired for ordinary system changes once the governed self-iteration chain is complete and explicitly accepted by the user.
+During the bootstrapping transition, direct and timely human-assistant modification is allowed only when the user explicitly authorizes the specific modification in the current conversation. This temporary mode must remain subordinate to the roadmap approval rule, the P0 external interface boundary, and human review for meaningful risk. It must be retired for ordinary system changes once the governed self-iteration chain is complete and explicitly accepted by the user. After retirement, ordinary system changes must enter through the governed evolution request/proposal/approval/roadmap chain and must not be implemented merely because they were discussed in conversation.
 
 ## 18. P0 incident: external interface misuse
 

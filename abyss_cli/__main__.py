@@ -7,7 +7,7 @@ from . import __version__
 from .agent_runner import run_agent, run_harness_review
 from .audit import append_event
 from .data_sync import data_pull, data_push, data_status, init_data_repo
-from .evolution import create_change_request, create_proposal_from_request, list_evolution_records, record_to_json, run_evolution_smoke, show_evolution_record
+from .evolution import approve_proposal, create_change_request, create_proposal_from_request, finalize_direct_modification_mode, governance_status, list_evolution_records, record_to_json, reject_proposal, run_evolution_smoke, show_evolution_record
 from .fsm import fsm_tick, fsm_watch
 from .harness import render_harness_json, render_harness_markdown
 from .integrity import run_checks
@@ -187,6 +187,28 @@ def cmd_evolution_propose(args: argparse.Namespace) -> None:
     print("status=needs_user_decision implementation_allowed=False no_action_executed=True")
 
 
+def cmd_evolution_approve(args: argparse.Namespace) -> None:
+    proposal = approve_proposal(args.proposal, add_to_roadmap=not args.no_roadmap)
+    print(f"approved: {proposal['id']}")
+    print(f"roadmap_entry={proposal.get('roadmap_entry')} implementation_allowed={proposal.get('implementation_allowed')}")
+
+
+def cmd_evolution_reject(args: argparse.Namespace) -> None:
+    proposal = reject_proposal(args.proposal, reason=args.reason or "")
+    print(f"rejected: {proposal['id']}")
+    print("implementation_allowed=False")
+
+
+def cmd_evolution_status(_: argparse.Namespace) -> None:
+    print(record_to_json(governance_status()))
+
+
+def cmd_evolution_finalize(args: argparse.Namespace) -> None:
+    state = finalize_direct_modification_mode(confirmed_by=args.confirmed_by)
+    print("direct_modification_mode=disabled")
+    print(record_to_json(state))
+
+
 def cmd_evolution_smoke(args: argparse.Namespace) -> None:
     record = run_evolution_smoke(args.provider)
     print(f"{record['id']} status={record['status']} provider={record['provider']}")
@@ -304,6 +326,19 @@ def build_parser() -> argparse.ArgumentParser:
     p = evolution_sub.add_parser("propose")
     p.add_argument("request", help="request id, filename, prefix, or latest")
     p.set_defaults(func=cmd_evolution_propose)
+    p = evolution_sub.add_parser("approve")
+    p.add_argument("proposal", help="proposal id, filename, prefix, or latest")
+    p.add_argument("--no-roadmap", action="store_true", help="approve the proposal record without adding it to ROADMAP.md")
+    p.set_defaults(func=cmd_evolution_approve)
+    p = evolution_sub.add_parser("reject")
+    p.add_argument("proposal", help="proposal id, filename, prefix, or latest")
+    p.add_argument("--reason", default="")
+    p.set_defaults(func=cmd_evolution_reject)
+    p = evolution_sub.add_parser("status")
+    p.set_defaults(func=cmd_evolution_status)
+    p = evolution_sub.add_parser("finalize-direct-mode")
+    p.add_argument("--confirmed-by", default="user")
+    p.set_defaults(func=cmd_evolution_finalize)
     p = evolution_sub.add_parser("smoke")
     p.add_argument("--provider", default="cli", help="standard LLM provider name")
     p.set_defaults(func=cmd_evolution_smoke)

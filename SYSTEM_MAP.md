@@ -16,6 +16,10 @@ abyss evolution request "<summary>" [--details "..."]
 abyss evolution list
 abyss evolution show [latest|id]
 abyss evolution propose <request>
+abyss evolution approve <proposal>
+abyss evolution reject <proposal> [--reason "..."]
+abyss evolution status
+abyss evolution finalize-direct-mode
 abyss evolution smoke --provider cli
 abyss review list
 abyss review approve <review>
@@ -37,7 +41,7 @@ abyss data init|status|pull|push
 - `abyss_cli/review.py` — manages pending human reviews.
 - `abyss_cli/audit.py` — appends local runtime audit events.
 - `abyss_cli/data_sync.py` — connects the private GitHub data repository.
-- `abyss_cli/evolution.py` — records governed self-iteration requests, proposals, and LLM provider smoke tests.
+- `abyss_cli/evolution.py` — records governed self-iteration requests/proposals, approves or rejects proposals, ingests approved proposals into ROADMAP, manages direct-modification governance state, and runs LLM provider smoke tests.
 - `abyss_cli/integrity.py` — checks repository structure and safety invariants.
 
 ## Data flow
@@ -60,7 +64,7 @@ user goal
 ## System directories
 
 - `abyss_cli/` — implementation code.
-- `rules/` — rule truth sources; especially `rules/policy.yaml`, `rules/llm_providers.yaml`, and `rules/agents.yaml`.
+- `rules/` — rule truth sources; especially `rules/policy.yaml`, `rules/llm_providers.yaml`, `rules/agents.yaml`, and `rules/governance.yaml`.
 - `prompts/` — system, mode, and agent prompt templates.
 - `artifacts/drafts/` — low-risk generated drafts.
 - `process/*/.gitkeep` — process directory skeleton only.
@@ -90,11 +94,13 @@ Future option:
 
 - `abyss-data/runtime/` for selected syncable runtime records.
 
-## Transitional collaboration mode
+## Governed evolution mode
 
-Until the governed self-iteration chain is complete and explicitly accepted by the user, direct and timely human-assistant modification may continue only when the user explicitly authorizes the specific modification in the current conversation.
+The current direct-modification governance state is stored in `rules/governance.yaml`.
 
-This transition mode is a human collaboration rule, not an external interface permission. External interfaces still may only be used for unified standard LLM invocation.
+Before finalization, direct and timely human-assistant modification may continue only when the user explicitly authorizes the specific modification in the current conversation. After `direct_modification_mode` is disabled, ordinary system changes must enter through `abyss evolution request`, become proposals, receive explicit approval, and then enter `ROADMAP.md`.
+
+This governance mode is a human collaboration rule, not an external interface permission. External interfaces still may only be used for unified standard LLM invocation.
 
 ## User data directories
 

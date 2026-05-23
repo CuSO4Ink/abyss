@@ -1,0 +1,9 @@
+{
+  "schema": "abyss.governance.v1",
+  "direct_modification_mode": "disabled",
+  "ordinary_system_changes_require_evolution_chain": true,
+  "finalized_at": "2026-05-23T23:41:33+08:00",
+  "finalized_by": "user",
+  "notes": "Ordinary system changes must enter through the governed evolution request/proposal/approval/roadmap chain.",
+  "updated_at": "2026-05-23T23:41:33+08:00"
+}

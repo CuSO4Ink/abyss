@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,8 @@ EVOLUTION_DIR = runtime_root() / "evolution"
 REQUESTS_DIR = EVOLUTION_DIR / "requests"
 PROPOSALS_DIR = EVOLUTION_DIR / "proposals"
 SMOKE_DIR = EVOLUTION_DIR / "smoke_tests"
+GOVERNANCE_PATH = repo_root() / "rules" / "governance.yaml"
+ROADMAP_PATH = repo_root() / "ROADMAP.md"
 
 
 REQUEST_STATES = {
@@ -102,6 +105,163 @@ def resolve_evolution_target(value: str) -> Path:
 def show_evolution_record(value: str) -> tuple[Path, dict[str, Any]]:
     path = resolve_evolution_target(value)
     return path, read_record(path)
+
+
+def load_governance_state() -> dict[str, Any]:
+    if GOVERNANCE_PATH.exists():
+        return read_record(GOVERNANCE_PATH)
+    return {
+        "schema": "abyss.governance.v1",
+        "direct_modification_mode": "transitional",
+        "ordinary_system_changes_require_evolution_chain": False,
+        "finalized_at": None,
+        "finalized_by": None,
+        "notes": "Transitional direct modification remains available only for user-authorized concrete changes until finalized.",
+    }
+
+
+def save_governance_state(state: dict[str, Any]) -> dict[str, Any]:
+    state.setdefault("schema", "abyss.governance.v1")
+    state["updated_at"] = now_iso()
+    write_record(GOVERNANCE_PATH, state)
+    return state
+
+
+def governance_status() -> dict[str, Any]:
+    return load_governance_state()
+
+
+def _next_roadmap_id(text: str) -> str:
+    existing = [int(match) for match in re.findall(r"^### R(\d+)\.", text, flags=re.MULTILINE)]
+    return f"R{(max(existing) + 1) if existing else 1:03d}"
+
+
+def _proposal_roadmap_section(proposal: dict[str, Any], roadmap_id: str) -> str:
+    title = str(proposal.get("title") or proposal.get("purpose") or "Untitled self-evolution item").strip()
+    purpose = str(proposal.get("purpose") or title).strip()
+    details = str(proposal.get("details") or "Approved evolution proposal.").strip()
+    risk_level = str(proposal.get("risk_level") or "L2")
+    checks = proposal.get("acceptance_checks") if isinstance(proposal.get("acceptance_checks"), list) else []
+    checks_text = "\n".join(f"- {check}" for check in checks) or "- Approved proposal can be implemented only through the governed evolution chain."
+    return f"""### {roadmap_id}. {title}
+
+Source proposal: `{proposal.get('id')}`.
+
+Purpose: {purpose}
+
+Why it is needed: {details}
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: {risk_level}.
+
+Acceptance check:
+
+{checks_text}
+
+"""
+
+
+def _append_proposal_to_roadmap(proposal: dict[str, Any]) -> tuple[str, str]:
+    text = ROADMAP_PATH.read_text(encoding="utf-8")
+    proposal_id = str(proposal.get("id"))
+    if f"Source proposal: `{proposal_id}`" in text:
+        existing = re.search(rf"^### (R\d+)\..*?\n\nSource proposal: `{re.escape(proposal_id)}`", text, flags=re.MULTILINE | re.DOTALL)
+        return (existing.group(1) if existing else "existing", "already_present")
+
+    roadmap_id = _next_roadmap_id(text)
+    section = _proposal_roadmap_section(proposal, roadmap_id)
+    marker = "\n## Pending proposals\n"
+    if marker not in text:
+        raise SystemExit("ROADMAP.md does not contain the Pending proposals marker")
+    text = text.replace(marker, "\n" + section + "## Pending proposals\n", 1)
+    ROADMAP_PATH.write_text(text, encoding="utf-8")
+    return roadmap_id, "added"
+
+
+def approve_proposal(proposal_value: str, approver: str = "user", add_to_roadmap: bool = True) -> dict[str, Any]:
+    proposal_path = _resolve_proposal(proposal_value)
+    proposal = read_record(proposal_path)
+    if proposal.get("status") == "rejected":
+        raise SystemExit(f"Cannot approve rejected proposal: {proposal.get('id')}")
+
+    roadmap_id = proposal.get("roadmap_entry")
+    roadmap_status = "not_requested"
+    if add_to_roadmap:
+        roadmap_id, roadmap_status = _append_proposal_to_roadmap(proposal)
+
+    proposal["status"] = "approved"
+    proposal["approval_status"] = "approved"
+    proposal["implementation_allowed"] = True
+    proposal["approved_by"] = approver
+    proposal["approved_at"] = now_iso()
+    proposal["roadmap_entry"] = roadmap_id
+    proposal["roadmap_status"] = roadmap_status
+    proposal["updated_at"] = now_iso()
+    write_record(proposal_path, proposal)
+
+    request_id = proposal.get("request_id")
+    if request_id:
+        try:
+            request_path = _resolve_request(str(request_id))
+            request = read_record(request_path)
+            request["status"] = "approved"
+            request["approval_status"] = "approved"
+            request["roadmap_entry"] = roadmap_id
+            request["updated_at"] = now_iso()
+            write_record(request_path, request)
+        except SystemExit:
+            pass
+
+    append_event("evolution.proposal.approved", str(proposal.get("title") or proposal.get("id")), {"proposal_id": proposal.get("id"), "roadmap_entry": roadmap_id, "roadmap_status": roadmap_status})
+    return proposal
+
+
+def reject_proposal(proposal_value: str, reason: str = "") -> dict[str, Any]:
+    proposal_path = _resolve_proposal(proposal_value)
+    proposal = read_record(proposal_path)
+    if proposal.get("status") == "approved":
+        raise SystemExit(f"Cannot reject approved proposal: {proposal.get('id')}")
+    proposal["status"] = "rejected"
+    proposal["approval_status"] = "rejected"
+    proposal["implementation_allowed"] = False
+    proposal["rejected_at"] = now_iso()
+    proposal["rejection_reason"] = reason
+    proposal["updated_at"] = now_iso()
+    write_record(proposal_path, proposal)
+
+    request_id = proposal.get("request_id")
+    if request_id:
+        try:
+            request_path = _resolve_request(str(request_id))
+            request = read_record(request_path)
+            request["status"] = "rejected"
+            request["approval_status"] = "rejected"
+            request["updated_at"] = now_iso()
+            write_record(request_path, request)
+        except SystemExit:
+            pass
+
+    append_event("evolution.proposal.rejected", str(proposal.get("title") or proposal.get("id")), {"proposal_id": proposal.get("id"), "reason": reason})
+    return proposal
+
+
+def finalize_direct_modification_mode(confirmed_by: str = "user") -> dict[str, Any]:
+    state = load_governance_state()
+    state["direct_modification_mode"] = "disabled"
+    state["ordinary_system_changes_require_evolution_chain"] = True
+    state["finalized_at"] = now_iso()
+    state["finalized_by"] = confirmed_by
+    state["notes"] = "Ordinary system changes must enter through the governed evolution request/proposal/approval/roadmap chain."
+    state = save_governance_state(state)
+    append_event("governance.direct_modification_mode.disabled", "Direct modification mode disabled for ordinary system changes", {"confirmed_by": confirmed_by})
+    return state
 
 
 def create_proposal_from_request(request_value: str) -> dict[str, Any]:

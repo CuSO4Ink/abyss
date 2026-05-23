@@ -237,6 +237,10 @@ abyss evolution request "建立规范自我迭代链路" --details "raw user req
 abyss evolution list
 abyss evolution show latest
 abyss evolution propose latest
+abyss evolution approve latest
+abyss evolution reject latest --reason "not now"
+abyss evolution status
+abyss evolution finalize-direct-mode
 abyss evolution smoke --provider cli
 ```
 
@@ -247,6 +251,8 @@ Abyss Prompt / Prompt Package -> external LLM invocation interface -> model resp
 ```
 
 It verifies that a real model can return text without producing action blocks or executing side effects.
+
+`approve` is the only native command that promotes an evolution proposal into the approved roadmap. `reject` closes a proposal without implementation authority. `finalize-direct-mode` disables ordinary direct modification mode so future ordinary system changes must enter through request -> proposal -> approval -> roadmap.
 
 ## Pluggable Agent runner and HarnessAgent
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from .utils import list_records, read_record, repo_root
@@ -48,6 +49,36 @@ def run_checks() -> tuple[bool, list[str]]:
         if review.get("action_id") not in action_ids:
             ok = False
             messages.append(f"BROKEN_REVIEW_REF {review_path.relative_to(root)} -> {review.get('action_id')}")
+
+    governance_path = root / "rules" / "governance.yaml"
+    if governance_path.exists():
+        try:
+            governance = read_record(governance_path)
+            mode = governance.get("direct_modification_mode")
+            if mode not in {"transitional", "disabled"}:
+                ok = False
+                messages.append(f"INVALID_GOVERNANCE_MODE {mode}")
+            if mode == "disabled" and not governance.get("ordinary_system_changes_require_evolution_chain"):
+                ok = False
+                messages.append("INVALID_GOVERNANCE_FINALIZED_FLAG")
+            if mode == "disabled" and not governance.get("finalized_at"):
+                ok = False
+                messages.append("INVALID_GOVERNANCE_FINALIZED_AT")
+        except Exception as exc:
+            ok = False
+            messages.append(f"INVALID_GOVERNANCE_FILE {exc}")
+
+    roadmap_path = root / "ROADMAP.md"
+    if roadmap_path.exists():
+        roadmap_text = roadmap_path.read_text(encoding="utf-8")
+        proposal_refs = re.findall(r"Source proposal: `([^`]+)`", roadmap_text)
+        for proposal_id in proposal_refs:
+            if not proposal_id.startswith("evo_prop_"):
+                ok = False
+                messages.append(f"INVALID_ROADMAP_PROPOSAL_REF {proposal_id}")
+        for proposal_id in sorted({item for item in proposal_refs if proposal_refs.count(item) > 1}):
+            ok = False
+            messages.append(f"DUPLICATE_ROADMAP_PROPOSAL_REF {proposal_id}")
 
     tracked = []
     try:

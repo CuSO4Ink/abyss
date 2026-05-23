@@ -16,7 +16,7 @@ Until the governed self-iteration chain is complete and explicitly accepted by t
 
 This transition rule does not weaken the P0 external interface boundary. External interfaces still may only be used for unified standard LLM invocation.
 
-Direct modification mode must end for ordinary system changes once the governed self-iteration chain is complete and the user confirms the transition.
+Direct modification mode must end for ordinary system changes once the governed self-iteration chain is complete and the user confirms the transition. After finalization, ordinary system changes must enter through `abyss evolution request`, become proposals, receive explicit approval, and only then enter the approved roadmap.
 
 ## Approved roadmap items
 
@@ -35,6 +35,9 @@ Minimal implementation slice:
 - Provide a way to list and inspect pending requests/proposals.
 - Provide a standard LLM-provider smoke test for the self-iteration chain.
 - Define a self-evolution Agent that can analyze and propose plans, but cannot execute, approve, mutate files, schedule work, or operate Git.
+- Provide explicit approve/reject commands for evolution proposals.
+- Add approved proposals to `ROADMAP.md` only after explicit approval.
+- Provide a governed switch that disables ordinary direct modification mode after the chain is accepted.
 - Preserve the transitional direct-modification rule until the user explicitly accepts the completed chain.
 
 Expected user-visible result: the user can express desired changes without the assistant immediately mutating system design, while still allowing approved items to progress through a controlled evolution path.
@@ -47,6 +50,30 @@ Acceptance check:
 - A proposal can be inspected before approval.
 - Only user-approved items can enter the executable roadmap.
 - The system documentation clearly distinguishes transitional direct modification from the final governed self-iteration mechanism.
+
+### R002. 收口自我迭代治理链路
+
+Source proposal: `evo_prop_20260523_234133_b4d546`.
+
+Purpose: 收口自我迭代治理链路
+
+Why it is needed: 补齐 approve/reject、批准后写入 ROADMAP、直接修改模式 finalize 开关和完整性检查
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
 
 ## Pending proposals
 
