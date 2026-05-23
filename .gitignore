@@ -1,0 +1,30 @@
+# Local machine state
+.local/
+
+# Secrets and credentials
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*secret*
+*secrets*
+*token*
+*credential*
+*credentials*
+
+# Runtime/cache
+.cache/
+.tmp/
+tmp/
+temp/
+__pycache__/
+*.pyc
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
