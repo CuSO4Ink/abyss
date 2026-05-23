@@ -1,0 +1,61 @@
+{
+  "schema": "abyss.design_principles.v1",
+  "principles": {
+    "progressive_disclosure": {
+      "name": "Progressive disclosure",
+      "summary": "Expose only the information and controls needed for the current decision, while keeping deeper detail accessible on demand.",
+      "requirements": [
+        "Default outputs should start with the actionable summary.",
+        "Detailed traces, raw records, and advanced controls should be available but not forced into the primary path.",
+        "High-risk or complex actions should reveal additional context, rationale, and options step by step."
+      ]
+    },
+    "high_information_density": {
+      "name": "High information density",
+      "summary": "Prefer compact, structured, decision-useful information over verbose or decorative output.",
+      "requirements": [
+        "Each screen, command output, prompt package, and review record should maximize useful signal per line.",
+        "Avoid redundant explanations when a structured field, table, or short reason is sufficient.",
+        "Summaries should preserve key constraints, risks, identifiers, and next actions."
+      ]
+    },
+    "low_cognitive_load": {
+      "name": "Low cognitive load",
+      "summary": "Reduce the amount of state, choice, and interpretation the user must hold in memory at once.",
+      "requirements": [
+        "Commands should provide obvious next steps when appropriate.",
+        "Review decisions should present the minimum necessary context: what, why, risk, options, and rollback if relevant.",
+        "Default flows should be safe and simple; advanced flows should be opt-in."
+      ]
+    },
+    "modular_decoupling": {
+      "name": "Modular decoupling",
+      "summary": "Keep concerns separated so policy, prompts, execution, review, audit, and storage can evolve independently.",
+      "requirements": [
+        "Policy decisions should not be embedded inside executor implementation details.",
+        "Prompt construction should not directly execute actions.",
+        "Review state should be separate from action proposals and execution records.",
+        "Storage formats should remain explicit and migratable."
+      ]
+    },
+    "extensibility_first": {
+      "name": "Extensibility first",
+      "summary": "Design MVP mechanisms as stable seams for future agentic review, API executors, UI surfaces, and richer storage.",
+      "requirements": [
+        "New capabilities should be added through declared capability names, schemas, and gates rather than ad-hoc code paths.",
+        "Schemas should include version fields to support migration.",
+        "Manual workflows should be compatible with later automation rather than replaced by unrelated mechanisms.",
+        "Hard safety boundaries must remain stable even as new agentic components are introduced."
+      ]
+    }
+  },
+  "application_targets": [
+    "cli_output",
+    "prompt_packages",
+    "review_records",
+    "policy_rules",
+    "execution_records",
+    "audit_log",
+    "future_ui"
+  ]
+}

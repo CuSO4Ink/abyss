@@ -20,6 +20,18 @@ It focuses on:
 8. Audit trail
 9. Integrity checks
 
+## Design principles
+
+Abyss is guided by five system-level design principles:
+
+1. Progressive disclosure
+2. High information density
+3. Low cognitive load
+4. Modular decoupling
+5. Extensibility first
+
+The canonical structured rules live in `rules/design_principles.yaml`; the highest-level commitments live in `ABYSS_CONSTITUTION.md`.
+
 ## Quick start
 
 Install once in editable mode so Abyss can be run from any directory:
