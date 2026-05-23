@@ -30,7 +30,8 @@
         "provenance records in future versions"
       ],
       "visibility": "private_single_user",
-      "recommended_remote": "private Git repository controlled by the user"
+      "recommended_remote": "GitHub private repository",
+      "default_remote": "git@github-personal:CuSO4Ink/abyss-data.git"
     }
   },
   "local_configuration": {
@@ -50,16 +51,16 @@
   },
   "sync_flow": {
     "first_device": [
-      "Create or choose a private data repository.",
-      "Run abyss data init --repo <data_repo_url>.",
+      "Create the GitHub private repository CuSO4Ink/abyss-data.",
+      "Run abyss data init.",
       "Use Obsidian against the data repository's user_data directory or a configured subfolder.",
       "Run abyss data push to commit and push user data changes."
     ],
     "new_device": [
       "Clone or install the Abyss system repository.",
       "Run pip install -e <abyss_system_repo>.",
-      "Run abyss data init --repo <data_repo_url>.",
-      "Abyss clones/pulls the private data repository into the configured local path."
+      "Run abyss data init.",
+      "Abyss clones/pulls the GitHub private data repository into the configured local path."
     ],
     "daily_use": [
       "Run abyss data pull before using current knowledge on a device.",

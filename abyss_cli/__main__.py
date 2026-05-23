@@ -155,7 +155,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_data = sub.add_parser("data")
     data_sub = p_data.add_subparsers(required=True)
     p = data_sub.add_parser("init")
-    p.add_argument("--repo", required=True, help="private user data Git repository URL")
+    p.add_argument("--repo", default=None, help="private user data Git repository URL; defaults to git@github-personal:CuSO4Ink/abyss-data.git")
     p.add_argument("--path", default=None, help="local clone path; defaults to ~/Documents/abyss-data")
     p.add_argument("--branch", default="main")
     p.set_defaults(func=cmd_data_init)

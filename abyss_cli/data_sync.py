@@ -9,6 +9,7 @@ from .utils import ensure_dir, repo_root
 
 CONFIG_PATH = repo_root() / ".local" / "data_sync.json"
 DEFAULT_DATA_REPO_PATH = Path.home() / "Documents" / "abyss-data"
+DEFAULT_DATA_REPO_URL = "git@github-personal:CuSO4Ink/abyss-data.git"
 
 
 def _run_git(repo: Path, args: list[str], allow_fail: bool = False) -> str:
@@ -39,7 +40,7 @@ def _run_git_global(args: list[str], allow_fail: bool = False) -> str:
 
 def load_config() -> dict:
     if not CONFIG_PATH.exists():
-        raise SystemExit("Data sync is not configured. Run: abyss data init --repo <git-url>")
+        raise SystemExit("Data sync is not configured. Run: abyss data init")
     return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
 
 
@@ -53,7 +54,8 @@ def configured_data_path() -> Path:
     return Path(config["data_repo_path"]).expanduser().resolve()
 
 
-def init_data_repo(repo_url: str, path: str | None = None, branch: str = "main") -> dict:
+def init_data_repo(repo_url: str | None = None, path: str | None = None, branch: str = "main") -> dict:
+    repo_url = repo_url or DEFAULT_DATA_REPO_URL
     data_path = Path(path).expanduser().resolve() if path else DEFAULT_DATA_REPO_PATH
     config = {
         "schema": "abyss.data_sync_config.v1",

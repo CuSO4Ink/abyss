@@ -46,23 +46,29 @@ The canonical structured rules live in `rules/data_layers.yaml`.
 
 ## Multi-device sync
 
-Abyss uses a separated single-user Git sync model:
+Abyss uses a separated single-user GitHub sync model:
 
 1. **System repository** — this repository. It contains Abyss implementation, rules, prompts, process structure, and architecture documentation.
-2. **Private data repository** — a separate Git repository controlled by the user. It contains the real `user_data/` and `storage/archive/` content used across devices.
+2. **GitHub private data repository** — `CuSO4Ink/abyss-data`. It contains the real `user_data/` and `storage/archive/` content used across devices.
 
 This keeps the system implementation safe to sync or publish without mixing in personal Obsidian notes or archives.
 
-Configure a private data repository once per device:
+After creating the GitHub private repository, configure it once per device:
 
 ```powershell
-abyss data init --repo <private-data-git-url>
+abyss data init
+```
+
+By default this uses:
+
+```text
+git@github-personal:CuSO4Ink/abyss-data.git
 ```
 
 Optional custom local path:
 
 ```powershell
-abyss data init --repo <private-data-git-url> --path C:\Users\violinapeng\Documents\abyss-data
+abyss data init --path C:\Users\violinapeng\Documents\abyss-data
 ```
 
 Daily sync commands:
