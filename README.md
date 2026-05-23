@@ -22,10 +22,22 @@ It focuses on:
 
 ## Quick start
 
-From this repository root:
+Install once in editable mode so Abyss can be run from any directory:
 
 ```powershell
+python -m pip install -e C:\Users\violinapeng\Documents\abyss
+```
+
+Then run either style from any directory:
+
+```powershell
+abyss status
 python -m abyss_cli status
+```
+
+From this repository root, direct module execution also works without installation:
+
+```powershell
 python -m abyss_cli intent new "总结当前 git diff，生成组内同步说明"
 python -m abyss_cli prompt build latest --copy
 python -m abyss_cli check

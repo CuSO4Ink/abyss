@@ -21,6 +21,7 @@ tmp/
 temp/
 __pycache__/
 *.pyc
+*.egg-info/
 
 # OS/editor noise
 .DS_Store
