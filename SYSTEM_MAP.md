@@ -93,7 +93,7 @@ Real synced user data lives in the private GitHub data repo.
 
 ## Forbidden
 
-- P0: Do not make any external RM client, IM client, agent client, browser automation session, or vendor-specific assistant runtime a required dependency of Abyss core operation. Such clients may only be optional triggers, notification channels, LLM providers, or human interaction surfaces.
+- P0: Do not make any external LLM client, IM client, agent client, browser automation session, or vendor-specific assistant runtime a required dependency of Abyss core operation. Such clients may only be optional triggers, notification channels, LLM providers, or human interaction surfaces.
 - Do not commit real `process/*` runtime records to the system repo.
 - Do not commit `audit/audit.md` to the system repo.
 - Do not duplicate policy logic between `policy.py` and `rules/policy.yaml`.

@@ -47,7 +47,7 @@ Non-goals for the current stage:
 
 ### A0. P0: Native Evolution Runner and external-client decoupling
 
-Goal: remove any dependency on external RM/Knot/IM/agent clients for Abyss core self-evolution.
+Goal: remove any dependency on external LLM/Knot/IM/agent clients for Abyss core self-evolution.
 
 Problem:
 
@@ -437,7 +437,7 @@ The next implementation slice must be **A0 P0: Native Evolution Runner and exter
 Reason:
 
 - Daily self-evolution is a core Abyss capability.
-- Core Abyss capability must not depend on an external RM/Knot/IM/agent client runtime.
+- Core Abyss capability must not depend on an external LLM/Knot/IM/agent client runtime.
 - The current scheduled reminder can exist only as a temporary external trigger, not as the owner of the evolution workflow.
 
 Minimum slice:
