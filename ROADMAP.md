@@ -329,18 +329,32 @@ recommendation: defer | plan | implement_next | implemented | needs_user_decisio
 no_unreviewed_external_side_effects: true
 ```
 
-### Suggested scheduled cadence
+### Scheduled delivery cadence
 
-Default cadence should be low frequency:
+Default cadence is low-frequency but continuous:
 
-- Daily or every few days for evolution proposal generation.
-- Never more frequent than hourly.
+- Run once per day at a fixed configured time.
+- Each run should attempt to evolve one bounded capability slice.
+- Prefer delivering a concrete, user-visible function increment over producing only a proposal.
+- If no safe executable slice exists, deliver an `EvolutionProposal` explaining why implementation was skipped and what should be considered next.
+- Never run more frequently than hourly.
 - Prefer daytime local time.
+
+Daily delivery output should include:
+
+- Selected roadmap item or discovered evolution proposal.
+- What capability changed.
+- Files changed.
+- Checks executed and results.
+- HarnessAgent review result.
+- Commit hash and push status if code/docs changed.
+- How the user can verify the new function.
+- Any blocker, risk, or required user decision.
 
 Recommended prompt for scheduled run:
 
 ```text
-Run an Abyss controlled evolution cycle. Prefer the next executable item from ROADMAP.md. If no roadmap item is executable, inspect the system for one suitable evolution capability and record it as an EvolutionProposal. Execute at most one bounded slice only if it passes scope/risk/check/HarnessAgent gates. Do not perform destructive actions, credential work, broad refactors, production access, or unreviewed external side effects. Commit focused successful repository changes if allowed by the scheduled task policy. Use the notify mechanism to proactively inform the user of success or exception.
+Run today's Abyss controlled self-evolution cycle. Prefer the next executable item from ROADMAP.md and attempt to deliver one bounded, user-visible capability increment. If no roadmap item is executable, inspect the system for one suitable evolution capability and record it as an EvolutionProposal. Execute at most one bounded slice only if it passes scope/risk/check/HarnessAgent gates. Do not perform destructive actions, credential work, broad refactors, production access, or unreviewed external side effects. Commit and push focused successful repository changes when checks pass. At the end, deliver the evolved function back to the user: summarize what changed, files changed, checks, HarnessAgent result, commit hash, push status, verification command, and any risks or blockers. You must use the notify mechanism to proactively inform the user of success or exception.
 ```
 
 ## Near-term priority order
