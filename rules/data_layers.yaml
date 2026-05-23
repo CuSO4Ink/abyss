@@ -12,14 +12,15 @@
     "user_data_layer": {
       "name": "User data layer",
       "visibility": "default_user_visible",
-      "primary_surface": "Obsidian",
+      "primary_surface": "Obsidian vault / Markdown notes",
       "description": "The active personal knowledge surface used by the user for daily notes, current directions, working context, and decision support.",
       "contains": [
-        "active directions",
+        "active directions as linked Markdown notes",
         "current project notes",
         "working summaries",
         "decision records intended for daily use",
-        "materialized excerpts promoted from storage"
+        "materialized excerpts promoted from storage",
+        "Obsidian indexes, templates, tags, backlinks, and attachment references"
       ],
       "should_not_contain": [
         "raw implementation internals",
@@ -28,10 +29,35 @@
         "unfiltered system traces"
       ],
       "default_access": [
-        "read by user",
+        "read by user through Obsidian",
         "read by prompt/context builder when relevant",
-        "write only through explicit note/update/projection actions"
-      ]
+        "write only through explicit note/update/projection actions that preserve Markdown readability"
+      ],
+      "obsidian_conventions": {
+        "default_file_format": "Markdown (.md)",
+        "frontmatter": "Use YAML frontmatter for type, status, created, updated, source, tags, aliases, related.",
+        "links": "Prefer Obsidian wiki links [[Note Title]] for internal note relationships.",
+        "attachments": "Keep images and binary attachments under _attachments/ and link them relatively.",
+        "indexes": "Maintain Home.md as the user-facing entry point and lightweight map of active areas.",
+        "templates": "Keep reusable note templates under _templates/.",
+        "folder_suggestions": [
+          "Home.md",
+          "_inbox/",
+          "_templates/",
+          "_attachments/",
+          "directions/",
+          "projects/",
+          "decisions/",
+          "summaries/",
+          "promoted/"
+        ],
+        "promotion_format": "Promoted archive material must become a focused Markdown note with provenance frontmatter and links back to source.",
+        "avoid": [
+          "opaque machine-only JSON as primary user notes",
+          "large raw dumps in the vault surface",
+          "implementation traces mixed into active notes"
+        ]
+      }
     },
     "implementation_layer": {
       "name": "Implementation layer",
@@ -128,7 +154,8 @@
       "obsidian_note",
       "focused_excerpt",
       "working_summary",
-      "reactivated_direction_note"
+      "reactivated_direction_note",
+      "markdown_index_update"
     ]
   },
   "future_capabilities": [

@@ -42,6 +42,8 @@ Abyss separates information into three layers:
 
 The implementation layer and data storage layer should not appear in the user's default information retrieval scope. When archived material becomes relevant, Abyss should retrieve a focused subset from storage and promote or materialize it into the user data layer with provenance, rather than exposing storage directly.
 
+The user data layer is **Obsidian-first**. Use Markdown notes, YAML frontmatter, Obsidian wiki links like `[[Project Name]]`, relative attachments under `_attachments/`, and `Home.md` as the human entry point for active areas.
+
 The canonical structured rules live in `rules/data_layers.yaml`.
 
 ## Multi-device sync

@@ -59,13 +59,30 @@ def _has_any_commit(repo: Path) -> bool:
 
 def _ensure_data_structure(data_path: Path) -> None:
     ensure_dir(data_path / "user_data")
+    ensure_dir(data_path / "user_data" / "_inbox")
+    ensure_dir(data_path / "user_data" / "_templates")
+    ensure_dir(data_path / "user_data" / "_attachments")
+    ensure_dir(data_path / "user_data" / "directions")
+    ensure_dir(data_path / "user_data" / "projects")
+    ensure_dir(data_path / "user_data" / "decisions")
+    ensure_dir(data_path / "user_data" / "summaries")
+    ensure_dir(data_path / "user_data" / "promoted")
     ensure_dir(data_path / "storage" / "archive")
 
     files = {
-        "README.md": "# Abyss Data\n\nPrivate user data repository for Abyss.\n\n- `user_data/`: active Obsidian-facing knowledge surface.\n- `storage/archive/`: dormant archived material, hidden from default retrieval.\n",
-        "user_data/README.md": "# User Data\n\nActive Obsidian-facing notes, current directions, working summaries, and decision records.\n",
+        "README.md": "# Abyss Data\n\nPrivate user data repository for Abyss.\n\n- `user_data/`: Obsidian-first active Markdown knowledge surface.\n- `storage/archive/`: dormant archived material, hidden from default retrieval.\n",
+        "user_data/README.md": "# User Data\n\nObsidian-first active notes, current directions, working summaries, and decision records.\n\nUse `Home.md` as the vault entry point, wiki links like `[[Project Name]]`, YAML frontmatter, and relative attachments under `_attachments/`.\n",
+        "user_data/Home.md": "---\ntype: index\nstatus: active\ntags:\n  - abyss/home\n---\n\n# Home\n\nAbyss active knowledge surface for Obsidian.\n\n## Active directions\n\n- [[directions/README|Directions]]\n\n## Projects\n\n- [[projects/README|Projects]]\n\n## Decisions\n\n- [[decisions/README|Decisions]]\n\n## Summaries\n\n- [[summaries/README|Summaries]]\n\n## Promoted from archive\n\n- [[promoted/README|Promoted]]\n",
+        "user_data/_templates/note.md": "---\ntype: note\nstatus: active\ncreated: \nupdated: \nsource: \ntags: []\naliases: []\nrelated: []\n---\n\n# {{title}}\n\n## Summary\n\n## Notes\n\n## Links\n\n",
+        "user_data/_inbox/README.md": "# Inbox\n\nTemporary capture area for notes that still need naming, linking, or filing.\n",
+        "user_data/_attachments/README.md": "# Attachments\n\nImages and binary assets linked from Obsidian notes. Prefer relative links.\n",
+        "user_data/directions/README.md": "# Directions\n\nActive long-running directions and focus areas.\n",
+        "user_data/projects/README.md": "# Projects\n\nActive project notes.\n",
+        "user_data/decisions/README.md": "# Decisions\n\nDecision records intended for daily use.\n",
+        "user_data/summaries/README.md": "# Summaries\n\nWorking summaries and context notes.\n",
+        "user_data/promoted/README.md": "# Promoted\n\nFocused Markdown notes promoted from `storage/archive/` with provenance.\n",
         "storage/README.md": "# Storage\n\nHidden-by-default storage layer for inactive or bulky material.\n",
-        "storage/archive/README.md": "# Archive\n\nLong-term archived material. Promote focused excerpts into `user_data/` when needed.\n",
+        "storage/archive/README.md": "# Archive\n\nLong-term archived material. Promote focused excerpts into `user_data/promoted/` when needed.\n",
     }
     for rel, content in files.items():
         path = data_path / rel

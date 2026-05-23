@@ -71,7 +71,9 @@ Future option:
 System repo keeps only placeholders/README files here.
 Real synced user data lives in the private GitHub data repo.
 
-- `user_data/` — active Obsidian-facing notes.
+- `user_data/` — Obsidian-first active notes: Markdown, wiki links, frontmatter.
+- `user_data/Home.md` — human entry point for active areas.
+- `user_data/_attachments/` — relative note assets.
 - `storage/archive/` — inactive archived material.
 - default private data repo: `git@github-personal:CuSO4Ink/abyss-data.git`
 - default local data path: `~/Documents/abyss-data`
