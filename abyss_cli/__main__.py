@@ -5,6 +5,7 @@ from pathlib import Path
 
 from . import __version__
 from .audit import append_event
+from .data_sync import data_pull, data_push, data_status, init_data_repo
 from .integrity import run_checks
 from .intent import INTENTS_DIR, create_intent
 from .prompt_builder import build_prompt
@@ -89,6 +90,23 @@ def cmd_check(_: argparse.Namespace) -> None:
     raise SystemExit(0 if ok else 1)
 
 
+def cmd_data_init(args: argparse.Namespace) -> None:
+    config = init_data_repo(args.repo, path=args.path, branch=args.branch)
+    print(f"configured data repo: {config['data_repo_path']}")
+
+
+def cmd_data_status(_: argparse.Namespace) -> None:
+    print(data_status())
+
+
+def cmd_data_pull(_: argparse.Namespace) -> None:
+    print(data_pull())
+
+
+def cmd_data_push(args: argparse.Namespace) -> None:
+    print(data_push(args.message))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="abyss", description="Abyss MVP CLI")
     sub = parser.add_subparsers(required=True)
@@ -133,6 +151,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("check")
     p.set_defaults(func=cmd_check)
+
+    p_data = sub.add_parser("data")
+    data_sub = p_data.add_subparsers(required=True)
+    p = data_sub.add_parser("init")
+    p.add_argument("--repo", required=True, help="private user data Git repository URL")
+    p.add_argument("--path", default=None, help="local clone path; defaults to ~/Documents/abyss-data")
+    p.add_argument("--branch", default="main")
+    p.set_defaults(func=cmd_data_init)
+    p = data_sub.add_parser("status")
+    p.set_defaults(func=cmd_data_status)
+    p = data_sub.add_parser("pull")
+    p.set_defaults(func=cmd_data_pull)
+    p = data_sub.add_parser("push")
+    p.add_argument("-m", "--message", default="sync abyss data")
+    p.set_defaults(func=cmd_data_push)
 
     return parser
 

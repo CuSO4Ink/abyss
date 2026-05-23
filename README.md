@@ -44,6 +44,39 @@ The implementation layer and data storage layer should not appear in the user's 
 
 The canonical structured rules live in `rules/data_layers.yaml`.
 
+## Multi-device sync
+
+Abyss uses a separated single-user Git sync model:
+
+1. **System repository** — this repository. It contains Abyss implementation, rules, prompts, process structure, and architecture documentation.
+2. **Private data repository** — a separate Git repository controlled by the user. It contains the real `user_data/` and `storage/archive/` content used across devices.
+
+This keeps the system implementation safe to sync or publish without mixing in personal Obsidian notes or archives.
+
+Configure a private data repository once per device:
+
+```powershell
+abyss data init --repo <private-data-git-url>
+```
+
+Optional custom local path:
+
+```powershell
+abyss data init --repo <private-data-git-url> --path C:\Users\violinapeng\Documents\abyss-data
+```
+
+Daily sync commands:
+
+```powershell
+abyss data status
+abyss data pull
+abyss data push -m "update active notes"
+```
+
+The local sync configuration is stored in `.local/data_sync.json`, which is ignored by Git and must not contain tokens, passwords, or private keys.
+
+The canonical structured rules live in `rules/sync.yaml`.
+
 ## Quick start
 
 Install once in editable mode so Abyss can be run from any directory:

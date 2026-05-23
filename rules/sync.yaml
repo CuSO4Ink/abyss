@@ -1,0 +1,77 @@
+{
+  "schema": "abyss.sync.v1",
+  "purpose": "Define the single-user, multi-device synchronization model for Abyss.",
+  "model": "separate_private_data_repository",
+  "repositories": {
+    "system_repository": {
+      "description": "The Abyss implementation repository containing code, rules, prompts, process templates, and architecture documentation.",
+      "contains": [
+        "abyss_cli/",
+        "rules/",
+        "prompts/",
+        "process structure",
+        "audit structure",
+        "architecture documentation"
+      ],
+      "must_not_contain": [
+        "real Obsidian notes",
+        "personal active knowledge",
+        "bulk archives",
+        "secrets or credentials"
+      ]
+    },
+    "data_repository": {
+      "description": "A separate private Git repository for the user's personal data layers.",
+      "default_local_path": "~/Documents/abyss-data",
+      "contains": [
+        "user_data/",
+        "storage/archive/",
+        "data-layer README files",
+        "provenance records in future versions"
+      ],
+      "visibility": "private_single_user",
+      "recommended_remote": "private Git repository controlled by the user"
+    }
+  },
+  "local_configuration": {
+    "path": ".local/data_sync.json",
+    "git_policy": "ignored_by_system_repository",
+    "contains": [
+      "data_repo_path",
+      "data_repo_url",
+      "branch",
+      "auto_pull_on_bootstrap"
+    ],
+    "must_not_contain": [
+      "tokens",
+      "passwords",
+      "private keys"
+    ]
+  },
+  "sync_flow": {
+    "first_device": [
+      "Create or choose a private data repository.",
+      "Run abyss data init --repo <data_repo_url>.",
+      "Use Obsidian against the data repository's user_data directory or a configured subfolder.",
+      "Run abyss data push to commit and push user data changes."
+    ],
+    "new_device": [
+      "Clone or install the Abyss system repository.",
+      "Run pip install -e <abyss_system_repo>.",
+      "Run abyss data init --repo <data_repo_url>.",
+      "Abyss clones/pulls the private data repository into the configured local path."
+    ],
+    "daily_use": [
+      "Run abyss data pull before using current knowledge on a device.",
+      "Work in Obsidian or through Abyss-generated projections.",
+      "Run abyss data push after meaningful changes."
+    ]
+  },
+  "constraints": [
+    "The system repository and data repository must remain independently cloneable.",
+    "The system repository must be safe to publish without personal notes.",
+    "The data repository may be private and single-user; Git synchronization is appropriate for this use case.",
+    "Abyss should never require the implementation layer to be exposed in the user's default information retrieval scope.",
+    "Storage material should still be promoted into user_data through focused, provenance-preserving outputs rather than exposed wholesale."
+  ]
+}
