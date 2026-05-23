@@ -8,6 +8,8 @@ from .audit import append_event
 from .harness import render_harness_json
 from .harness_review import parse_harness_review
 from .llm_executor import LLM_RESULTS_DIR, _provider_response, load_provider_config
+from .evolution import resolve_evolution_target
+from .evolution_analysis import parse_evolution_analysis
 from .result import ACTIONS_DIR
 from .utils import latest_record, new_id, now_iso, read_record, relative_to_repo, repo_root, resolve_record_arg, runtime_root, write_record
 
@@ -142,13 +144,99 @@ Return exactly one `abyss-harness-review` fenced block. Do not produce `abyss-ac
     return prompt_path, target_path, target_id
 
 
-def run_agent(agent_id: str, target: str = "latest", provider: str | None = None) -> tuple[dict[str, Any], dict[str, Any] | None]:
-    if agent_id != "harness":
-        raise SystemExit("Only harness agent is implemented in this MVP slice")
+def _build_self_evolution_agent_prompt(spec: dict[str, Any], target: str) -> tuple[Path, Path, str]:
+    target_path = resolve_evolution_target(target)
+    target_record = read_record(target_path)
+    target_id = str(target_record.get("id") or target_path.stem)
 
+    role_prompt_path = repo_root() / str(spec.get("role_prompt", ""))
+    role_prompt = _safe_read(role_prompt_path)
+    if not role_prompt.strip():
+        raise SystemExit(f"Self-evolution agent role prompt not found or empty: {role_prompt_path}")
+
+    agents_text = json.dumps(spec, ensure_ascii=False, indent=2)
+    roadmap_text = _safe_read(repo_root() / "ROADMAP.md", limit=8000)
+    constitution_text = _safe_read(repo_root() / "ABYSS_CONSTITUTION.md", limit=8000)
+    system_map_excerpt = _safe_read(repo_root() / "SYSTEM_MAP.md", limit=6000)
+
+    ppkg_id = new_id("ppkg_agent_self_evolution")
+    body = f"""# Abyss Agent Prompt Package
+
+- prompt_package_id: {ppkg_id}
+- agent_id: self_evolution
+- target_id: {target_id}
+- target_path: {relative_to_repo(target_path)}
+- created_at: {now_iso()}
+- executor: agent_cli_provider
+
+---
+
+## Agent registry spec
+
+```json
+{agents_text}
+```
+
+---
+
+## Agent role prompt
+
+{role_prompt}
+
+---
+
+## Target evolution record
+
+```json
+{json.dumps(target_record, ensure_ascii=False, indent=2)}
+```
+
+---
+
+## Roadmap snapshot
+
+```markdown
+{roadmap_text}
+```
+
+---
+
+## Constitution excerpt
+
+```markdown
+{constitution_text}
+```
+
+---
+
+## System map excerpt
+
+```markdown
+{system_map_excerpt}
+```
+
+---
+
+## Required output
+
+Return exactly one `abyss-evolution-analysis` fenced block. Do not produce `abyss-action` blocks. Do not claim that any action was executed.
+"""
+    AGENT_PROMPT_DIR.mkdir(parents=True, exist_ok=True)
+    prompt_path = AGENT_PROMPT_DIR / f"{ppkg_id}.md"
+    prompt_path.write_text(body, encoding="utf-8")
+    append_event("agent.prompt_package.created", "Built self-evolution agent prompt package", {"agent_id": "self_evolution", "target_id": target_id, "path": prompt_path.as_posix()})
+    return prompt_path, target_path, target_id
+
+
+def run_agent(agent_id: str, target: str = "latest", provider: str | None = None) -> tuple[dict[str, Any], dict[str, Any] | None]:
     spec = _agent_spec(agent_id)
     provider_name = provider or str(spec.get("provider") or "cli")
-    prompt_path, _target_path, target_id = _build_harness_agent_prompt(spec, target)
+    if agent_id == "harness":
+        prompt_path, _target_path, target_id = _build_harness_agent_prompt(spec, target)
+    elif agent_id == "self_evolution":
+        prompt_path, _target_path, target_id = _build_self_evolution_agent_prompt(spec, target)
+    else:
+        raise SystemExit(f"Agent is configured but not implemented: {agent_id}")
     prompt_text = prompt_path.read_text(encoding="utf-8")
 
     provider_config_root = load_provider_config()
@@ -181,6 +269,8 @@ def run_agent(agent_id: str, target: str = "latest", provider: str | None = None
     specialized_record = None
     if agent_id == "harness":
         specialized_record = parse_harness_review(response_text, target_id=target_id, agent_run_id=agent_run["id"], result_path=result_path)
+    elif agent_id == "self_evolution":
+        specialized_record = parse_evolution_analysis(response_text, target_id=target_id, agent_run_id=agent_run["id"], result_path=result_path)
 
     return agent_run, specialized_record
 

@@ -10,7 +10,13 @@ abyss prompt build latest --copy
 abyss llm run <prompt-package|latest> --provider cli
 abyss result import <response.md> --intent latest
 abyss agent run harness --target latest
+abyss agent run self_evolution --target latest
 abyss harness review latest
+abyss evolution request "<summary>" [--details "..."]
+abyss evolution list
+abyss evolution show [latest|id]
+abyss evolution propose <request>
+abyss evolution smoke --provider cli
 abyss review list
 abyss review approve <review>
 abyss review reject <review>
@@ -31,6 +37,7 @@ abyss data init|status|pull|push
 - `abyss_cli/review.py` — manages pending human reviews.
 - `abyss_cli/audit.py` — appends local runtime audit events.
 - `abyss_cli/data_sync.py` — connects the private GitHub data repository.
+- `abyss_cli/evolution.py` — records governed self-iteration requests, proposals, and LLM provider smoke tests.
 - `abyss_cli/integrity.py` — checks repository structure and safety invariants.
 
 ## Data flow
@@ -73,6 +80,10 @@ Runtime records are local machine state and do not belong in system Git.
 - `.local/runtime/process/reviews/`
 - `.local/runtime/process/agent_runs/`
 - `.local/runtime/process/harness_reviews/`
+- `.local/runtime/process/evolution_analyses/`
+- `.local/runtime/evolution/requests/`
+- `.local/runtime/evolution/proposals/`
+- `.local/runtime/evolution/smoke_tests/`
 - `.local/runtime/audit/audit.md`
 
 Future option:

@@ -33,6 +33,8 @@ Minimal implementation slice:
 - Ensure raw user requests do not automatically become approved roadmap items.
 - Ensure only explicitly approved items can become executable self-iteration targets.
 - Provide a way to list and inspect pending requests/proposals.
+- Provide a standard LLM-provider smoke test for the self-iteration chain.
+- Define a self-evolution Agent that can analyze and propose plans, but cannot execute, approve, mutate files, schedule work, or operate Git.
 - Preserve the transitional direct-modification rule until the user explicitly accepts the completed chain.
 
 Expected user-visible result: the user can express desired changes without the assistant immediately mutating system design, while still allowing approved items to progress through a controlled evolution path.

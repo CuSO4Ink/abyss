@@ -228,6 +228,26 @@ Example local API provider config:
 
 On this Windows machine, `.local/knot_cli_provider.py` adapts the standard stdin/stdout interface to `knot-cli chat -p`.
 
+## Governed self-iteration chain
+
+Abyss includes a minimal governed self-iteration intake path. It records user change requests separately from approved roadmap items, so raw conversation does not automatically become executable work.
+
+```powershell
+abyss evolution request "建立规范自我迭代链路" --details "raw user request details"
+abyss evolution list
+abyss evolution show latest
+abyss evolution propose latest
+abyss evolution smoke --provider cli
+```
+
+The smoke command uses the standard LLM provider interface only:
+
+```text
+Abyss Prompt / Prompt Package -> external LLM invocation interface -> model response text -> Abyss result record
+```
+
+It verifies that a real model can return text without producing action blocks or executing side effects.
+
 ## Pluggable Agent runner and HarnessAgent
 
 Abyss supports a minimal pluggable Agent runner. Agents are configured in `rules/agents.yaml`, use role prompts under `prompts/agents/`, and must follow the same controlled path:
@@ -244,6 +264,14 @@ abyss harness review latest
 ```
 
 HarnessAgent is not an executor. It cannot approve, reject, modify files, change policy, change prompts, send messages, or execute actions. It writes `abyss.harness_review.v1` records under `.local/runtime/process/harness_reviews/` and always preserves the `no_action_executed` boundary.
+
+Abyss also declares a `self_evolution` Agent for planning-only self-iteration analysis:
+
+```powershell
+abyss agent run self_evolution --target latest
+```
+
+The self-evolution Agent may analyze evolution requests and propose bounded plans. It cannot approve roadmap items, modify files, run commands, schedule work, send messages, or operate Git. Its `abyss-evolution-analysis` output is parsed into `.local/runtime/process/evolution_analyses/` and schema-contract warnings are recorded instead of being treated as authority.
 
 ## Action proposal format
 

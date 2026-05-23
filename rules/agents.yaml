@@ -31,6 +31,38 @@
         "modify_files",
         "send_external_message"
       ]
+    },
+    "self_evolution": {
+      "enabled": true,
+      "description": "Analyzes evolution requests and proposes bounded self-iteration plans without modifying files or approving work.",
+      "provider": "cli",
+      "role": "self_evolution_planning",
+      "role_prompt": "prompts/agents/self_evolution_agent.md",
+      "output_schema": "abyss.evolution_analysis.v1",
+      "input_scope": [
+        "evolution_request",
+        "roadmap_snapshot",
+        "system_map_excerpt",
+        "constitution_excerpt"
+      ],
+      "allowed": [
+        "read_prompt_package",
+        "analyze",
+        "summarize",
+        "propose_plan"
+      ],
+      "forbidden": [
+        "execute_action",
+        "approve_roadmap_item",
+        "reject_roadmap_item",
+        "modify_policy",
+        "modify_prompt",
+        "modify_files",
+        "send_external_message",
+        "schedule_work",
+        "run_commands",
+        "git_operation"
+      ]
     }
   }
 }

@@ -7,6 +7,7 @@ from . import __version__
 from .agent_runner import run_agent, run_harness_review
 from .audit import append_event
 from .data_sync import data_pull, data_push, data_status, init_data_repo
+from .evolution import create_change_request, create_proposal_from_request, list_evolution_records, record_to_json, run_evolution_smoke, show_evolution_record
 from .fsm import fsm_tick, fsm_watch
 from .harness import render_harness_json, render_harness_markdown
 from .integrity import run_checks
@@ -128,7 +129,10 @@ def cmd_agent_run(args: argparse.Namespace) -> None:
     print(f"agent run saved: {Path(agent_run['prompt_package']).relative_to(repo_root())}")
     print(f"result saved: {Path(agent_run['result_path']).relative_to(repo_root())}")
     if specialized:
-        print(f"{specialized['schema']} {specialized['id']} verdict={specialized['verdict']} risk={specialized['risk_level']}")
+        if specialized.get("schema") == "abyss.harness_review.v1":
+            print(f"{specialized['schema']} {specialized['id']} verdict={specialized['verdict']} risk={specialized['risk_level']}")
+        else:
+            print(f"{specialized['schema']} {specialized['id']} verdict={specialized.get('verdict')} contract_valid={specialized.get('contract_valid')}")
     print("agent produced review/report only; no action was executed")
 
 
@@ -154,6 +158,41 @@ def cmd_data_pull(_: argparse.Namespace) -> None:
 
 def cmd_data_push(args: argparse.Namespace) -> None:
     print(data_push(args.message))
+
+
+def cmd_evolution_request(args: argparse.Namespace) -> None:
+    record = create_change_request(args.summary, details=args.details or "")
+    print(record["id"])
+    print("status=inbox no_action_executed=True")
+
+
+def cmd_evolution_list(_: argparse.Namespace) -> None:
+    records = list_evolution_records()
+    if not records:
+        print("no evolution records")
+        return
+    for record in records:
+        print(f"{record['kind']} {record['id']} [{record['status']}] {record['summary']} ({record['path']})")
+
+
+def cmd_evolution_show(args: argparse.Namespace) -> None:
+    path, record = show_evolution_record(args.record)
+    print(f"path: {path.relative_to(repo_root())}")
+    print(record_to_json(record))
+
+
+def cmd_evolution_propose(args: argparse.Namespace) -> None:
+    proposal = create_proposal_from_request(args.request)
+    print(proposal["id"])
+    print("status=needs_user_decision implementation_allowed=False no_action_executed=True")
+
+
+def cmd_evolution_smoke(args: argparse.Namespace) -> None:
+    record = run_evolution_smoke(args.provider)
+    print(f"{record['id']} status={record['status']} provider={record['provider']}")
+    print(f"result: {Path(record['result_path']).relative_to(repo_root())}")
+    print(f"no_action_executed={record['no_action_executed']}")
+    raise SystemExit(0 if record["status"] == "passed" else 1)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -231,7 +270,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_agent = sub.add_parser("agent")
     agent_sub = p_agent.add_subparsers(required=True)
     p = agent_sub.add_parser("run")
-    p.add_argument("agent", choices=["harness"], help="agent id from rules/agents.yaml")
+    p.add_argument("agent", choices=["harness", "self_evolution"], help="agent id from rules/agents.yaml")
     p.add_argument("--target", default="latest", help="target record id, filename, prefix, or latest")
     p.add_argument("--provider", default=None, help="override provider configured for the agent")
     p.set_defaults(func=cmd_agent_run)
@@ -250,6 +289,24 @@ def build_parser() -> argparse.ArgumentParser:
     p = data_sub.add_parser("push")
     p.add_argument("-m", "--message", default="sync abyss data")
     p.set_defaults(func=cmd_data_push)
+
+    p_evolution = sub.add_parser("evolution")
+    evolution_sub = p_evolution.add_subparsers(required=True)
+    p = evolution_sub.add_parser("request")
+    p.add_argument("summary")
+    p.add_argument("--details", default="")
+    p.set_defaults(func=cmd_evolution_request)
+    p = evolution_sub.add_parser("list")
+    p.set_defaults(func=cmd_evolution_list)
+    p = evolution_sub.add_parser("show")
+    p.add_argument("record", nargs="?", default="latest", help="request/proposal id, filename, prefix, or latest")
+    p.set_defaults(func=cmd_evolution_show)
+    p = evolution_sub.add_parser("propose")
+    p.add_argument("request", help="request id, filename, prefix, or latest")
+    p.set_defaults(func=cmd_evolution_propose)
+    p = evolution_sub.add_parser("smoke")
+    p.add_argument("--provider", default="cli", help="standard LLM provider name")
+    p.set_defaults(func=cmd_evolution_smoke)
 
     return parser
 
