@@ -79,6 +79,12 @@ Future option:
 
 - `abyss-data/runtime/` for selected syncable runtime records.
 
+## Transitional collaboration mode
+
+Until the governed self-iteration chain is complete and explicitly accepted by the user, direct and timely human-assistant modification may continue only when the user explicitly authorizes the specific modification in the current conversation.
+
+This transition mode is a human collaboration rule, not an external interface permission. External interfaces still may only be used for unified standard LLM invocation.
+
 ## User data directories
 
 System repo keeps only placeholders/README files here.

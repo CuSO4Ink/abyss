@@ -10,9 +10,41 @@ No feature, capability, backlog item, implementation slice, self-evolution targe
 
 Approval must be item-by-item. A general discussion, assistant suggestion, architecture explanation, or inferred preference is not enough to add a roadmap item.
 
+## Transitional direct-modification mode
+
+Until the governed self-iteration chain is complete and explicitly accepted by the user, the current human-assistant collaboration may continue to use direct, timely modification mode when the user explicitly authorizes the specific modification in the current conversation.
+
+This transition rule does not weaken the P0 external interface boundary. External interfaces still may only be used for unified standard LLM invocation.
+
+Direct modification mode must end for ordinary system changes once the governed self-iteration chain is complete and the user confirms the transition.
+
 ## Approved roadmap items
 
-None.
+### R001. Governed self-iteration intake and evolution mechanism
+
+Purpose: replace ad-hoc direct system modification with a safer, explicit, staged self-iteration chain.
+
+Why it is needed: the current pattern where the assistant immediately modifies system files after conversational feedback is useful during bootstrapping, but becomes increasingly risky as the system grows. Abyss needs a native mechanism that separates raw user requests, normalized proposals, approved roadmap items, implementation slices, review, and completion evidence.
+
+Minimal implementation slice:
+
+- Define a native intake structure for user change requests.
+- Define proposal states such as inbox, normalized, proposed, needs_user_decision, approved, planned, implementing, reviewing, done, rejected, and deferred.
+- Ensure raw user requests do not automatically become approved roadmap items.
+- Ensure only explicitly approved items can become executable self-iteration targets.
+- Provide a way to list and inspect pending requests/proposals.
+- Preserve the transitional direct-modification rule until the user explicitly accepts the completed chain.
+
+Expected user-visible result: the user can express desired changes without the assistant immediately mutating system design, while still allowing approved items to progress through a controlled evolution path.
+
+Risk level: L2.
+
+Acceptance check:
+
+- A new user change request can be recorded without becoming executable by default.
+- A proposal can be inspected before approval.
+- Only user-approved items can enter the executable roadmap.
+- The system documentation clearly distinguishes transitional direct modification from the final governed self-iteration mechanism.
 
 ## Pending proposals
 

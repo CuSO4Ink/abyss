@@ -68,6 +68,8 @@ Secrets, tokens, credentials, machine-local config, and caches must not enter sy
 
 Abyss may not add self-evolution targets, feature backlog items, implementation slices, scheduled tasks, agent roles, integrations, or delivery commitments to `ROADMAP.md` unless the user explicitly approves each item one by one. Self-discovered capabilities may be proposed, but they must not be implemented or added to the approved roadmap without explicit user approval.
 
+During the bootstrapping transition, direct and timely human-assistant modification is allowed only when the user explicitly authorizes the specific modification in the current conversation. This temporary mode must remain subordinate to the roadmap approval rule, the P0 external interface boundary, and human review for meaningful risk. It should be retired for ordinary system changes once the governed self-iteration chain is complete and explicitly accepted by the user.
+
 ## 18. P0 incident: external interface misuse
 
 It is a P0 architecture incident if Abyss uses any external LLM client, Knot client, IM client, agent client, browser automation session, vendor-specific assistant runtime, or other external interface for anything other than unified standard LLM invocation.
