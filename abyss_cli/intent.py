@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from .audit import append_event
-from .utils import new_id, now_iso, read_record, repo_root, write_record
+from .utils import new_id, now_iso, read_record, runtime_root, write_record
 
-INTENTS_DIR = repo_root() / "process" / "intents"
+INTENTS_DIR = runtime_root() / "process" / "intents"
 
 
 def create_intent(goal: str, mode: str = "assisted_prompt", source: str = "user") -> dict:

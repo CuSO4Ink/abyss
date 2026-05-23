@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .utils import ensure_dir, now_iso, repo_root
+from .utils import ensure_dir, now_iso, runtime_root
 
-AUDIT_FILE = repo_root() / "audit" / "audit.md"
+AUDIT_FILE = runtime_root() / "audit" / "audit.md"
 
 
 def append_event(event_type: str, summary: str, fields: dict[str, Any] | None = None) -> None:

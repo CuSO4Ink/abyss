@@ -16,36 +16,64 @@
     "L4": "review",
     "L5": "deny"
   },
-  "safe_create_prefixes": [
-    "artifacts/drafts/",
-    "process/imports/"
-  ],
-  "sensitive_patterns": [
-    ".env",
-    "secret",
-    "secrets",
-    "token",
-    "credential",
-    "credentials",
-    "id_rsa",
-    "id_ed25519",
-    ".pem",
-    ".key"
-  ],
-  "review_capabilities": [
-    "fs.modify",
-    "fs.overwrite",
-    "git.commit",
-    "git.push",
-    "outbound.message",
-    "policy.change",
-    "prompt.change",
-    "memory.write"
-  ],
-  "deny_capabilities": [
-    "secret.read",
-    "credential.export",
-    "fs.delete.system",
-    "network.untrusted_write"
-  ]
+  "path_constraints": {
+    "deny_absolute_or_repo_escape": true,
+    "sensitive_patterns": [
+      ".env",
+      "secret",
+      "secrets",
+      "token",
+      "credential",
+      "credentials",
+      "id_rsa",
+      "id_ed25519",
+      ".pem",
+      ".key"
+    ],
+    "safe_create_prefixes": [
+      "artifacts/drafts/",
+      ".local/runtime/process/imports/"
+    ]
+  },
+  "capabilities": {
+    "deny": [
+      "secret.read",
+      "credential.export",
+      "fs.delete.system",
+      "network.untrusted_write"
+    ],
+    "review_l4": [
+      "git.commit",
+      "git.push",
+      "outbound.message"
+    ],
+    "review_l3": [
+      "fs.modify",
+      "fs.overwrite",
+      "policy.change",
+      "prompt.change",
+      "memory.write"
+    ],
+    "allow_l0": [
+      "summarize",
+      "reason",
+      "prompt.build"
+    ],
+    "allow_l1": [
+      "fs.read",
+      "git.diff",
+      "git.status"
+    ]
+  },
+  "write_rules": {
+    "fs.write": {
+      "safe_operations": [
+        "create",
+        "append"
+      ],
+      "safe_prefix_risk": "L2",
+      "outside_safe_prefix_risk": "L3"
+    }
+  },
+  "default_risk": "L3"
 }

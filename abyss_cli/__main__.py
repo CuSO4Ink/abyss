@@ -10,7 +10,7 @@ from .integrity import run_checks
 from .intent import INTENTS_DIR, create_intent
 from .prompt_builder import build_prompt
 from .result import import_result
-from .review import pending_reviews, set_review_status
+from .review import REVIEWS_DIR, pending_reviews, set_review_status
 from .utils import latest_record, read_record, repo_root, resolve_record_arg, run_git
 
 
@@ -23,7 +23,8 @@ def cmd_status(_: argparse.Namespace) -> None:
 def cmd_intent_new(args: argparse.Namespace) -> None:
     record = create_intent(args.goal, mode=args.mode)
     print(record["id"])
-    print(f"created: process/intents/{record['id']}.yaml")
+    path = INTENTS_DIR / f"{record['id']}.yaml"
+    print(f"created: {path.relative_to(repo_root())}")
 
 
 def cmd_intent_list(_: argparse.Namespace) -> None:
@@ -69,7 +70,7 @@ def cmd_review_list(_: argparse.Namespace) -> None:
 
 
 def _resolve_review(value: str) -> Path:
-    return resolve_record_arg(repo_root() / "process" / "reviews", value, "rev")
+    return resolve_record_arg(REVIEWS_DIR, value, "rev")
 
 
 def cmd_review_approve(args: argparse.Namespace) -> None:

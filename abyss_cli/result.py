@@ -5,11 +5,11 @@ from pathlib import Path
 
 from .audit import append_event
 from .policy import classify_action
-from .utils import new_id, now_iso, read_record, repo_root, write_record
+from .utils import new_id, now_iso, read_record, runtime_root, write_record
 
-ACTIONS_DIR = repo_root() / "process" / "actions"
-REVIEWS_DIR = repo_root() / "process" / "reviews"
-IMPORTS_DIR = repo_root() / "process" / "imports"
+ACTIONS_DIR = runtime_root() / "process" / "actions"
+REVIEWS_DIR = runtime_root() / "process" / "reviews"
+IMPORTS_DIR = runtime_root() / "process" / "imports"
 
 ACTION_BLOCK_RE = re.compile(r"```abyss-action\s*(.*?)```", re.DOTALL | re.IGNORECASE)
 

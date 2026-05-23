@@ -3,10 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from .audit import append_event
-from .utils import list_records, read_record, repo_root, write_record
+from .utils import list_records, read_record, runtime_root, write_record
 
-REVIEWS_DIR = repo_root() / "process" / "reviews"
-ACTIONS_DIR = repo_root() / "process" / "actions"
+REVIEWS_DIR = runtime_root() / "process" / "reviews"
+ACTIONS_DIR = runtime_root() / "process" / "actions"
 
 
 def pending_reviews() -> list[tuple[Path, dict]]:

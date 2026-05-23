@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from .audit import append_event
-from .utils import copy_to_clipboard, new_id, now_iso, read_record, repo_root, run_git
+from .utils import copy_to_clipboard, new_id, now_iso, read_record, repo_root, run_git, runtime_root
 
-PROMPT_DIR = repo_root() / "process" / "prompt_packages"
+PROMPT_DIR = runtime_root() / "process" / "prompt_packages"
 BASE_PROMPT = repo_root() / "prompts" / "system" / "base.md"
 GIT_MODE_PROMPT = repo_root() / "prompts" / "modes" / "git_diff_summary.md"
 

@@ -15,6 +15,10 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+def runtime_root() -> Path:
+    return repo_root() / ".local" / "runtime"
+
+
 def now_iso() -> str:
     return datetime.now(BJ_TZ).replace(microsecond=0).isoformat()
 

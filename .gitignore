@@ -1,5 +1,13 @@
-# Local machine state
+# Local machine state and runtime records
 .local/
+
+# Runtime records must not enter the system repository
+process/**
+!process/
+!process/**/
+!process/**/.gitkeep
+audit/audit.md
+!audit/README.md
 
 # Personal knowledge and archive data
 user_data/*
