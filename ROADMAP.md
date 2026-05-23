@@ -254,9 +254,10 @@ Roadmap backlog / self-inspection
 1. Prefer the user-authored roadmap backlog first.
 2. Pick the first high-value slice that is small, testable, and not blocked.
 3. If the backlog has no executable item, run self-inspection to discover a new suitable capability.
-4. Convert discovered capabilities into `EvolutionProposal` records before implementation unless they are trivial documentation/check updates.
-5. Execute at most one bounded slice per scheduled run.
-6. Stop and notify the user if the slice requires credentials, broad refactors, destructive migration, production access, or ambiguous product judgment.
+4. Capabilities discovered by self-inspection but not already listed in the roadmap backlog must be recorded as `EvolutionProposal` only.
+5. A non-backlog `EvolutionProposal` must receive explicit user approval before any real implementation work starts.
+6. Execute at most one bounded backlog slice per scheduled run.
+7. Stop and notify the user if the slice requires credentials, broad refactors, destructive migration, production access, or ambiguous product judgment.
 
 ### Evolution principles
 
@@ -272,7 +273,7 @@ Roadmap backlog / self-inspection
 
 A scheduled FSM evolution run may only complete an implementation if all gates pass:
 
-1. **Scope gate** — selected work maps to one roadmap item or one recorded evolution proposal.
+1. **Scope gate** — selected implementation work must map to one roadmap backlog item. A self-discovered non-backlog proposal cannot be implemented until explicitly approved by the user and added/marked as approved.
 2. **Risk gate** — estimated risk is L0-L3. L4-L5 require explicit user intervention.
 3. **Change gate** — changes are bounded to the Abyss system repository, unless the roadmap item explicitly targets a local runtime-only record.
 4. **Check gate** — `python -m abyss_cli check` and relevant compile/tests pass.
@@ -316,8 +317,11 @@ proposed_capabilities:
     acceptance_checks:
       - string
 selected_slice:
-  roadmap_id: A2
+  roadmap_id: A2 | null
   title: string
+  source: roadmap_backlog | self_discovered
+  user_approval_required: true | false
+  user_approval_status: not_required | pending | approved | rejected
   execution_mode: propose_only | implement_bounded | needs_user_decision
   reason: string
 blocked_by:
@@ -336,7 +340,7 @@ Default cadence is low-frequency but continuous:
 - Run once per day at a fixed configured time.
 - Each run should attempt to evolve one bounded capability slice.
 - Prefer delivering a concrete, user-visible function increment over producing only a proposal.
-- If no safe executable slice exists, deliver an `EvolutionProposal` explaining why implementation was skipped and what should be considered next.
+- If no safe executable roadmap slice exists, deliver an `EvolutionProposal` explaining the self-discovered capability and wait for explicit user approval before implementation.
 - Never run more frequently than hourly.
 - Prefer daytime local time.
 
@@ -354,7 +358,7 @@ Daily delivery output should include:
 Recommended prompt for scheduled run:
 
 ```text
-Run today's Abyss controlled self-evolution cycle. Prefer the next executable item from ROADMAP.md and attempt to deliver one bounded, user-visible capability increment. If no roadmap item is executable, inspect the system for one suitable evolution capability and record it as an EvolutionProposal. Execute at most one bounded slice only if it passes scope/risk/check/HarnessAgent gates. Do not perform destructive actions, credential work, broad refactors, production access, or unreviewed external side effects. Commit and push focused successful repository changes when checks pass. At the end, deliver the evolved function back to the user: summarize what changed, files changed, checks, HarnessAgent result, commit hash, push status, verification command, and any risks or blockers. You must use the notify mechanism to proactively inform the user of success or exception.
+Run today's Abyss controlled self-evolution cycle. Prefer the next executable item from ROADMAP.md and attempt to deliver one bounded, user-visible capability increment. If no roadmap item is executable, inspect the system for one suitable evolution capability and record it as an EvolutionProposal only; do not implement self-discovered non-backlog capabilities until the user explicitly approves them. Execute at most one bounded roadmap slice only if it passes scope/risk/check/HarnessAgent gates. Do not perform destructive actions, credential work, broad refactors, production access, or unreviewed external side effects. Commit and push focused successful repository changes when checks pass. At the end, deliver the evolved function or pending approval proposal back to the user: summarize what changed or what is proposed, files changed, checks, HarnessAgent result, commit hash, push status, verification command when applicable, and any risks or blockers. You must use the notify mechanism to proactively inform the user of success or exception.
 ```
 
 ## Near-term priority order
