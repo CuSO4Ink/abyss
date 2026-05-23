@@ -45,6 +45,62 @@ Non-goals for the current stage:
 
 ## Track A: Feature iteration backlog
 
+### A0. P0: Native Evolution Runner and external-client decoupling
+
+Goal: remove any dependency on external RM/Knot/IM/agent clients for Abyss core self-evolution.
+
+Problem:
+
+- External clients may currently be convenient for scheduling, notification, or provider access.
+- They must not become the place where Abyss stores or executes its core FSM/self-evolution logic.
+- If Abyss self-evolution only works because an external client provides hidden tools, file mutation, scheduling, approval, memory, or execution authority, the architecture is invalid.
+
+Required design:
+
+```text
+OS scheduler or manual command
+  -> python -m abyss_cli evolution run --scheduled
+  -> Abyss-native roadmap selection / proposal approval check
+  -> Abyss-native bounded implementation workflow
+  -> deterministic checks
+  -> HarnessAgent review through declared provider interface
+  -> audit + Git evidence
+  -> notification through optional channel
+```
+
+Allowed external roles:
+
+- Optional trigger.
+- Optional notification channel.
+- Optional LLM/provider interface declared in config.
+- Optional human interaction surface.
+
+Forbidden external roles:
+
+- Required FSM state owner.
+- Required self-evolution executor.
+- Required file mutation tool.
+- Required approval authority.
+- Required audit source of truth.
+- Required scheduler for correctness.
+- Hidden dependency for Harness or policy decisions.
+
+Deliverables:
+
+- Add native `abyss evolution run --scheduled` command.
+- Add `abyss evolution list/show/approve` or equivalent record inspection commands.
+- Store evolution records under `.local/runtime/evolution/`.
+- Move daily evolution instructions from external-client prompt text into Abyss code/docs/config.
+- Replace external-client-dependent daily task with either OS scheduler invoking Abyss CLI, or a minimal external trigger that only calls the native command.
+
+Acceptance:
+
+```powershell
+python -m abyss_cli evolution run --scheduled --dry-run
+python -m abyss_cli evolution list
+python -m abyss_cli check
+```
+
 ### A1. Roadmap and evolution records
 
 Goal: make system planning itself auditable.
@@ -363,6 +419,7 @@ Run today's Abyss controlled self-evolution cycle. Prefer the next executable it
 
 ## Near-term priority order
 
+0. A0 P0: Native Evolution Runner and external-client decoupling.
 1. A1 Roadmap and evolution records.
 2. A2 Event Source abstraction.
 3. A3 Note request scanner.
@@ -375,13 +432,22 @@ Run today's Abyss controlled self-evolution cycle. Prefer the next executable it
 
 ## Immediate next slice recommendation
 
-The next implementation slice should be **A2 Event Source abstraction**, because it prevents note scanning, remote IM commands, chat logs, web digests, and build logs from becoming separate incompatible pipelines.
+The next implementation slice must be **A0 P0: Native Evolution Runner and external-client decoupling**.
+
+Reason:
+
+- Daily self-evolution is a core Abyss capability.
+- Core Abyss capability must not depend on an external RM/Knot/IM/agent client runtime.
+- The current scheduled reminder can exist only as a temporary external trigger, not as the owner of the evolution workflow.
 
 Minimum slice:
 
-- Add `abyss_cli/event_source.py`.
-- Add local runtime directory `.local/runtime/events/`.
-- Add `abyss event import --type manual --payload <file>` or equivalent.
-- Convert one event into one Intent.
+- Add `abyss_cli/evolution.py`.
+- Add CLI entry for `abyss evolution run --scheduled --dry-run`.
+- Add `abyss evolution list` and `abyss evolution show latest` if small enough for the slice.
+- Add local runtime directory `.local/runtime/evolution/`.
+- Implement roadmap-backed slice selection in dry-run mode first.
+- Enforce: roadmap-listed items may be selected for implementation; self-discovered non-backlog items require user approval before implementation.
 - Add docs and `python -m abyss_cli check` coverage.
+- Update or replace the external scheduled task so it only triggers the native command and does not contain the workflow logic.
 

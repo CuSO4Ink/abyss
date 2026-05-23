@@ -64,6 +64,12 @@ The audit log records intents, prompt packages, proposals, decisions, reviews, a
 
 Secrets, tokens, credentials, machine-local config, and caches must not enter syncable Git data.
 
-## 17. Self-evolution is proposal-only
+## 17. Self-evolution is native, harnessed, and backlog-bound
 
-Abyss may propose changes to prompts, policies, or its own architecture, but active policy changes require human approval.
+Abyss may evolve itself only through native Abyss-controlled mechanisms: roadmap backlog selection, structured evolution records, deterministic checks, Harness / HarnessAgent review, audit evidence, and Git evidence. Backlog-listed bounded implementation slices may be executed through the governed path. Self-discovered non-backlog capabilities must remain proposals until the user explicitly approves them. Active policy changes always require human approval.
+
+## 18. P0 incident: external client dependency
+
+It is a P0 architecture incident if Abyss depends on an external RM client, IM client, agent client, browser automation session, or vendor-specific assistant runtime as part of its core system operation. External clients may be optional triggers, notification channels, LLM providers, or human interaction surfaces, but they must never be required dependencies for the FSM, self-evolution runner, Harness, policy gate, audit trail, state transition, Git evidence, or execution authority.
+
+A valid Abyss core workflow must be runnable from the Abyss repository and its declared local/runtime configuration using standard OS, Python, Git, and explicitly configured provider interfaces. If a workflow only works because an external RM/Knot client supplies hidden tools, scheduling, memory, file mutation, approval, or execution authority, that workflow is invalid and must be redesigned as a native Abyss capability.
