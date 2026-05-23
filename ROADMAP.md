@@ -3,7 +3,7 @@
 Abyss is a harness-first personal AI orchestration system. This roadmap separates two tracks:
 
 1. **Feature iteration backlog** — user-visible capabilities that can be implemented as explicit slices.
-2. **FSM-driven evolution loop** — low-frequency self-inspection that proposes system evolution, but never executes changes automatically.
+2. **FSM-driven evolution loop** — low-frequency controlled self-evolution that may execute bounded implementation slices, but only through the Harness / HarnessAgent review path.
 
 ## Current baseline
 
@@ -38,7 +38,7 @@ Available components:
 
 Non-goals for the current stage:
 
-- No autonomous execution of action proposals.
+- No autonomous execution that bypasses Harness policy, HarnessAgent review, audit, and Git evidence.
 - No automatic approval/rejection by agents.
 - No direct mutation of user data without explicit review path.
 - No hidden provider credentials in tracked files.
@@ -235,16 +235,50 @@ Acceptance:
 
 ## Track B: FSM-driven evolution loop
 
-The FSM may propose system evolution, but it must not implement it automatically.
+The FSM is allowed to evolve the system by executing bounded implementation slices. It is not merely a suggestion generator. However, every self-evolution run must remain inside the Abyss control path:
+
+```text
+Roadmap backlog / self-inspection
+  -> select one bounded slice
+  -> build implementation prompt/package or local task plan
+  -> execute bounded code/doc changes
+  -> run deterministic checks
+  -> generate ActionProposal / change summary
+  -> HarnessAgent review
+  -> audit + Git evidence
+  -> notify user
+```
+
+### Evolution selection policy
+
+1. Prefer the user-authored roadmap backlog first.
+2. Pick the first high-value slice that is small, testable, and not blocked.
+3. If the backlog has no executable item, run self-inspection to discover a new suitable capability.
+4. Convert discovered capabilities into `EvolutionProposal` records before implementation unless they are trivial documentation/check updates.
+5. Execute at most one bounded slice per scheduled run.
+6. Stop and notify the user if the slice requires credentials, broad refactors, destructive migration, production access, or ambiguous product judgment.
 
 ### Evolution principles
 
 1. Observe only local, allowed state.
 2. Prefer deterministic checks before LLM calls.
-3. Use LLM/Agent only to produce proposals or reports.
-4. Write every proposal as an auditable local record.
-5. Route any implementation through normal review and Git workflow.
+3. LLM/Agent may plan, review, and generate bounded implementation material, but must not bypass Harness.
+4. Write every proposal, selected slice, check result, HarnessAgent review, and Git commit id as auditable local records.
+5. Route implementation through normal test/check/Git workflow.
 6. Notify the user on completion or failure when the run is long or scheduled.
+7. Do not execute external side effects beyond the scoped repository workflow unless that capability is explicitly allowed by policy and reviewed.
+
+### Mandatory gates for self-execution
+
+A scheduled FSM evolution run may only complete an implementation if all gates pass:
+
+1. **Scope gate** — selected work maps to one roadmap item or one recorded evolution proposal.
+2. **Risk gate** — estimated risk is L0-L3. L4-L5 require explicit user intervention.
+3. **Change gate** — changes are bounded to the Abyss system repository, unless the roadmap item explicitly targets a local runtime-only record.
+4. **Check gate** — `python -m abyss_cli check` and relevant compile/tests pass.
+5. **HarnessAgent gate** — generated proposal/change summary is reviewed by HarnessAgent.
+6. **Git gate** — successful code/doc changes are committed with a focused message; push may occur only if the scheduled task policy explicitly allows pushing.
+7. **Notify gate** — success/failure summary is sent to the user.
 
 ### Evolution check inputs
 
@@ -281,10 +315,18 @@ proposed_capabilities:
     suggested_slice: string
     acceptance_checks:
       - string
+selected_slice:
+  roadmap_id: A2
+  title: string
+  execution_mode: propose_only | implement_bounded | needs_user_decision
+  reason: string
 blocked_by:
   - string
-recommendation: defer | plan | implement_next | needs_user_decision
-no_action_executed: true
+harness_agent_review:
+  required: true
+  status: pending | passed | warning | violation
+recommendation: defer | plan | implement_next | implemented | needs_user_decision
+no_unreviewed_external_side_effects: true
 ```
 
 ### Suggested scheduled cadence
@@ -298,7 +340,7 @@ Default cadence should be low frequency:
 Recommended prompt for scheduled run:
 
 ```text
-Run an Abyss evolution check. Inspect the current repository state and recent local runtime metadata. Produce a concise evolution proposal list only. Do not modify code. Do not execute actions. Use the notify mechanism to proactively inform the user of success or exception.
+Run an Abyss controlled evolution cycle. Prefer the next executable item from ROADMAP.md. If no roadmap item is executable, inspect the system for one suitable evolution capability and record it as an EvolutionProposal. Execute at most one bounded slice only if it passes scope/risk/check/HarnessAgent gates. Do not perform destructive actions, credential work, broad refactors, production access, or unreviewed external side effects. Commit focused successful repository changes if allowed by the scheduled task policy. Use the notify mechanism to proactively inform the user of success or exception.
 ```
 
 ## Near-term priority order
