@@ -7,6 +7,7 @@ abyss status
 abyss intent new "<goal>"
 abyss intent list
 abyss prompt build latest --copy
+abyss llm run <prompt-package|latest> --provider mock|cli
 abyss result import <response.md> --intent latest
 abyss review list
 abyss review approve <review>
@@ -20,6 +21,7 @@ abyss data init|status|pull|push
 - `abyss_cli/__main__.py` — CLI routing and command handlers.
 - `abyss_cli/intent.py` — creates structured Intents.
 - `abyss_cli/prompt_builder.py` — builds Prompt Packages from intents and context.
+- `abyss_cli/llm_executor.py` — optional LLM Executor; writes result files, then imports them.
 - `abyss_cli/result.py` — imports LLM output and extracts action proposals.
 - `abyss_cli/policy.py` — interprets `rules/policy.yaml`; no independent policy truth.
 - `abyss_cli/review.py` — manages pending human reviews.
@@ -33,7 +35,8 @@ abyss data init|status|pull|push
 user goal
   -> intent record
   -> prompt package
-  -> manual LLM response
+  -> manual LLM response OR optional llm executor
+  -> result file
   -> result import
   -> action proposal
   -> policy decision from rules/policy.yaml
@@ -44,7 +47,7 @@ user goal
 ## System directories
 
 - `abyss_cli/` — implementation code.
-- `rules/` — rule truth sources; especially `rules/policy.yaml`.
+- `rules/` — rule truth sources; especially `rules/policy.yaml` and `rules/llm_providers.yaml`.
 - `prompts/` — system and mode prompt templates.
 - `artifacts/drafts/` — low-risk generated drafts.
 - `process/*/.gitkeep` — process directory skeleton only.
@@ -57,6 +60,7 @@ Runtime records are local machine state and do not belong in system Git.
 
 - `.local/runtime/process/intents/`
 - `.local/runtime/process/prompt_packages/`
+- `.local/runtime/process/llm_results/`
 - `.local/runtime/process/imports/`
 - `.local/runtime/process/actions/`
 - `.local/runtime/process/reviews/`
@@ -83,6 +87,8 @@ Real synced user data lives in the private GitHub data repo.
 - Do not commit real `process/*` runtime records to the system repo.
 - Do not commit `audit/audit.md` to the system repo.
 - Do not duplicate policy logic between `policy.py` and `rules/policy.yaml`.
+- Do not hardcode LLM provider secrets; use environment variables or `.local/`.
+- Do not auto-execute action proposals from LLM Executor output.
 - Do not put secrets, tokens, credentials, keys, or local caches in Git.
 - Do not expose implementation or archive layers in default user retrieval.
 - Do not put real Obsidian notes or bulk archives into the system repo.

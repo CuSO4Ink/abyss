@@ -8,6 +8,7 @@ from .audit import append_event
 from .data_sync import data_pull, data_push, data_status, init_data_repo
 from .integrity import run_checks
 from .intent import INTENTS_DIR, create_intent
+from .llm_executor import run_llm
 from .prompt_builder import build_prompt
 from .result import import_result
 from .review import REVIEWS_DIR, pending_reviews, set_review_status
@@ -58,6 +59,15 @@ def cmd_result_import(args: argparse.Namespace) -> None:
     print(f"imported result; action proposals found: {len(proposals)}")
     for proposal in proposals:
         print(f"- {proposal['id']} {proposal['policy']['risk']} {proposal['policy']['decision']} {proposal.get('capability')} {proposal.get('path')}")
+
+
+def cmd_llm_run(args: argparse.Namespace) -> None:
+    result_path, proposals = run_llm(args.prompt_package, args.provider)
+    print(f"result saved: {result_path.relative_to(repo_root())}")
+    print(f"imported result; action proposals found: {len(proposals)}")
+    for proposal in proposals:
+        print(f"- {proposal['id']} {proposal['policy']['risk']} {proposal['policy']['decision']} {proposal.get('capability')} {proposal.get('path')}")
+    print("actions were proposed/imported only; no action was executed")
 
 
 def cmd_review_list(_: argparse.Namespace) -> None:
@@ -138,6 +148,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("path")
     p.add_argument("--intent", default=None, help="intent id, filename, prefix, or latest")
     p.set_defaults(func=cmd_result_import)
+
+    p_llm = sub.add_parser("llm")
+    llm_sub = p_llm.add_subparsers(required=True)
+    p = llm_sub.add_parser("run")
+    p.add_argument("prompt_package", help="prompt package id, filename, path, prefix, or latest")
+    p.add_argument("--provider", required=True, choices=["mock", "cli"])
+    p.set_defaults(func=cmd_llm_run)
 
     p_review = sub.add_parser("review")
     review_sub = p_review.add_subparsers(required=True)

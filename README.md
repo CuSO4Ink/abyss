@@ -6,19 +6,20 @@ Abyss MVP is a local, CLI-first orchestration layer. It turns user intent into s
 
 ## MVP scope
 
-This MVP intentionally does **not** implement a full chat UI, background agent, automatic API executor, or automatic external side effects.
+This MVP intentionally does **not** implement a full chat UI, background agent, automatic action executor, or automatic external side effects.
 
 It focuses on:
 
 1. Intent creation
 2. Prompt Package generation
 3. Manual Client Executor workflow
-4. LLM result import
-5. Action Proposal parsing
-6. Harness policy decisions
-7. Review queue
-8. Audit trail
-9. Integrity checks
+4. Optional LLM Executor provider workflow
+5. LLM result import
+6. Action Proposal parsing
+7. Harness policy decisions
+8. Review queue
+9. Audit trail
+10. Integrity checks
 
 ## Design principles
 
@@ -121,6 +122,43 @@ python -m abyss_cli result import path\to\response.md --intent latest
 ```
 
 If the response contains action proposals, Abyss parses them into `process/actions/` and runs the Harness policy gate.
+
+## Optional LLM Executor
+
+Abyss also provides a thin LLM Executor layer for running a built Prompt Package through a configured provider:
+
+```powershell
+abyss llm run latest --provider mock
+abyss llm run <prompt-package> --provider cli
+```
+
+This does not change the Intent / Prompt Package / Result Import flow. The executor always performs this sequence:
+
+```text
+Prompt Package -> provider text output -> saved result file -> existing import_result -> Action Proposal records
+```
+
+The executor stops at Action Proposal import. It never executes actions automatically.
+
+Providers:
+
+- `mock` — deterministic offline provider for testing the pipeline.
+- `cli` — generic CLI provider. The configured command receives the prompt package on stdin and must write the LLM response to stdout.
+
+Provider defaults live in `rules/llm_providers.yaml`. Machine-local overrides live in `.local/llm_providers.json`, which is ignored by Git. Do not hardcode tokens, passwords, API keys, or private credentials in tracked files; use environment variables or local config controlled by the user.
+
+Example local CLI provider config:
+
+```json
+{
+  "providers": {
+    "cli": {
+      "command": ["your-llm-cli", "--model", "your-model"],
+      "timeout_seconds": 120
+    }
+  }
+}
+```
 
 ## Action proposal format
 

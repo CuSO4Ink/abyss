@@ -1,0 +1,25 @@
+{
+  "schema": "abyss.llm_providers.v1",
+  "purpose": "Configure local LLM executor providers without embedding secrets.",
+  "local_override_path": ".local/llm_providers.json",
+  "providers": {
+    "mock": {
+      "enabled": true,
+      "description": "Deterministic offline provider for testing the executor/import pipeline."
+    },
+    "cli": {
+      "enabled": true,
+      "description": "Generic CLI provider. The command reads the prompt package from stdin and writes the LLM response to stdout.",
+      "command": [],
+      "timeout_seconds": 120
+    }
+  },
+  "security": {
+    "no_hardcoded_secrets": true,
+    "secret_sources": [
+      "environment variables controlled by the user",
+      ".local/llm_providers.json ignored by Git"
+    ],
+    "executor_boundary": "Providers may produce text and action proposals only. Abyss imports proposals through the existing result pipeline and never executes actions automatically."
+  }
+}
