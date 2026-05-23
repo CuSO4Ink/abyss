@@ -38,6 +38,53 @@ def _run_git_global(args: list[str], allow_fail: bool = False) -> str:
     return (proc.stdout or proc.stderr).strip()
 
 
+def _remote_branch_exists(repo_url: str, branch: str) -> bool:
+    proc = subprocess.run(
+        ["git", "ls-remote", "--heads", repo_url, branch],
+        text=True,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if proc.returncode != 0:
+        raise SystemExit(proc.stderr.strip() or proc.stdout.strip() or f"git ls-remote failed: {repo_url}")
+    return bool(proc.stdout.strip())
+
+
+def _has_any_commit(repo: Path) -> bool:
+    _run_git(repo, ["rev-parse", "--verify", "HEAD"], allow_fail=True)
+    output = _run_git(repo, ["rev-list", "--count", "--all"], allow_fail=True)
+    return output.strip() not in {"", "0"}
+
+
+def _ensure_data_structure(data_path: Path) -> None:
+    ensure_dir(data_path / "user_data")
+    ensure_dir(data_path / "storage" / "archive")
+
+    files = {
+        "README.md": "# Abyss Data\n\nPrivate user data repository for Abyss.\n\n- `user_data/`: active Obsidian-facing knowledge surface.\n- `storage/archive/`: dormant archived material, hidden from default retrieval.\n",
+        "user_data/README.md": "# User Data\n\nActive Obsidian-facing notes, current directions, working summaries, and decision records.\n",
+        "storage/README.md": "# Storage\n\nHidden-by-default storage layer for inactive or bulky material.\n",
+        "storage/archive/README.md": "# Archive\n\nLong-term archived material. Promote focused excerpts into `user_data/` when needed.\n",
+    }
+    for rel, content in files.items():
+        path = data_path / rel
+        if not path.exists():
+            path.write_text(content, encoding="utf-8")
+
+
+def _ensure_initial_commit(data_path: Path, branch: str) -> str | None:
+    _run_git(data_path, ["checkout", "-B", branch])
+    _ensure_data_structure(data_path)
+    _run_git(data_path, ["add", "README.md", "user_data", "storage"])
+    staged = _run_git(data_path, ["diff", "--cached", "--name-only"], allow_fail=True)
+    if staged:
+        _run_git(data_path, ["commit", "-m", "initialize abyss data repository"])
+    if _has_any_commit(data_path):
+        return _run_git(data_path, ["push", "-u", "origin", branch])
+    return None
+
+
 def load_config() -> dict:
     if not CONFIG_PATH.exists():
         raise SystemExit("Data sync is not configured. Run: abyss data init")
@@ -67,17 +114,25 @@ def init_data_repo(repo_url: str | None = None, path: str | None = None, branch:
 
     if data_path.exists() and (data_path / ".git").exists():
         _run_git(data_path, ["fetch", "--all", "--prune"], allow_fail=True)
+        _run_git(data_path, ["checkout", branch], allow_fail=True)
         _run_git(data_path, ["pull", "--ff-only"], allow_fail=True)
+        if not _has_any_commit(data_path):
+            _ensure_initial_commit(data_path, branch)
+        else:
+            _ensure_data_structure(data_path)
         action = "configured_existing_repo"
     elif data_path.exists() and any(data_path.iterdir()):
         raise SystemExit(f"Data path exists and is not empty: {data_path}")
     else:
         ensure_dir(data_path.parent)
-        _run_git_global(["clone", "--branch", branch, repo_url, str(data_path)])
-        action = "cloned_repo"
-
-    for rel in ["user_data", "storage", "storage/archive"]:
-        ensure_dir(data_path / rel)
+        if _remote_branch_exists(repo_url, branch):
+            _run_git_global(["clone", "--branch", branch, repo_url, str(data_path)])
+            _ensure_data_structure(data_path)
+            action = "cloned_repo"
+        else:
+            _run_git_global(["clone", repo_url, str(data_path)])
+            _ensure_initial_commit(data_path, branch)
+            action = "initialized_empty_remote_repo"
 
     save_config(config)
     append_event("data_sync.init", "Configured external data repository", {"path": str(data_path), "action": action})
