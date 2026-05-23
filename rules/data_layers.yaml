@@ -1,0 +1,143 @@
+{
+  "schema": "abyss.data_layers.v1",
+  "purpose": "Define the separation between user-facing knowledge, implementation internals, and archived storage.",
+  "principles": [
+    "The user-facing information surface should stay small, active, and Obsidian-friendly.",
+    "Implementation internals and archived storage should not appear in the user's default information retrieval scope.",
+    "Dormant or inactive material should live in the storage layer until it is needed.",
+    "When archived material becomes relevant, Abyss should promote or materialize a focused subset into the user data layer instead of exposing the storage layer directly.",
+    "Layer movement must preserve provenance, auditability, and reversibility."
+  ],
+  "layers": {
+    "user_data_layer": {
+      "name": "User data layer",
+      "visibility": "default_user_visible",
+      "primary_surface": "Obsidian",
+      "description": "The active personal knowledge surface used by the user for daily notes, current directions, working context, and decision support.",
+      "contains": [
+        "active directions",
+        "current project notes",
+        "working summaries",
+        "decision records intended for daily use",
+        "materialized excerpts promoted from storage"
+      ],
+      "should_not_contain": [
+        "raw implementation internals",
+        "bulk archives",
+        "stale inactive context unless intentionally reactivated",
+        "unfiltered system traces"
+      ],
+      "default_access": [
+        "read by user",
+        "read by prompt/context builder when relevant",
+        "write only through explicit note/update/projection actions"
+      ]
+    },
+    "implementation_layer": {
+      "name": "Implementation layer",
+      "visibility": "hidden_from_default_user_retrieval",
+      "description": "The underlying code, prompts, policies, harness logic, execution machinery, schemas, and operational records that make Abyss work.",
+      "contains": [
+        "abyss_cli/",
+        "rules/",
+        "prompts/",
+        "process/",
+        "audit/",
+        "schemas and migration logic",
+        "executor and harness internals"
+      ],
+      "default_access": [
+        "accessible to Abyss internals",
+        "shown to user only during explicit system maintenance, debugging, review, or architecture work"
+      ],
+      "constraints": [
+        "Must not pollute the user's daily knowledge surface.",
+        "Must not be retrieved as ordinary user knowledge unless explicitly requested.",
+        "Changes require Harness policy and audit."
+      ]
+    },
+    "storage_layer": {
+      "name": "Data storage layer",
+      "visibility": "hidden_from_default_user_retrieval",
+      "description": "The long-term archive for inactive, dormant, bulky, historical, or not-currently-useful material.",
+      "contains": [
+        "archived notes",
+        "inactive directions",
+        "old project context",
+        "raw imports",
+        "large reference material",
+        "historical snapshots"
+      ],
+      "default_access": [
+        "searchable by automated retrieval only when task relevance requires it",
+        "not shown wholesale to the user",
+        "promoted through focused excerpts, summaries, or reactivated notes"
+      ],
+      "constraints": [
+        "Storage should not become the user's default information surface.",
+        "Bulk archive material must be filtered before entering prompt packages or Obsidian-facing notes.",
+        "Promotion must record source, reason, and target."
+      ]
+    }
+  },
+  "movement_rules": {
+    "active_to_storage": {
+      "trigger": "A direction or note becomes inactive, stale, or not useful for current work.",
+      "action": "archive_or_demote",
+      "requirements": [
+        "Preserve original content or a recoverable pointer.",
+        "Leave only a compact index, backlink, or summary in the user data layer if useful.",
+        "Do not delete user-facing content without explicit approval."
+      ]
+    },
+    "storage_to_user_data": {
+      "trigger": "Archived material becomes relevant to the current intent, active direction, or user query.",
+      "action": "promote_or_materialize",
+      "requirements": [
+        "Retrieve only the minimal relevant subset.",
+        "Transform it into an Obsidian-friendly note, excerpt, or summary.",
+        "Record provenance: source path or id, retrieval reason, created_at, and related intent if available.",
+        "Do not expose the full storage layer by default.",
+        "If the material is sensitive or ambiguous, route through review before promotion."
+      ]
+    },
+    "implementation_to_user_data": {
+      "trigger": "The user explicitly asks for architecture, debugging, maintenance, or system design information.",
+      "action": "explain_or_project",
+      "requirements": [
+        "Present a human-usable summary rather than raw internals by default.",
+        "Do not include secrets, credentials, local caches, or unnecessary traces.",
+        "Keep implementation details out of ordinary knowledge retrieval unless explicitly requested."
+      ]
+    }
+  },
+  "retrieval_policy": {
+    "default_scope": [
+      "user_data_layer"
+    ],
+    "excluded_by_default": [
+      "implementation_layer",
+      "storage_layer"
+    ],
+    "expansion_order": [
+      "user_data_layer",
+      "targeted_storage_layer_lookup",
+      "explicit_implementation_lookup"
+    ],
+    "promotion_output_types": [
+      "obsidian_note",
+      "focused_excerpt",
+      "working_summary",
+      "reactivated_direction_note"
+    ]
+  },
+  "future_capabilities": [
+    "vault.index",
+    "storage.search",
+    "storage.promote_to_user_data",
+    "user_data.demote_to_storage",
+    "obsidian.note.create",
+    "obsidian.note.update",
+    "provenance.record"
+  ]
+}

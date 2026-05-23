@@ -24,38 +24,42 @@ Abyss should keep policy, prompts, execution, review, audit, and storage separat
 
 Abyss should design MVP mechanisms as stable seams for future agentic review, API executors, UI surfaces, richer storage, and additional capabilities. New capabilities should enter through declared schemas and gates rather than ad-hoc code paths.
 
-## 7. Intent before execution
+## 7. Layered data architecture
+
+Abyss separates information into three layers: the user data layer, the implementation layer, and the data storage layer. The user data layer is the default information surface, primarily aligned with the user's active Obsidian notes and current directions. The implementation layer and data storage layer should remain outside the user's default information retrieval scope. When archived material is needed, Abyss should retrieve a focused subset from storage and promote or materialize it into the user data layer with provenance, rather than exposing the storage layer directly.
+
+## 8. Intent before execution
 
 User commands and system events are represented as structured Intents before they become prompts or actions.
 
-## 8. Prompt Package as the core interface
+## 9. Prompt Package as the core interface
 
 Abyss does not simply forward raw user input to an LLM. It builds a Prompt Package containing intent, context, constraints, allowed actions, denied actions, and expected output format.
 
-## 9. LLM output is candidate material
+## 10. LLM output is candidate material
 
 LLM output may contain answers, suggestions, action proposals, memory candidates, or rule-change candidates. It does not directly become truth, memory, policy, or execution.
 
-## 10. Proposals before actions
+## 11. Proposals before actions
 
 Any requested file write, external side effect, Git operation, notification, or policy change must first be represented as an Action Proposal.
 
-## 11. Deterministic policy gate
+## 12. Deterministic policy gate
 
 The MVP Harness makes deterministic decisions: `allow`, `review`, or `deny`.
 
-## 12. Human review for meaningful risk
+## 13. Human review for meaningful risk
 
 Risky actions, irreversible actions, policy changes, external effects, and Git publication require review.
 
-## 13. Append-only audit principle
+## 14. Append-only audit principle
 
 The audit log records intents, prompt packages, proposals, decisions, reviews, and executions. Historical audit entries should not be rewritten.
 
-## 14. Local secrets stay local
+## 15. Local secrets stay local
 
 Secrets, tokens, credentials, machine-local config, and caches must not enter syncable Git data.
 
-## 15. Self-evolution is proposal-only
+## 16. Self-evolution is proposal-only
 
 Abyss may propose changes to prompts, policies, or its own architecture, but active policy changes require human approval.

@@ -1,6 +1,18 @@
 # Local machine state
 .local/
 
+# Personal knowledge and archive data
+user_data/*
+!user_data/README.md
+!user_data/.gitkeep
+storage/*
+!storage/README.md
+!storage/.gitkeep
+!storage/archive/
+storage/archive/*
+!storage/archive/README.md
+!storage/archive/.gitkeep
+
 # Secrets and credentials
 .env
 .env.*

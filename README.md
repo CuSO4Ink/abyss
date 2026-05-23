@@ -32,6 +32,18 @@ Abyss is guided by five system-level design principles:
 
 The canonical structured rules live in `rules/design_principles.yaml`; the highest-level commitments live in `ABYSS_CONSTITUTION.md`.
 
+## Layered data architecture
+
+Abyss separates information into three layers:
+
+1. **User data layer** — the default user-facing knowledge surface, primarily aligned with active Obsidian notes, current directions, working summaries, and decision records.
+2. **Implementation layer** — the hidden-by-default system internals: code, prompts, rules, harness logic, process records, audit, schemas, and executors.
+3. **Data storage layer** — the hidden-by-default archive for inactive, dormant, bulky, historical, or not-currently-useful material.
+
+The implementation layer and data storage layer should not appear in the user's default information retrieval scope. When archived material becomes relevant, Abyss should retrieve a focused subset from storage and promote or materialize it into the user data layer with provenance, rather than exposing storage directly.
+
+The canonical structured rules live in `rules/data_layers.yaml`.
+
 ## Quick start
 
 Install once in editable mode so Abyss can be run from any directory:
