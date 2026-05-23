@@ -9,7 +9,12 @@
     "review.approve",
     "review.reject",
     "audit.append",
-    "integrity.check"
+    "integrity.check",
+    "fsm.tick",
+    "fsm.watch",
+    "harness.export_snapshot",
+    "llm.provider.cli",
+    "llm.provider.api"
   ],
   "manual_executor": {
     "type": "client",
@@ -17,10 +22,10 @@
     "description": "Abyss builds prompt packages; user pastes them into an LLM client manually."
   },
   "not_in_mvp": [
-    "api.llm.call",
     "background.daemon",
     "automatic.git.push",
     "automatic.external.message",
-    "self_modify.active_policy"
+    "self_modify.active_policy",
+    "automatic.action.execute"
   ]
 }

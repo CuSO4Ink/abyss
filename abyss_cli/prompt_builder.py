@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .audit import append_event
+from .harness import render_harness_markdown
 from .utils import copy_to_clipboard, new_id, now_iso, read_record, repo_root, run_git, runtime_root
 
 PROMPT_DIR = runtime_root() / "process" / "prompt_packages"
@@ -43,6 +44,10 @@ def build_prompt(intent_path: Path, include_git_diff: bool = False, copy: bool =
 ## System constraints
 
 {_safe_read(BASE_PROMPT)}
+
+---
+
+{render_harness_markdown()}
 
 ---
 

@@ -4,8 +4,11 @@ import argparse
 from pathlib import Path
 
 from . import __version__
+from .agent_runner import run_agent, run_harness_review
 from .audit import append_event
 from .data_sync import data_pull, data_push, data_status, init_data_repo
+from .fsm import fsm_tick, fsm_watch
+from .harness import render_harness_json, render_harness_markdown
 from .integrity import run_checks
 from .intent import INTENTS_DIR, create_intent
 from .llm_executor import run_llm
@@ -101,6 +104,41 @@ def cmd_check(_: argparse.Namespace) -> None:
     raise SystemExit(0 if ok else 1)
 
 
+def cmd_fsm_tick(args: argparse.Namespace) -> None:
+    tick = fsm_tick(reason=args.reason)
+    print(f"{tick['id']} state={tick['state_after']} ok={tick['integrity_ok']}")
+    for message in tick.get("messages", []):
+        print(message)
+    raise SystemExit(0 if tick.get("integrity_ok") else 1)
+
+
+def cmd_fsm_watch(args: argparse.Namespace) -> None:
+    fsm_watch(interval_seconds=args.interval, once=args.once)
+
+
+def cmd_harness_export(args: argparse.Namespace) -> None:
+    if args.format == "json":
+        print(render_harness_json(), end="")
+    else:
+        print(render_harness_markdown())
+
+
+def cmd_agent_run(args: argparse.Namespace) -> None:
+    agent_run, specialized = run_agent(args.agent, target=args.target, provider=args.provider)
+    print(f"agent run saved: {Path(agent_run['prompt_package']).relative_to(repo_root())}")
+    print(f"result saved: {Path(agent_run['result_path']).relative_to(repo_root())}")
+    if specialized:
+        print(f"{specialized['schema']} {specialized['id']} verdict={specialized['verdict']} risk={specialized['risk_level']}")
+    print("agent produced review/report only; no action was executed")
+
+
+def cmd_harness_review(args: argparse.Namespace) -> None:
+    agent_run, review = run_harness_review(target=args.target, provider=args.provider)
+    print(f"agent run: {agent_run['id']}")
+    print(f"harness review: {review['id']} verdict={review['verdict']} risk={review['risk_level']} recommendation={review['recommendation']}")
+    print(f"no_action_executed={review['no_action_executed']}")
+
+
 def cmd_data_init(args: argparse.Namespace) -> None:
     config = init_data_repo(args.repo, path=args.path, branch=args.branch)
     print(f"configured data repo: {config['data_repo_path']}")
@@ -153,7 +191,7 @@ def build_parser() -> argparse.ArgumentParser:
     llm_sub = p_llm.add_subparsers(required=True)
     p = llm_sub.add_parser("run")
     p.add_argument("prompt_package", help="prompt package id, filename, path, prefix, or latest")
-    p.add_argument("--provider", required=True, choices=["mock", "cli"])
+    p.add_argument("--provider", required=True, help="provider name configured in rules/llm_providers.yaml or .local/llm_providers.json")
     p.set_defaults(func=cmd_llm_run)
 
     p_review = sub.add_parser("review")
@@ -169,6 +207,34 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("check")
     p.set_defaults(func=cmd_check)
+
+    p_fsm = sub.add_parser("fsm")
+    fsm_sub = p_fsm.add_subparsers(required=True)
+    p = fsm_sub.add_parser("tick")
+    p.add_argument("--reason", default="manual")
+    p.set_defaults(func=cmd_fsm_tick)
+    p = fsm_sub.add_parser("watch")
+    p.add_argument("--interval", type=int, default=300, help="seconds between ticks; minimum enforced by fsm module")
+    p.add_argument("--once", action="store_true", help="run one watch tick and exit")
+    p.set_defaults(func=cmd_fsm_watch)
+
+    p_harness = sub.add_parser("harness")
+    harness_sub = p_harness.add_subparsers(required=True)
+    p = harness_sub.add_parser("export")
+    p.add_argument("--format", choices=["markdown", "json"], default="markdown")
+    p.set_defaults(func=cmd_harness_export)
+    p = harness_sub.add_parser("review")
+    p.add_argument("target", nargs="?", default="latest", help="action proposal id, filename, prefix, or latest")
+    p.add_argument("--provider", default=None, help="override provider configured for the harness agent")
+    p.set_defaults(func=cmd_harness_review)
+
+    p_agent = sub.add_parser("agent")
+    agent_sub = p_agent.add_subparsers(required=True)
+    p = agent_sub.add_parser("run")
+    p.add_argument("agent", choices=["harness"], help="agent id from rules/agents.yaml")
+    p.add_argument("--target", default="latest", help="target record id, filename, prefix, or latest")
+    p.add_argument("--provider", default=None, help="override provider configured for the agent")
+    p.set_defaults(func=cmd_agent_run)
 
     p_data = sub.add_parser("data")
     data_sub = p_data.add_subparsers(required=True)

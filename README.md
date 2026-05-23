@@ -123,27 +123,71 @@ python -m abyss_cli result import path\to\response.md --intent latest
 
 If the response contains action proposals, Abyss parses them into `process/actions/` and runs the Harness policy gate.
 
-## Optional LLM Executor
+## Minimal FSM and scheduled structure checks
 
-Abyss also provides a thin LLM Executor layer for running a built Prompt Package through a configured provider:
+Abyss includes a minimal local FSM for periodic structural health checks:
 
 ```powershell
-abyss llm run latest --provider mock
+abyss fsm tick
+abyss fsm watch --interval 300
+abyss fsm watch --once
+```
+
+The FSM currently models only the local control loop:
+
+```text
+unknown/idle -> checking -> idle | needs_attention
+```
+
+Each tick runs the existing integrity checks, writes state under `.local/runtime/fsm/`, and appends an audit event. The watch command is intentionally simple: it is a foreground local loop, not a background daemon.
+
+## Harness snapshot for LLMs
+
+A safe, read-only subset of the Harness can be exported:
+
+```powershell
+abyss harness export
+abyss harness export --format json
+```
+
+Prompt Packages now include this Harness snapshot automatically, so the LLM can see action proposal format, risk boundaries, safe path prefixes, and the rule that it must never claim actions were executed. The snapshot does not expose execution authority.
+
+## Optional LLM Executor
+
+Abyss also provides a thin LLM Executor layer for running a built Prompt Package through a standardized provider:
+
+```powershell
+abyss llm run latest --provider cli
 abyss llm run <prompt-package> --provider cli
+abyss llm run latest --provider api
 ```
 
 This does not change the Intent / Prompt Package / Result Import flow. The executor always performs this sequence:
 
 ```text
-Prompt Package -> provider text output -> saved result file -> existing import_result -> Action Proposal records
+Prompt Package -> provider stdout text -> saved result file -> existing import_result -> Action Proposal records
 ```
 
 The executor stops at Action Proposal import. It never executes actions automatically.
 
-Providers:
+Standard CLI provider interface:
 
-- `mock` — deterministic offline provider for testing the pipeline.
-- `cli` — generic CLI provider. The configured command receives the prompt package on stdin and must write the LLM response to stdout.
+```text
+interface: stdin_prompt_package_stdout_response_v1
+stdin:  complete Prompt Package text, UTF-8
+stdout: complete LLM response text, UTF-8
+stderr: diagnostics only; surfaced on failure
+exit:   0 means success; non-zero means provider failure
+```
+
+Standard HTTP JSON API provider interface:
+
+```text
+interface: http_json_prompt_package_response_v1
+method:    POST
+request:   { "schema": "abyss.llm_api_request.v1", "prompt_package": "...", "metadata": {...} }
+response:  { "response": "complete LLM response body" }
+```
 
 Provider defaults live in `rules/llm_providers.yaml`. Machine-local overrides live in `.local/llm_providers.json`, which is ignored by Git. Do not hardcode tokens, passwords, API keys, or private credentials in tracked files; use environment variables or local config controlled by the user.
 
@@ -153,12 +197,53 @@ Example local CLI provider config:
 {
   "providers": {
     "cli": {
-      "command": ["your-llm-cli", "--model", "your-model"],
-      "timeout_seconds": 120
+      "enabled": true,
+      "interface": "stdin_prompt_package_stdout_response_v1",
+      "command": ["your-provider-adapter"],
+      "timeout_seconds": 300
     }
   }
 }
 ```
+
+Example local API provider config:
+
+```json
+{
+  "providers": {
+    "api": {
+      "enabled": true,
+      "interface": "http_json_prompt_package_response_v1",
+      "url": "https://example.local/llm",
+      "headers": {
+        "X-Client": "abyss"
+      },
+      "bearer_token_env": "ABYSS_LLM_API_TOKEN",
+      "response_json_path": "response",
+      "timeout_seconds": 300
+    }
+  }
+}
+```
+
+On this Windows machine, `.local/knot_cli_provider.py` adapts the standard stdin/stdout interface to `knot-cli chat -p`.
+
+## Pluggable Agent runner and HarnessAgent
+
+Abyss supports a minimal pluggable Agent runner. Agents are configured in `rules/agents.yaml`, use role prompts under `prompts/agents/`, and must follow the same controlled path:
+
+```text
+Agent Prompt Package -> provider stdout text -> saved result file -> specialized runtime record -> audit
+```
+
+The first implemented agent is `harness`, a review-only HarnessAgent. It reviews action proposals, related LLM results, policy snapshots, and Harness snapshots for boundary violations or underestimated risk.
+
+```powershell
+abyss agent run harness --target latest
+abyss harness review latest
+```
+
+HarnessAgent is not an executor. It cannot approve, reject, modify files, change policy, change prompts, send messages, or execute actions. It writes `abyss.harness_review.v1` records under `.local/runtime/process/harness_reviews/` and always preserves the `no_action_executed` boundary.
 
 ## Action proposal format
 

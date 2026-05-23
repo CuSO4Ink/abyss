@@ -1,0 +1,36 @@
+{
+  "schema": "abyss.agents.v1",
+  "purpose": "Declare pluggable Abyss agents that must use Prompt Package input, provider execution, result files, and Harness boundaries.",
+  "agents": {
+    "harness": {
+      "enabled": true,
+      "description": "Reviews action proposals, LLM outputs, and Harness boundary risks without approving or executing actions.",
+      "provider": "cli",
+      "role": "harness_review",
+      "role_prompt": "prompts/agents/harness_agent.md",
+      "output_schema": "abyss.harness_review.v1",
+      "input_scope": [
+        "target_action_proposal",
+        "latest_llm_result",
+        "policy_snapshot",
+        "harness_snapshot",
+        "system_map_excerpt"
+      ],
+      "allowed": [
+        "read",
+        "analyze",
+        "summarize",
+        "propose_review"
+      ],
+      "forbidden": [
+        "execute_action",
+        "approve_review",
+        "reject_review",
+        "modify_policy",
+        "modify_prompt",
+        "modify_files",
+        "send_external_message"
+      ]
+    }
+  }
+}

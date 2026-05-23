@@ -1,17 +1,55 @@
 {
-  "schema": "abyss.llm_providers.v1",
+  "schema": "abyss.llm_providers.v2",
   "purpose": "Configure local LLM executor providers without embedding secrets.",
   "local_override_path": ".local/llm_providers.json",
-  "providers": {
-    "mock": {
-      "enabled": true,
-      "description": "Deterministic offline provider for testing the executor/import pipeline."
+  "interfaces": {
+    "stdin_prompt_package_stdout_response_v1": {
+      "description": "Abyss sends the complete Prompt Package to the provider process on stdin. The provider must write exactly the LLM response body to stdout and exit with code 0. Non-zero exit code or empty stdout is treated as provider failure.",
+      "stdin": "complete Prompt Package text encoded as UTF-8",
+      "stdout": "complete LLM response text encoded as UTF-8",
+      "stderr": "diagnostics only; surfaced on failure",
+      "side_effects": "Provider may call an LLM service, but must not modify Abyss files directly. Abyss is responsible for saving result files and importing action proposals."
     },
+    "http_json_prompt_package_response_v1": {
+      "description": "Abyss sends the complete Prompt Package to an HTTP endpoint as JSON. The endpoint must return JSON containing the complete LLM response body in a configured string field, defaulting to response.",
+      "method": "POST",
+      "request_headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      "request_body": {
+        "schema": "abyss.llm_api_request.v1",
+        "prompt_package": "complete Prompt Package text encoded as UTF-8 JSON string",
+        "metadata": {
+          "prompt_package_path": "absolute or provider-visible path string",
+          "provider_interface": "http_json_prompt_package_response_v1"
+        }
+      },
+      "response_body": {
+        "response": "complete LLM response text encoded as UTF-8 JSON string"
+      },
+      "response_json_path": "Dot path to response text field; default: response",
+      "auth": "Use bearer_token_env or headers in .local/llm_providers.json. Never hardcode secrets in tracked files.",
+      "side_effects": "Provider may call an LLM service, but must not modify Abyss files directly. Abyss is responsible for saving result files and importing action proposals."
+    }
+  },
+  "providers": {
     "cli": {
       "enabled": true,
-      "description": "Generic CLI provider. The command reads the prompt package from stdin and writes the LLM response to stdout.",
+      "interface": "stdin_prompt_package_stdout_response_v1",
+      "description": "Standard CLI provider. The command reads the prompt package from stdin and writes the LLM response to stdout.",
       "command": [],
-      "timeout_seconds": 120
+      "timeout_seconds": 300
+    },
+    "api": {
+      "enabled": false,
+      "interface": "http_json_prompt_package_response_v1",
+      "description": "Standard HTTP JSON API provider. Configure url, optional headers, optional bearer_token_env, and optional response_json_path in .local/llm_providers.json.",
+      "url": "",
+      "headers": {},
+      "bearer_token_env": "",
+      "response_json_path": "response",
+      "timeout_seconds": 300
     }
   },
   "security": {
