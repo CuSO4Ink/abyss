@@ -60,3 +60,9 @@ This file is append-only by policy. New events are appended by the CLI.
 - summary: Integrity check completed
 - ok: True
 - messages: OK
+
+## 2026-05-23T15:31:39+08:00 — integrity.check
+
+- summary: Integrity check completed
+- ok: True
+- messages: OK
