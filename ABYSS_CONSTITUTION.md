@@ -64,12 +64,21 @@ The audit log records intents, prompt packages, proposals, decisions, reviews, a
 
 Secrets, tokens, credentials, machine-local config, and caches must not enter syncable Git data.
 
-## 17. Self-evolution is native, harnessed, and backlog-bound
+## 17. Self-evolution requires explicit roadmap approval
 
-Abyss may evolve itself only through native Abyss-controlled mechanisms: roadmap backlog selection, structured evolution records, deterministic checks, Harness / HarnessAgent review, audit evidence, and Git evidence. Backlog-listed bounded implementation slices may be executed through the governed path. Self-discovered non-backlog capabilities must remain proposals until the user explicitly approves them. Active policy changes always require human approval.
+Abyss may not add self-evolution targets, feature backlog items, implementation slices, scheduled tasks, agent roles, integrations, or delivery commitments to `ROADMAP.md` unless the user explicitly approves each item one by one. Self-discovered capabilities may be proposed, but they must not be implemented or added to the approved roadmap without explicit user approval.
 
-## 18. P0 incident: external client dependency
+## 18. P0 incident: external interface misuse
 
-It is a P0 architecture incident if Abyss depends on an external LLM client, IM client, agent client, browser automation session, or vendor-specific assistant runtime as part of its core system operation. External clients may be optional triggers, notification channels, LLM providers, or human interaction surfaces, but they must never be required dependencies for the FSM, self-evolution runner, Harness, policy gate, audit trail, state transition, Git evidence, or execution authority.
+It is a P0 architecture incident if Abyss uses any external LLM client, Knot client, IM client, agent client, browser automation session, vendor-specific assistant runtime, or other external interface for anything other than unified standard LLM invocation.
 
-A valid Abyss core workflow must be runnable from the Abyss repository and its declared local/runtime configuration using standard OS, Python, Git, and explicitly configured provider interfaces. If a workflow only works because an external LLM/Knot client supplies hidden tools, scheduling, memory, file mutation, approval, or execution authority, that workflow is invalid and must be redesigned as a native Abyss capability.
+The only allowed external interface role is:
+
+```text
+Abyss Prompt / Prompt Package
+  -> external LLM invocation interface
+  -> model response text
+  -> Abyss result import
+```
+
+External interfaces may only send prompts or Prompt Packages to an LLM model and return the model response text to Abyss. They must not be used for scheduling, triggering core workflows, notification delivery, file mutation, command execution, approval, rejection, audit, memory, policy decisions, state transitions, Git operations, Harness decisions, or self-evolution execution.
