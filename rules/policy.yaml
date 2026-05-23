@@ -1,0 +1,51 @@
+{
+  "schema": "abyss.policy.v1",
+  "risk_levels": {
+    "L0": "Pure computation or formatting with no state change.",
+    "L1": "Read-only access to explicitly allowed local context.",
+    "L2": "Append-only or create-only writes inside low-risk Abyss artifact paths.",
+    "L3": "Overwrite, modify existing files, prompt changes, memory changes, or rule candidates.",
+    "L4": "Git commits/pushes, external messages, network writes, or public side effects.",
+    "L5": "Secrets, destructive deletion, system paths, credential exfiltration, or unauthorized network effects."
+  },
+  "decisions": {
+    "L0": "allow",
+    "L1": "allow",
+    "L2": "allow",
+    "L3": "review",
+    "L4": "review",
+    "L5": "deny"
+  },
+  "safe_create_prefixes": [
+    "artifacts/drafts/",
+    "process/imports/"
+  ],
+  "sensitive_patterns": [
+    ".env",
+    "secret",
+    "secrets",
+    "token",
+    "credential",
+    "credentials",
+    "id_rsa",
+    "id_ed25519",
+    ".pem",
+    ".key"
+  ],
+  "review_capabilities": [
+    "fs.modify",
+    "fs.overwrite",
+    "git.commit",
+    "git.push",
+    "outbound.message",
+    "policy.change",
+    "prompt.change",
+    "memory.write"
+  ],
+  "deny_capabilities": [
+    "secret.read",
+    "credential.export",
+    "fs.delete.system",
+    "network.untrusted_write"
+  ]
+}

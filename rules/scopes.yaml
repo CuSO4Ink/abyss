@@ -1,0 +1,18 @@
+{
+  "schema": "abyss.scopes.v1",
+  "default_scope": "assisted_prompt",
+  "scopes": {
+    "discussion_only": {
+      "allowed": ["reason", "summarize", "propose"],
+      "denied": ["fs.write", "git.commit", "git.push", "outbound.message"]
+    },
+    "assisted_prompt": {
+      "allowed": ["intent.create", "prompt.build", "result.import", "action.propose", "audit.append"],
+      "denied": ["automatic.execute", "git.push", "outbound.message"]
+    },
+    "git_diff_summary": {
+      "allowed": ["git.status", "git.diff", "prompt.build", "audit.append"],
+      "denied": ["fs.write", "git.commit", "git.push", "outbound.message"]
+    }
+  }
+}

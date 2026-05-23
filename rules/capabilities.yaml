@@ -1,0 +1,26 @@
+{
+  "schema": "abyss.capabilities.v1",
+  "supported_now": [
+    "intent.create",
+    "prompt.build",
+    "result.import",
+    "action.propose",
+    "review.list",
+    "review.approve",
+    "review.reject",
+    "audit.append",
+    "integrity.check"
+  ],
+  "manual_executor": {
+    "type": "client",
+    "target": "manual_clipboard",
+    "description": "Abyss builds prompt packages; user pastes them into an LLM client manually."
+  },
+  "not_in_mvp": [
+    "api.llm.call",
+    "background.daemon",
+    "automatic.git.push",
+    "automatic.external.message",
+    "self_modify.active_policy"
+  ]
+}
