@@ -11,7 +11,9 @@ abyss llm run <prompt-package|latest> --provider cli
 abyss result import <response.md> --intent latest
 abyss agent run harness --target latest
 abyss agent run self_evolution --target latest
+abyss agent run implementation --target latest
 abyss harness review latest
+abyss harness changeset-review latest
 abyss evolution request "<summary>" [--details "..."]
 abyss evolution list
 abyss evolution show [latest|id]
@@ -21,6 +23,26 @@ abyss evolution reject <proposal> [--reason "..."]
 abyss evolution status
 abyss evolution finalize-direct-mode
 abyss evolution smoke --provider cli
+abyss changeset import <changeset.json>
+abyss changeset list
+abyss changeset show <latest|id>
+abyss changeset dry-run <latest|id>
+abyss changeset approve <latest|id>
+abyss changeset reject <latest|id> [--reason "..."]
+abyss changeset apply <latest|id>
+abyss workflow start <approved-proposal|latest>
+abyss workflow tick [workflow]
+abyss workflow run [workflow]
+abyss workflow watch [workflow] --interval 300
+abyss workflow retry <workflow> [--from-stage implementation|changeset|harness_review]
+abyss workflow list
+abyss owner inbox
+abyss owner show <owner-item>
+abyss owner approve <owner-item>
+abyss owner reject <owner-item> [--reason "..."]
+abyss report list
+abyss report show <latest|id>
+abyss summary [--check]
 abyss review list
 abyss review approve <review>
 abyss review reject <review>
@@ -34,15 +56,19 @@ abyss data init|status|pull|push
 - `abyss_cli/intent.py` — creates structured Intents.
 - `abyss_cli/prompt_builder.py` — builds Prompt Packages from intents and context.
 - `abyss_cli/llm_executor.py` — optional LLM Executor; writes result files, then imports them.
-- `abyss_cli/agent_runner.py` — runs configured agents through Agent Prompt Packages and provider result files.
-- `abyss_cli/harness_review.py` — parses HarnessAgent output into local harness review records.
+- `abyss_cli/agent_runner.py` — runs configured agents through Agent Prompt Packages and provider result files, including self-evolution analysis, implementation ChangeSet generation, and Harness reviews.
+- `abyss_cli/harness_review.py` — parses HarnessAgent output into local harness review records for action proposals and ChangeSets.
 - `abyss_cli/result.py` — imports LLM output and extracts action proposals.
 - `abyss_cli/policy.py` — interprets `rules/policy.yaml`; no independent policy truth.
 - `abyss_cli/review.py` — manages pending human reviews.
 - `abyss_cli/audit.py` — appends local runtime audit events.
 - `abyss_cli/data_sync.py` — connects the private GitHub data repository.
 - `abyss_cli/evolution.py` — records governed self-iteration requests/proposals, approves or rejects proposals, ingests approved proposals into ROADMAP, manages direct-modification governance state, and runs LLM provider smoke tests.
-- `abyss_cli/integrity.py` — checks repository structure and safety invariants.
+- `abyss_cli/changeset.py` — imports, validates, approves, dry-runs, and applies approved `abyss.change_set.v1` records through a narrow local executor capability allowlist.
+- `abyss_cli/workflow.py` — native autonomous workflow runner; advances approved roadmap work through implementation, dry-run, HarnessAgent review, owner approval, executor apply, check, and report without external assistant state-chaining.
+- `abyss_cli/owner.py` — Owner Inbox approval surface for user decisions, including automatic continuation after approval.
+- `abyss_cli/summary.py` — user-facing status overview for active workflows, pending approvals, failures, changesets, and optional integrity result.
+- `abyss_cli/integrity.py` — checks repository structure, runtime references, workflow records, and safety invariants.
 
 ## Data flow
 
@@ -59,6 +85,20 @@ user goal
   -> harness review record
   -> allow / review / deny
   -> audit event
+
+approved roadmap item
+  -> workflow start / tick / watch
+  -> ImplementationAgent Prompt Package
+  -> proposed abyss.change_set.v1 record
+  -> deterministic dry-run validation
+  -> HarnessAgent ChangeSet review
+  -> Owner Inbox approval item
+  -> explicit user ChangeSet approval through owner approve
+  -> automatic workflow continuation
+  -> narrow local executor apply
+  -> execution record
+  -> integrity check / audit event
+  -> workflow report / summary
 ```
 
 ## System directories
@@ -85,6 +125,11 @@ Runtime records are local machine state and do not belong in system Git.
 - `.local/runtime/process/agent_runs/`
 - `.local/runtime/process/harness_reviews/`
 - `.local/runtime/process/evolution_analyses/`
+- `.local/runtime/process/changesets/`
+- `.local/runtime/process/executions/`
+- `.local/runtime/process/workflows/`
+- `.local/runtime/process/owner_inbox/`
+- `.local/runtime/process/reports/`
 - `.local/runtime/evolution/requests/`
 - `.local/runtime/evolution/proposals/`
 - `.local/runtime/evolution/smoke_tests/`
@@ -124,6 +169,8 @@ Real synced user data lives in the private GitHub data repo.
 - Do not hardcode LLM provider secrets; use environment variables or `.local/`.
 - Do not auto-execute action proposals from LLM Executor output.
 - Do not let Agent output approve, reject, or execute actions; agents may only report or propose.
+- Do not let the ChangeSet executor run arbitrary shell commands, browser automation, service/port management, external writes, Git push, policy/prompt/governance modification, or direct ROADMAP modification.
+- After the final autonomous workflow bootstrap, external assistants must use Abyss user-facing interaction surfaces (`workflow`, `owner`, `summary`, `report`) and must not bypass them by directly editing system files or manually chaining internal state transitions, except for explicit human-authorized fault recovery.
 - Do not put secrets, tokens, credentials, keys, or local caches in Git.
 - Do not expose implementation or archive layers in default user retrieval.
 - Do not put real Obsidian notes or bulk archives into the system repo.

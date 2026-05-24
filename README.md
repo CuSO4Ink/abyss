@@ -123,6 +123,23 @@ python -m abyss_cli result import path\to\response.md --intent latest
 
 If the response contains action proposals, Abyss parses them into `process/actions/` and runs the Harness policy gate.
 
+## Autonomous workflow bootstrap
+
+Abyss can run an approved evolution proposal through the native self-iteration workflow without an external assistant manually chaining internal commands:
+
+```powershell
+abyss workflow start <approved-proposal-id> --provider cli
+abyss workflow run
+abyss owner inbox
+abyss owner show <owner-item-id>
+abyss owner approve <owner-item-id>
+abyss report list
+abyss report show latest
+abyss summary --check
+```
+
+The workflow advances through ImplementationAgent ChangeSet generation, deterministic dry-run, HarnessAgent ChangeSet review, Owner Inbox approval, Local Executor apply, integrity check, audit, and workflow report generation. Agents still cannot approve or execute; the owner approval gate remains explicit. After this bootstrap, external assistants should interact through these user-facing commands instead of directly editing Abyss system files or manually chaining internal state transitions.
+
 ## Minimal FSM and scheduled structure checks
 
 Abyss includes a minimal local FSM for periodic structural health checks:
@@ -278,6 +295,49 @@ abyss agent run self_evolution --target latest
 ```
 
 The self-evolution Agent may analyze evolution requests and propose bounded plans. It cannot approve roadmap items, modify files, run commands, schedule work, send messages, or operate Git. Its `abyss-evolution-analysis` output is parsed into `.local/runtime/process/evolution_analyses/` and schema-contract warnings are recorded instead of being treated as authority.
+
+R003 adds an `implementation` Agent that generates proposed ChangeSets only:
+
+```powershell
+abyss agent run implementation --target latest
+```
+
+ImplementationAgent uses the same Agent Prompt Package -> provider stdout -> result file path. Its `abyss-changeset` output is parsed into `.local/runtime/process/changesets/` as `abyss.change_set.v1`. It cannot approve, reject, apply, modify files directly, run commands, or operate Git.
+
+## Governed OperationSet / ChangeSet MVP
+
+Approved roadmap item `R003` introduces a minimal native ChangeSet path for governed local implementation. A ChangeSet is an operation-based `abyss.change_set.v1` record stored under `.local/runtime/process/changesets/` after import.
+
+```powershell
+abyss changeset import .\artifacts\drafts\example_changeset.json
+abyss changeset list
+abyss changeset show latest
+abyss changeset dry-run latest
+abyss harness changeset-review latest
+abyss changeset approve latest
+abyss changeset apply latest
+```
+
+The intended R003 flow is:
+
+```text
+approved roadmap target
+  -> ImplementationAgent produces abyss.change_set.v1
+  -> changeset import / deterministic validation
+  -> HarnessAgent reviews the ChangeSet
+  -> user explicitly approves the ChangeSet
+  -> narrow local executor applies it
+  -> execution record + integrity check + audit
+```
+
+The MVP executor is intentionally narrow. It only supports approved ChangeSets and these operation kinds:
+
+- `fs.create_file`
+- `fs.replace_exact`
+- `fs.append_file`
+- `check.command` with an allowlist of `python -m abyss_cli check` and `python -m compileall -q abyss_cli`
+
+It blocks arbitrary shell commands, browser automation, service/port management, external writes, Git push, policy/prompt/governance modification, and direct ROADMAP modification. Agents still cannot execute ChangeSets; they may only propose records for review.
 
 ## Action proposal format
 

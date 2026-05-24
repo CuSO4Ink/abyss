@@ -75,6 +75,126 @@ Acceptance check:
 - The proposal can be inspected independently of ROADMAP.md.
 - No external interface is used for anything other than standard LLM invocation.
 
+### R003. Native Governed OperationSet and Implementation Bootstrap
+
+Source proposal: `evo_prop_20260524_002641_100ced`.
+
+Purpose: Native Governed OperationSet and Implementation Bootstrap
+
+Why it is needed: 目标：补齐 Abyss 已批准 ROADMAP item 从授权到实现的最小受治理闭环。范围包括：operation-based ChangeSet/OperationSet schema、capability registry、最小 Local Executor MVP、ChangeSet review/approval flow、Implementation Agent MVP、execution evidence/owner report。第一版只开放 fs.create_file、fs.replace_exact、fs.append_file 和白名单 check.command；不开放任意 shell、浏览器自动化、端口服务启动、外部接口写入、git push、policy/prompt/governance 修改。所有新增能力必须继续遵守 P0 外部接口边界、ROADMAP 逐条批准规则和 no_action_executed Agent 边界。
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R004. Native Autonomous Workflow Orchestrator Bootstrap
+
+Source proposal: `evo_prop_20260524_024143_bcfaec`.
+
+Purpose: Native Autonomous Workflow Orchestrator Bootstrap
+
+Why it is needed: Final bootstrap to remove external assistant dependency from normal Abyss feature iteration: roadmap execution state, workflow tick/watch, owner inbox approval, automatic continuation through implementation, dry-run, HarnessAgent review, ChangeSet approval gate, Executor apply, check, audit, summary and reports.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R005. 把 self-evolution Agent 真正接入 evolution propose 主流程
+
+Source proposal: `evo_prop_20260524_033737_a48b61`.
+
+Purpose: 把 self-evolution Agent 真正接入 evolution propose 主流程
+
+Why it is needed: Approved evolution proposal.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R006. 替代 R005：让 evolution propose 消费 self-evolution Agent analysis 生成高质量 proposal
+
+Source proposal: `evo_prop_20260524_034731_e25608`.
+
+Purpose: 替代 R005：让 evolution propose 消费 self-evolution Agent analysis 生成高质量 proposal
+
+Why it is needed: This request supersedes the thin approved R005 proposal. The smoke test showed that self-evolution Agent can produce a valid evolution_analysis, but evolution propose does not consume that analysis and instead creates a generic proposal. Required outcome: when proposing a user request, Abyss should call or read the latest matching self-evolution analysis and include its summary, minimal_slice, risks, roadmap_status, implementation_allowed_now, and acceptance_checks in the proposal. The proposal must remain pending user approval and must not auto-approve, auto-write ROADMAP, execute code, or let the Agent approve/reject anything. Acceptance: with a short request, the generated proposal reflects self-evolution analysis instead of generic template text.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R007. R007 Provider and Agent Health Check
+
+Source proposal: `evo_prop_20260524_041427_27c56b`.
+
+Purpose: R007 Provider and Agent Health Check
+
+Why it is needed: Add a governed CLI health check capability for the real LLM provider and registered agents. The system should expose commands such as provider check and/or agent health to verify that self_evolution, implementation, and harness can call the current real provider and produce valid outputs. The result should include pass/fail, elapsed time, error summary, and recent run record path where available. The summary command should surface a concise health status. This must be implemented through the governed evolution workflow, not by direct file edits.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
 ## Pending proposals
 
 None.
