@@ -72,16 +72,18 @@
     },
     "implementation": {
       "enabled": true,
-      "description": "Generates proposed abyss.change_set.v1 records for approved roadmap/evolution targets without executing, approving, or modifying files directly.",
+      "description": "Generates proposed abyss.change_set.v1, abyss.context_request.v1, or abyss.blocked_result.v1 records for approved roadmap/evolution targets without executing, approving, or modifying files directly.",
       "provider": "cli",
       "role": "implementation_changeset_planning",
       "role_prompt": "prompts/agents/implementation_agent.md",
-      "output_schema": "abyss.change_set.v1",
+      "output_schema": ["abyss.change_set.v1", "abyss.context_request.v1", "abyss.blocked_result.v1"],
       "input_scope": [
         "approved_evolution_or_roadmap_target",
         "roadmap_snapshot",
         "capability_registry",
-        "system_map_excerpt",
+        "system_brief",
+        "module_manifest",
+        "context_pack",
         "selected_repository_context"
       ],
       "allowed": [

@@ -9,6 +9,20 @@ from .owner import list_owner_items
 from .workflow import list_workflows
 
 
+def _extract_last_event(workflow: dict[str, Any]) -> dict[str, Any] | None:
+    """Extract the last meaningful event from workflow history for display."""
+    history = workflow.get("history", [])
+    if not history:
+        return None
+    last = history[-1]
+    return {
+        "event": last.get("event"),
+        "state": last.get("state"),
+        "at": last.get("at"),
+        "details": last.get("details"),
+    }
+
+
 def build_summary(*, include_check: bool = False) -> dict[str, Any]:
     workflows = list_workflows()
     owner_items = list_owner_items(include_closed=False)
@@ -44,6 +58,9 @@ def build_summary(*, include_check: bool = False) -> dict[str, Any]:
                 "roadmap_id": item.get("roadmap_id"),
                 "status": item.get("status"),
                 "last_error": item.get("last_error"),
+                "context_request_id": item.get("context_request_id"),
+                "blocked_result_id": item.get("blocked_result_id"),
+                "last_event": _extract_last_event(item),
             }
             for item in failed_workflows
         ],

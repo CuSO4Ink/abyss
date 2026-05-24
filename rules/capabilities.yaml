@@ -17,6 +17,10 @@
     "harness.changeset_review",
     "agent.self_evolution.plan",
     "agent.implementation.produce_changeset",
+    "agent.implementation.context_request",
+    "agent.implementation.blocked_result",
+    "context_broker.build_pack",
+    "context_broker.detect_task_type",
     "llm.provider.cli",
     "llm.provider.api",
     "changeset.import",
@@ -38,20 +42,20 @@
         "enabled": true,
         "risk_floor": "L2",
         "requires_changeset_approval": true,
-        "allowed_roots": ["abyss_cli/", "artifacts/drafts/", "README.md", "SYSTEM_MAP.md"]
+        "allowed_roots": ["abyss_cli/", "artifacts/drafts/", "rules/", "prompts/", "README.md", "SYSTEM_MAP.md"]
       },
       "fs.replace_exact": {
         "enabled": true,
         "risk_floor": "L2",
         "requires_changeset_approval": true,
         "requires_old_content_match": true,
-        "allowed_roots": ["abyss_cli/", "artifacts/drafts/", "README.md", "SYSTEM_MAP.md"]
+        "allowed_roots": ["abyss_cli/", "artifacts/drafts/", "rules/", "prompts/", "README.md", "SYSTEM_MAP.md"]
       },
       "fs.append_file": {
         "enabled": true,
         "risk_floor": "L2",
         "requires_changeset_approval": true,
-        "allowed_roots": ["abyss_cli/", "artifacts/drafts/", "README.md", "SYSTEM_MAP.md"]
+        "allowed_roots": ["abyss_cli/", "artifacts/drafts/", "rules/", "prompts/", "README.md", "SYSTEM_MAP.md"]
       },
       "check.command": {
         "enabled": true,
@@ -84,9 +88,10 @@
       "may_execute": []
     },
     "implementation": {
-      "may_produce": ["abyss.change_set.v1"],
+      "may_produce": ["abyss.change_set.v1", "abyss.context_request.v1", "abyss.blocked_result.v1"],
       "may_execute": [],
-      "requires_prompt_package": true
+      "requires_prompt_package": true,
+      "requires_context_pack": true
     },
     "harness": {
       "may_produce": ["abyss.harness_review.v1"],

@@ -1,0 +1,165 @@
+{
+  "schema": "abyss.context_manifest.v1",
+  "purpose": "Maps task types to required context modules, files, and rules. Used by Context Broker to build context packs.",
+
+  "task_types": {
+    "cli_feature": {
+      "description": "Adding or modifying CLI commands and their routing",
+      "required_modules": ["cli_entry", "agent_runner", "summary"],
+      "required_files": [
+        "abyss_cli/__main__.py",
+        "abyss_cli/summary.py",
+        "abyss_cli/agent_runner.py"
+      ],
+      "required_rules": [
+        "rules/capabilities.yaml",
+        "rules/agents.yaml"
+      ],
+      "required_checks": ["python -m abyss_cli check"]
+    },
+
+    "workflow_feature": {
+      "description": "Modifying workflow state machine, transitions, or orchestration logic",
+      "required_modules": ["workflow", "owner", "changeset", "harness_review"],
+      "required_files": [
+        "abyss_cli/workflow.py",
+        "abyss_cli/owner.py",
+        "abyss_cli/changeset.py",
+        "abyss_cli/harness_review.py"
+      ],
+      "required_rules": [
+        "rules/capabilities.yaml",
+        "rules/agents.yaml"
+      ],
+      "required_checks": ["python -m abyss_cli check"]
+    },
+
+    "workflow_bugfix": {
+      "description": "Fixing bugs in workflow, owner, changeset, or harness review",
+      "required_modules": ["workflow", "owner", "changeset", "harness_review"],
+      "required_files": [
+        "abyss_cli/workflow.py",
+        "abyss_cli/owner.py",
+        "abyss_cli/changeset.py",
+        "abyss_cli/harness_review.py"
+      ],
+      "required_rules": [
+        "rules/capabilities.yaml"
+      ],
+      "required_checks": ["python -m abyss_cli check"]
+    },
+
+    "agent_feature": {
+      "description": "Adding or modifying agent behavior, prompts, or output parsing",
+      "required_modules": ["agent_runner", "llm_executor", "harness_review"],
+      "required_files": [
+        "abyss_cli/agent_runner.py",
+        "abyss_cli/llm_executor.py",
+        "abyss_cli/harness_review.py"
+      ],
+      "required_rules": [
+        "rules/agents.yaml",
+        "rules/capabilities.yaml",
+        "rules/llm_providers.yaml"
+      ],
+      "required_checks": ["python -m abyss_cli check"],
+      "required_prompts": [
+        "prompts/agents/harness_agent.md",
+        "prompts/agents/implementation_agent.md",
+        "prompts/agents/self_evolution_agent.md"
+      ]
+    },
+
+    "evolution_feature": {
+      "description": "Modifying evolution request/proposal/analysis chain",
+      "required_modules": ["evolution", "agent_runner"],
+      "required_files": [
+        "abyss_cli/evolution.py",
+        "abyss_cli/evolution_analysis.py",
+        "abyss_cli/agent_runner.py"
+      ],
+      "required_rules": [
+        "rules/agents.yaml",
+        "rules/capabilities.yaml"
+      ],
+      "required_checks": ["python -m abyss_cli check"]
+    },
+
+    "context_broker_feature": {
+      "description": "Modifying context broker, context pack generation, or module manifest",
+      "required_modules": ["context_broker", "agent_runner", "workflow"],
+      "required_files": [
+        "abyss_cli/context_pack.py",
+        "abyss_cli/agent_runner.py",
+        "abyss_cli/workflow.py",
+        "rules/modules.yaml",
+        "rules/context_manifest.yaml",
+        "rules/system_brief.yaml"
+      ],
+      "required_rules": [
+        "rules/modules.yaml",
+        "rules/context_manifest.yaml",
+        "rules/system_brief.yaml"
+      ],
+      "required_checks": ["python -m abyss_cli check"]
+    },
+
+    "governance_change": {
+      "description": "Modifying governance rules, policies, or capabilities",
+      "required_modules": ["integrity", "cli_entry"],
+      "required_files": [
+        "abyss_cli/integrity.py",
+        "rules/governance.yaml",
+        "rules/capabilities.yaml",
+        "rules/policy.yaml"
+      ],
+      "required_rules": [
+        "rules/governance.yaml",
+        "rules/capabilities.yaml",
+        "rules/policy.yaml"
+      ],
+      "required_checks": ["python -m abyss_cli check"]
+    },
+
+    "summary_feature": {
+      "description": "Modifying system summary output or status rendering",
+      "required_modules": ["summary", "workflow", "integrity"],
+      "required_files": [
+        "abyss_cli/summary.py",
+        "abyss_cli/workflow.py",
+        "abyss_cli/integrity.py"
+      ],
+      "required_rules": [],
+      "required_checks": ["python -m abyss_cli check"]
+    }
+  },
+
+  "task_type_detection": {
+    "description": "Heuristics for auto-detecting task type from proposal/request text",
+    "keywords": {
+      "cli_feature": ["CLI", "command", "argparse", "subcommand", "routing"],
+      "workflow_feature": ["workflow", "state machine", "orchestration", "transition"],
+      "workflow_bugfix": ["workflow bug", "workflow fix", "blocked", "retry"],
+      "agent_feature": ["agent", "prompt", "harness", "implementation agent", "self-evolution agent"],
+      "evolution_feature": ["evolution", "proposal", "request", "analysis"],
+      "context_broker_feature": ["context", "context pack", "module manifest", "progressive disclosure"],
+      "governance_change": ["governance", "policy", "capability", "rule"],
+      "summary_feature": ["summary", "status", "display", "render"]
+    }
+  },
+
+  "fallback": {
+    "description": "When task type cannot be determined, include these baseline modules",
+    "required_modules": ["cli_entry", "workflow", "changeset", "agent_runner"],
+    "required_files": [
+      "abyss_cli/__main__.py",
+      "abyss_cli/workflow.py",
+      "abyss_cli/changeset.py",
+      "abyss_cli/agent_runner.py"
+    ],
+    "required_rules": [
+      "rules/capabilities.yaml",
+      "rules/agents.yaml"
+    ]
+  }
+}

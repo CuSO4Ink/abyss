@@ -1,0 +1,158 @@
+{
+  "schema": "abyss.module_manifest.v1",
+  "purpose": "Structured map of Abyss modules. Used by Context Broker to determine which files an Agent needs for a given task.",
+
+  "modules": {
+    "cli_entry": {
+      "files": ["abyss_cli/__main__.py"],
+      "responsibility": [
+        "argparse command registration and routing",
+        "CLI subcommand dispatch",
+        "user-facing output formatting"
+      ],
+      "related_commands": ["intent", "prompt", "llm", "result", "evolution", "workflow", "owner", "changeset", "summary", "agent", "check"],
+      "invariants": [
+        "All new CLI commands must be registered here",
+        "No business logic in routing — delegate to modules"
+      ]
+    },
+
+    "agent_runner": {
+      "files": ["abyss_cli/agent_runner.py"],
+      "responsibility": [
+        "Build prompt packages for each agent type",
+        "Invoke LLM provider with prompt package",
+        "Parse agent outputs into structured records"
+      ],
+      "related_agents": ["harness", "self_evolution", "implementation"],
+      "invariants": [
+        "Agent runner never executes actions",
+        "All agent runs produce audit records"
+      ]
+    },
+
+    "workflow": {
+      "files": ["abyss_cli/workflow.py"],
+      "responsibility": [
+        "Roadmap execution state machine",
+        "Orchestrate: implementation → dry-run → harness → owner → executor",
+        "Handle blocked/failed/retry states"
+      ],
+      "states": ["implementation_pending", "implementation_running", "changeset_proposed", "dry_run_passed", "harness_review_running", "waiting_owner_approval", "approved_for_execution", "executing", "checking", "done", "failed", "blocked", "rejected"],
+      "invariants": [
+        "Cannot apply changeset without owner approval",
+        "Blocked state must expose reason",
+        "Terminal states: done, failed, blocked, rejected"
+      ]
+    },
+
+    "changeset": {
+      "files": ["abyss_cli/changeset.py"],
+      "responsibility": [
+        "ChangeSet schema validation",
+        "Dry-run simulation (old_content matching)",
+        "ChangeSet execution (fs operations)",
+        "Import from agent output"
+      ],
+      "operations": ["fs.create_file", "fs.replace_exact", "fs.append_file", "check.command"],
+      "invariants": [
+        "old_content must match exactly for replace_exact",
+        "Only allowlisted roots can be modified",
+        "Execution requires prior approval"
+      ]
+    },
+
+    "evolution": {
+      "files": ["abyss_cli/evolution.py", "abyss_cli/evolution_analysis.py"],
+      "responsibility": [
+        "Evolution request creation and management",
+        "Proposal generation (consuming self-evolution analysis)",
+        "ROADMAP approval chain"
+      ],
+      "invariants": [
+        "Proposals require user explicit approval to enter ROADMAP",
+        "Evolution analysis is advisory only"
+      ]
+    },
+
+    "owner": {
+      "files": ["abyss_cli/owner.py"],
+      "responsibility": [
+        "Owner inbox queue management",
+        "Approval/rejection of changeset items",
+        "Workflow state coordination on owner decisions"
+      ],
+      "invariants": [
+        "Only human owner can approve or reject",
+        "Rejection must propagate to workflow"
+      ]
+    },
+
+    "harness_review": {
+      "files": ["abyss_cli/harness_review.py"],
+      "responsibility": [
+        "Parse HarnessAgent structured output",
+        "Store harness review records"
+      ],
+      "verdicts": ["ok", "review_required", "violation"],
+      "invariants": [
+        "Harness cannot approve or reject — only advise",
+        "Must check implementation completeness, not just safety"
+      ]
+    },
+
+    "llm_executor": {
+      "files": ["abyss_cli/llm_executor.py"],
+      "responsibility": [
+        "LLM provider invocation (CLI and HTTP API)",
+        "Provider configuration loading",
+        "Response capture and storage"
+      ],
+      "providers": ["cli", "api"],
+      "invariants": [
+        "Provider is a transport layer only",
+        "No business logic in provider execution"
+      ]
+    },
+
+    "summary": {
+      "files": ["abyss_cli/summary.py"],
+      "responsibility": [
+        "System status rendering",
+        "Integrity check display",
+        "Workflow and evolution status aggregation"
+      ],
+      "invariants": [
+        "Must surface blocked reasons from workflow history",
+        "Must show dry-run failure messages"
+      ]
+    },
+
+    "integrity": {
+      "files": ["abyss_cli/integrity.py"],
+      "responsibility": [
+        "Structural integrity checks",
+        "Security boundary validation",
+        "Rule consistency verification"
+      ],
+      "invariants": [
+        "Check must be idempotent and side-effect-free"
+      ]
+    },
+
+    "context_broker": {
+      "files": ["abyss_cli/context_pack.py"],
+      "responsibility": [
+        "Build context packs for agent runs",
+        "Resolve task type to required modules and files",
+        "Provide system brief to all governance agents",
+        "Record context pack metadata for audit"
+      ],
+      "invariants": [
+        "Context pack must be recorded with every agent run",
+        "File inclusion must be justified",
+        "Missing files must be reported, not silently skipped"
+      ]
+    }
+  }
+}

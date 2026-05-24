@@ -196,19 +196,49 @@ def workflow_tick(*, provider: str | None = None, workflow_id: str | None = None
             workflow["attempts"]["implementation"] = int(workflow.get("attempts", {}).get("implementation", 0)) + 1
             _record_transition(workflow, "implementation_running", "implementation_agent_started", {"provider": provider_name})
             try:
-                agent_run, changeset = run_agent("implementation", target=str(workflow.get("proposal_id")), provider=provider_name)
+                agent_run, result = run_agent("implementation", target=str(workflow.get("proposal_id")), provider=provider_name)
             except Exception as exc:
                 workflow["last_error"] = str(exc)
                 return _record_transition(workflow, "failed", "implementation_agent_failed", {"error": str(exc)})
-            if not changeset:
-                return _record_transition(workflow, "failed", "implementation_agent_produced_no_changeset", {"agent_run_id": agent_run.get("id")})
+            if not result:
+                return _record_transition(workflow, "failed", "implementation_agent_produced_no_output", {"agent_run_id": agent_run.get("id")})
+
+            output_type = result.get("output_type", "changeset")
             workflow["implementation_agent_run_id"] = agent_run.get("id")
-            workflow["changeset_id"] = changeset.get("id")
-            workflow["changeset_valid"] = changeset.get("validation", {}).get("ok")
-            if not changeset.get("validation", {}).get("ok"):
-                workflow["last_error"] = "; ".join(changeset.get("validation", {}).get("messages", []))
-                return _record_transition(workflow, "failed", "implementation_agent_produced_invalid_changeset", {"changeset_id": changeset.get("id")})
-            return _record_transition(workflow, "changeset_proposed", "changeset_generated", {"changeset_id": changeset.get("id")})
+
+            # Handle context_request output
+            if output_type == "context_request":
+                missing_files = [m.get("file") for m in result.get("missing", [])]
+                reason = result.get("reason", "Context insufficient")
+                workflow["last_error"] = f"context_request: {reason}"
+                workflow["context_request_id"] = result.get("id")
+                return _record_transition(workflow, "blocked", "implementation_context_insufficient", {
+                    "agent_run_id": agent_run.get("id"),
+                    "context_request_id": result.get("id"),
+                    "missing_files": missing_files,
+                    "reason": reason,
+                })
+
+            # Handle blocked_result output
+            if output_type == "blocked_result":
+                blocked_reason = result.get("blocked_reason", "Task blocked")
+                category = result.get("category", "unknown")
+                workflow["last_error"] = f"blocked: [{category}] {blocked_reason}"
+                workflow["blocked_result_id"] = result.get("id")
+                return _record_transition(workflow, "blocked", "implementation_blocked", {
+                    "agent_run_id": agent_run.get("id"),
+                    "blocked_result_id": result.get("id"),
+                    "category": category,
+                    "reason": blocked_reason,
+                })
+
+            # Handle normal changeset output
+            workflow["changeset_id"] = result.get("id")
+            workflow["changeset_valid"] = result.get("validation", {}).get("ok")
+            if not result.get("validation", {}).get("ok"):
+                workflow["last_error"] = "; ".join(result.get("validation", {}).get("messages", []))
+                return _record_transition(workflow, "failed", "implementation_agent_produced_invalid_changeset", {"changeset_id": result.get("id")})
+            return _record_transition(workflow, "changeset_proposed", "changeset_generated", {"changeset_id": result.get("id")})
 
         if status == "changeset_proposed":
             changeset_id = str(workflow.get("changeset_id"))

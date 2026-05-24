@@ -6,6 +6,7 @@ from typing import Any
 
 from .audit import append_event
 from .changeset import dry_run_changeset, import_changeset_from_agent_output, load_changeset, resolve_changeset, validate_changeset
+from .context_pack import build_context_pack, render_context_pack_for_prompt, render_context_pack_summary
 from .harness import render_harness_json
 from .harness_review import parse_harness_review
 from .llm_executor import LLM_RESULTS_DIR, _provider_response, load_provider_config
@@ -321,39 +322,6 @@ Return exactly one `abyss-evolution-analysis` fenced block. Do not produce `abys
     return prompt_path, target_path, target_id
 
 
-def _implementation_context_files(target_record: dict[str, Any]) -> list[str]:
-    text = json.dumps(target_record, ensure_ascii=False).lower()
-    files = [
-        "abyss_cli/__main__.py",
-        "abyss_cli/agent_runner.py",
-        "abyss_cli/workflow.py",
-        "abyss_cli/changeset.py",
-        "abyss_cli/owner.py",
-    ]
-    if "evolution" in text or "proposal" in text or "propose" in text or "self-evolution" in text or "self_evolution" in text:
-        files.extend(["abyss_cli/evolution.py", "abyss_cli/evolution_analysis.py"])
-    if "direct" in text or "authorization" in text or "auth" in text or "密钥" in text or "权限" in text:
-        files.extend(["abyss_cli/direct_auth.py", "rules/governance.yaml"])
-    seen: set[str] = set()
-    result: list[str] = []
-    for rel in files:
-        if rel not in seen:
-            seen.add(rel)
-            result.append(rel)
-    return result
-
-
-def _build_repository_excerpts(target_record: dict[str, Any], *, limit_per_file: int = 16000) -> str:
-    blocks: list[str] = []
-    for rel in _implementation_context_files(target_record):
-        path = repo_root() / rel
-        if not path.exists():
-            blocks.append(f"### {rel}\n\n[FILE NOT FOUND]\n")
-            continue
-        blocks.append(f"### {rel}\n\n```text\n{_safe_read(path, limit=limit_per_file)}\n```\n")
-    return "\n".join(blocks)
-
-
 def _build_implementation_agent_prompt(spec: dict[str, Any], target: str) -> tuple[Path, Path, str]:
     target_path = resolve_evolution_target(target)
     target_record = read_record(target_path)
@@ -364,12 +332,21 @@ def _build_implementation_agent_prompt(spec: dict[str, Any], target: str) -> tup
     if not role_prompt.strip():
         raise SystemExit(f"ImplementationAgent role prompt not found or empty: {role_prompt_path}")
 
+    # Build Context Pack via Context Broker
+    roadmap_id = str(target_record.get("roadmap_entry") or target_record.get("roadmap_id") or "")
+    proposal_id = str(target_record.get("id") or "")
+    context_pack = build_context_pack(
+        agent_id="implementation",
+        target_record=target_record,
+        roadmap_id=roadmap_id,
+        proposal_id=proposal_id,
+    )
+    context_pack_rendered = render_context_pack_for_prompt(context_pack)
+    context_pack_summary = render_context_pack_summary(context_pack)
+
     agents_text = json.dumps(spec, ensure_ascii=False, indent=2)
     roadmap_text = _safe_read(repo_root() / "ROADMAP.md", limit=6000)
     capabilities_text = _safe_read(repo_root() / "rules" / "capabilities.yaml", limit=6000)
-    system_map_excerpt = _safe_read(repo_root() / "SYSTEM_MAP.md", limit=4000)
-    tracked_files = _safe_read(repo_root() / "README.md", limit=3000)
-    repository_excerpts = _build_repository_excerpts(target_record)
 
     ppkg_id = new_id("ppkg_agent_implementation")
     body = f"""# Abyss Agent Prompt Package
@@ -378,8 +355,18 @@ def _build_implementation_agent_prompt(spec: dict[str, Any], target: str) -> tup
 - agent_id: implementation
 - target_id: {target_id}
 - target_path: {relative_to_repo(target_path)}
+- context_pack_id: {context_pack.get("id")}
+- task_type: {context_pack.get("task_type")}
 - created_at: {now_iso()}
 - executor: agent_cli_provider
+
+---
+
+## Context Pack Summary
+
+```
+{context_pack_summary}
+```
 
 ---
 
@@ -421,39 +408,123 @@ def _build_implementation_agent_prompt(spec: dict[str, Any], target: str) -> tup
 
 ---
 
-## System map excerpt
-
-```markdown
-{system_map_excerpt}
-```
-
----
-
-## README excerpt
-
-```markdown
-{tracked_files}
-```
-
----
-
-## Repository excerpts for grounding
-
-The following excerpts are deterministic reads from the local repository. For every `fs.replace_exact` operation, `input.old_content` MUST be copied exactly from one of these excerpts. If the required target code is not present here, do not invent code; instead create a short blocked report under `artifacts/drafts/` explaining the missing context.
-
-{repository_excerpts}
+{context_pack_rendered}
 
 ---
 
 ## Required output
 
-Return exactly one `abyss-changeset` fenced block containing valid JSON for schema `abyss.change_set.v1`. Do not produce `abyss-action` blocks. Do not approve, reject, apply, run commands, or claim execution. Never use placeholder old_content such as comments, ellipses, inferred function bodies, or code that does not appear verbatim in the repository excerpts above.
+Return exactly one fenced block: either `abyss-changeset`, `abyss-context-request`, or `abyss-blocked-result`.
+
+- If you have sufficient context to implement safely: output `abyss-changeset` with valid JSON for schema `abyss.change_set.v1`.
+- If context is insufficient (required old_content not in Repository Files above): output `abyss-context-request` with valid JSON for schema `abyss.context_request.v1`.
+- If the task is fundamentally blocked by governance or infeasibility: output `abyss-blocked-result` with valid JSON for schema `abyss.blocked_result.v1`.
+
+Do not produce `abyss-action` blocks. Do not approve, reject, apply, run commands, or claim execution. Never use placeholder old_content such as comments, ellipses, inferred function bodies, or code that does not appear verbatim in the Repository Files above.
 """
     AGENT_PROMPT_DIR.mkdir(parents=True, exist_ok=True)
     prompt_path = AGENT_PROMPT_DIR / f"{ppkg_id}.md"
     prompt_path.write_text(body, encoding="utf-8")
-    append_event("agent.prompt_package.created", "Built implementation agent prompt package", {"agent_id": "implementation", "target_id": target_id, "path": prompt_path.as_posix()})
+    append_event("agent.prompt_package.created", "Built implementation agent prompt package", {
+        "agent_id": "implementation",
+        "target_id": target_id,
+        "context_pack_id": context_pack.get("id"),
+        "task_type": context_pack.get("task_type"),
+        "files_included": len(context_pack.get("files_included", [])),
+        "files_missing": context_pack.get("files_missing", []),
+        "path": prompt_path.as_posix(),
+    })
     return prompt_path, target_path, target_id
+
+
+def _parse_context_request(text: str) -> dict[str, Any] | None:
+    """Parse an abyss-context-request fenced block from agent output."""
+    import re
+    pattern = r"```abyss-context-request\s*\n(.*?)```"
+    match = re.search(pattern, text, re.DOTALL)
+    if not match:
+        return None
+    try:
+        return json.loads(match.group(1).strip())
+    except json.JSONDecodeError:
+        return None
+
+
+def _parse_blocked_result(text: str) -> dict[str, Any] | None:
+    """Parse an abyss-blocked-result fenced block from agent output."""
+    import re
+    pattern = r"```abyss-blocked-result\s*\n(.*?)```"
+    match = re.search(pattern, text, re.DOTALL)
+    if not match:
+        return None
+    try:
+        return json.loads(match.group(1).strip())
+    except json.JSONDecodeError:
+        return None
+
+
+def _parse_implementation_output(response_text: str, *, agent_run_id: str, result_path: Path) -> dict[str, Any] | None:
+    """Parse implementation agent output, supporting three output types:
+    1. abyss.change_set.v1 (normal changeset)
+    2. abyss.context_request.v1 (missing context)
+    3. abyss.blocked_result.v1 (fundamentally blocked)
+
+    Returns a dict with an 'output_type' field indicating which type was parsed.
+    """
+    # Try context_request first (higher priority — if agent says it needs more context, respect that)
+    context_request = _parse_context_request(response_text)
+    if context_request:
+        record = {
+            "schema": "abyss.context_request.v1",
+            "output_type": "context_request",
+            "agent_run_id": agent_run_id,
+            "result_path": str(result_path),
+            "created_at": now_iso(),
+            **context_request,
+        }
+        # Persist the context request
+        ctx_req_dir = runtime_root() / "process" / "context_requests"
+        ctx_req_dir.mkdir(parents=True, exist_ok=True)
+        req_id = new_id("ctx_req")
+        record["id"] = req_id
+        write_record(ctx_req_dir / f"{req_id}.yaml", record)
+        append_event("agent.output.context_request", "Implementation agent requested more context", {
+            "agent_run_id": agent_run_id,
+            "context_request_id": req_id,
+            "missing_files": [m.get("file") for m in record.get("missing", [])],
+        })
+        return record
+
+    # Try blocked_result
+    blocked_result = _parse_blocked_result(response_text)
+    if blocked_result:
+        record = {
+            "schema": "abyss.blocked_result.v1",
+            "output_type": "blocked_result",
+            "agent_run_id": agent_run_id,
+            "result_path": str(result_path),
+            "created_at": now_iso(),
+            **blocked_result,
+        }
+        # Persist the blocked result
+        blocked_dir = runtime_root() / "process" / "blocked_results"
+        blocked_dir.mkdir(parents=True, exist_ok=True)
+        blk_id = new_id("blk")
+        record["id"] = blk_id
+        write_record(blocked_dir / f"{blk_id}.yaml", record)
+        append_event("agent.output.blocked_result", "Implementation agent reported task blocked", {
+            "agent_run_id": agent_run_id,
+            "blocked_result_id": blk_id,
+            "category": record.get("category"),
+            "reason": record.get("blocked_reason", "")[:200],
+        })
+        return record
+
+    # Fall back to changeset parsing (original behavior)
+    changeset = import_changeset_from_agent_output(response_text, agent_run_id=agent_run_id, result_path=result_path)
+    if changeset:
+        changeset["output_type"] = "changeset"
+    return changeset
 
 
 def run_agent(agent_id: str, target: str = "latest", provider: str | None = None) -> tuple[dict[str, Any], dict[str, Any] | None]:
@@ -504,7 +575,7 @@ def run_agent(agent_id: str, target: str = "latest", provider: str | None = None
     elif agent_id == "self_evolution":
         specialized_record = parse_evolution_analysis(response_text, target_id=target_id, agent_run_id=agent_run["id"], result_path=result_path)
     elif agent_id == "implementation":
-        specialized_record = import_changeset_from_agent_output(response_text, agent_run_id=agent_run["id"], result_path=result_path)
+        specialized_record = _parse_implementation_output(response_text, agent_run_id=agent_run["id"], result_path=result_path)
 
     return agent_run, specialized_record
 
