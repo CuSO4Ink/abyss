@@ -23,6 +23,10 @@ CLI_PROVIDER_INTERFACE = "stdin_prompt_package_stdout_response_v1"
 API_PROVIDER_INTERFACE = "http_json_prompt_package_response_v1"
 
 
+def sanitize_llm_text(text: str) -> str:
+    return text.encode("utf-8", errors="replace").decode("utf-8", errors="replace")
+
+
 def _latest_prompt_package() -> Path | None:
     if not PROMPT_DIR.exists():
         return None
@@ -189,6 +193,7 @@ def _api_response(provider_config: dict[str, Any], prompt_path: Path, prompt_tex
 
 
 def _provider_response(provider: str, provider_config: dict[str, Any], prompt_path: Path, prompt_text: str) -> str:
+    prompt_text = sanitize_llm_text(prompt_text)
     interface = provider_config.get("interface", CLI_PROVIDER_INTERFACE)
     if interface == CLI_PROVIDER_INTERFACE:
         return _cli_response(provider_config, prompt_text)
