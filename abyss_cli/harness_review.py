@@ -32,7 +32,7 @@ def _normalize_risk(value: str) -> str:
     return risk if risk in {"L0", "L1", "L2", "L3", "L4", "L5"} else "L3"
 
 
-def parse_harness_review(text: str, *, target_id: str | None, agent_run_id: str | None, result_path: Path) -> dict[str, Any]:
+def parse_harness_review(text: str, *, target_id: str | None, agent_run_id: str | None, result_path: Path, target_type: str = "action_proposal", deterministic_context: dict[str, Any] | None = None) -> dict[str, Any]:
     matches = HARNESS_REVIEW_BLOCK_RE.findall(text)
     if matches:
         raw = _parse_simple_yaml(matches[0])
@@ -52,6 +52,7 @@ def parse_harness_review(text: str, *, target_id: str | None, agent_run_id: str 
             "agent_id": "harness",
             "agent_run_id": agent_run_id,
             "target_id": target_id,
+            "target_type": target_type,
             "result_path": result_path.as_posix(),
             "verdict": verdict,
             "risk_level": risk_level,
@@ -68,6 +69,7 @@ def parse_harness_review(text: str, *, target_id: str | None, agent_run_id: str 
             "agent_id": "harness",
             "agent_run_id": agent_run_id,
             "target_id": target_id,
+            "target_type": target_type,
             "result_path": result_path.as_posix(),
             "verdict": "warning",
             "risk_level": "L3",
@@ -84,6 +86,9 @@ def parse_harness_review(text: str, *, target_id: str | None, agent_run_id: str 
             "created_at": now_iso(),
         }
 
+    if deterministic_context is not None:
+        review["deterministic_context"] = deterministic_context
+
     path = HARNESS_REVIEWS_DIR / f"{review['id']}.yaml"
     write_record(path, review)
     append_event(
@@ -92,6 +97,7 @@ def parse_harness_review(text: str, *, target_id: str | None, agent_run_id: str 
         {
             "harness_review_id": review["id"],
             "target_id": target_id,
+            "target_type": target_type,
             "verdict": review["verdict"],
             "risk_level": review["risk_level"],
             "recommendation": review["recommendation"],

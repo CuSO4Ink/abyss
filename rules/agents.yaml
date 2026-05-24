@@ -4,15 +4,18 @@
   "agents": {
     "harness": {
       "enabled": true,
-      "description": "Reviews action proposals, LLM outputs, and Harness boundary risks without approving or executing actions.",
+      "description": "Reviews action proposals, ChangeSets, LLM outputs, and Harness boundary risks without approving or executing actions.",
       "provider": "cli",
       "role": "harness_review",
       "role_prompt": "prompts/agents/harness_agent.md",
       "output_schema": "abyss.harness_review.v1",
       "input_scope": [
         "target_action_proposal",
+        "target_changeset",
         "latest_llm_result",
         "policy_snapshot",
+        "capability_registry",
+        "deterministic_validation",
         "harness_snapshot",
         "system_map_excerpt"
       ],
@@ -26,6 +29,9 @@
         "execute_action",
         "approve_review",
         "reject_review",
+        "approve_changeset",
+        "reject_changeset",
+        "apply_changeset",
         "modify_policy",
         "modify_prompt",
         "modify_files",
@@ -58,6 +64,42 @@
         "modify_policy",
         "modify_prompt",
         "modify_files",
+        "send_external_message",
+        "schedule_work",
+        "run_commands",
+        "git_operation"
+      ]
+    },
+    "implementation": {
+      "enabled": true,
+      "description": "Generates proposed abyss.change_set.v1 records for approved roadmap/evolution targets without executing, approving, or modifying files directly.",
+      "provider": "cli",
+      "role": "implementation_changeset_planning",
+      "role_prompt": "prompts/agents/implementation_agent.md",
+      "output_schema": "abyss.change_set.v1",
+      "input_scope": [
+        "approved_evolution_or_roadmap_target",
+        "roadmap_snapshot",
+        "capability_registry",
+        "system_map_excerpt",
+        "selected_repository_context"
+      ],
+      "allowed": [
+        "read_prompt_package",
+        "analyze",
+        "produce_changeset"
+      ],
+      "forbidden": [
+        "execute_action",
+        "approve_roadmap_item",
+        "reject_roadmap_item",
+        "approve_changeset",
+        "reject_changeset",
+        "apply_changeset",
+        "modify_policy",
+        "modify_governance",
+        "modify_prompt",
+        "modify_files_directly",
         "send_external_message",
         "schedule_work",
         "run_commands",

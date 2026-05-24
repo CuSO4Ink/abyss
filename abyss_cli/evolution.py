@@ -269,6 +269,31 @@ def create_proposal_from_request(request_value: str) -> dict[str, Any]:
     request = read_record(request_path)
     proposal_id = new_id("evo_prop")
     title = str(request.get("summary") or "Untitled evolution request")[:120]
+    
+    # Load latest self-evolution analysis if available
+    analysis_summary = ""
+    minimal_slice = ""
+    risks = []
+    roadmap_status = "not_in_roadmap"
+    implementation_allowed_now = False
+    acceptance_checks = []
+    
+    try:
+        from .evolution_analysis import EVOLUTION_ANALYSES_DIR
+        if EVOLUTION_ANALYSES_DIR.exists():
+            analysis_files = sorted(EVOLUTION_ANALYSES_DIR.glob("*.yaml"), key=lambda p: p.stat().st_mtime, reverse=True)
+            if analysis_files:
+                latest_analysis = read_record(analysis_files[0])
+                if latest_analysis.get("target_id") == request.get("id"):
+                    analysis_summary = str(latest_analysis.get("summary") or "")
+                    minimal_slice = str(latest_analysis.get("minimal_slice") or "")
+                    risks = latest_analysis.get("risks") if isinstance(latest_analysis.get("risks"), list) else []
+                    roadmap_status = str(latest_analysis.get("roadmap_status") or "not_in_roadmap")
+                    implementation_allowed_now = bool(latest_analysis.get("implementation_allowed_now", False))
+                    acceptance_checks = latest_analysis.get("acceptance_checks") if isinstance(latest_analysis.get("acceptance_checks"), list) else []
+    except Exception:
+        pass  # Fall back to generic proposal if analysis loading fails
+    
     proposal = {
         "schema": "abyss.evolution_proposal.v1",
         "id": proposal_id,
@@ -295,6 +320,14 @@ def create_proposal_from_request(request_value: str) -> dict[str, Any]:
             "The proposal can be inspected independently of ROADMAP.md.",
             "No external interface is used for anything other than standard LLM invocation.",
         ],
+        "self_evolution_analysis": {
+            "summary": analysis_summary,
+            "minimal_slice": minimal_slice,
+            "risks": risks,
+            "roadmap_status": roadmap_status,
+            "implementation_allowed_now": implementation_allowed_now,
+            "acceptance_checks": acceptance_checks
+        },
         "created_at": now_iso(),
         "updated_at": now_iso(),
         "no_action_executed": True,
