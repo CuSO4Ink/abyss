@@ -1,0 +1,35 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r003_smoke",
+  "roadmap_id": "R003",
+  "summary": "Smoke test the governed ChangeSet executor MVP by creating a draft evidence file and running the integrity check.",
+  "risk_level": "L2",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.create_file",
+      "capability": "fs.write",
+      "target": {
+        "path": "artifacts/drafts/r003_executor_smoke.md"
+      },
+      "input": {
+        "content": "# R003 Executor Smoke Test\n\nThis file was created by an approved abyss.change_set.v1 smoke test.\n\nAllowed operation: fs.create_file.\n\n"
+      },
+      "preconditions": ["path_allowed", "target_absent"],
+      "rollback": {
+        "strategy": "manual_delete_artifact"
+      }
+    },
+    {
+      "id": "op_002",
+      "kind": "check.command",
+      "capability": "local.check",
+      "input": {
+        "command": "python -m abyss_cli check"
+      },
+      "preconditions": ["command_allowlisted"]
+    }
+  ],
+  "no_action_executed": true
+}

@@ -13,19 +13,102 @@
     "fsm.tick",
     "fsm.watch",
     "harness.export_snapshot",
+    "harness.action_review",
+    "harness.changeset_review",
+    "agent.self_evolution.plan",
+    "agent.implementation.produce_changeset",
     "llm.provider.cli",
-    "llm.provider.api"
+    "llm.provider.api",
+    "changeset.import",
+    "changeset.list",
+    "changeset.show",
+    "changeset.approve",
+    "changeset.reject",
+    "changeset.dry_run",
+    "changeset.apply",
+    "executor.fs.create_file",
+    "executor.fs.replace_exact",
+    "executor.fs.append_file",
+    "executor.check.command_allowlist"
   ],
+  "executor_capabilities": {
+    "schema": "abyss.executor_capabilities.v1",
+    "allowed_now": {
+      "fs.create_file": {
+        "enabled": true,
+        "risk_floor": "L2",
+        "requires_changeset_approval": true,
+        "allowed_roots": ["abyss_cli/", "artifacts/drafts/", "README.md", "SYSTEM_MAP.md"]
+      },
+      "fs.replace_exact": {
+        "enabled": true,
+        "risk_floor": "L2",
+        "requires_changeset_approval": true,
+        "requires_old_content_match": true,
+        "allowed_roots": ["abyss_cli/", "artifacts/drafts/", "README.md", "SYSTEM_MAP.md"]
+      },
+      "fs.append_file": {
+        "enabled": true,
+        "risk_floor": "L2",
+        "requires_changeset_approval": true,
+        "allowed_roots": ["abyss_cli/", "artifacts/drafts/", "README.md", "SYSTEM_MAP.md"]
+      },
+      "check.command": {
+        "enabled": true,
+        "risk_floor": "L1",
+        "requires_allowlist": true,
+        "allowed_commands": [
+          "python -m abyss_cli check",
+          "python -m compileall -q abyss_cli"
+        ]
+      }
+    },
+    "blocked_now": [
+      "shell.command",
+      "browser.automation",
+      "service.start",
+      "service.stop",
+      "service.port_bind",
+      "external.write",
+      "git.commit",
+      "git.push",
+      "policy.modify",
+      "prompt.modify",
+      "governance.modify",
+      "roadmap.modify"
+    ]
+  },
+  "agent_capabilities": {
+    "self_evolution": {
+      "may_produce": ["abyss.evolution_analysis.v1"],
+      "may_execute": []
+    },
+    "implementation": {
+      "may_produce": ["abyss.change_set.v1"],
+      "may_execute": [],
+      "requires_prompt_package": true
+    },
+    "harness": {
+      "may_produce": ["abyss.harness_review.v1"],
+      "may_execute": [],
+      "review_targets": ["action_proposal", "changeset"]
+    }
+  },
   "manual_executor": {
     "type": "client",
     "target": "manual_clipboard",
-    "description": "Abyss builds prompt packages; user pastes them into an LLM client manually."
+    "description": "Abyss builds prompt packages; user pastes them into an LLM client manually. Native changeset execution is limited to approved abyss.change_set.v1 records and a narrow executor capability allowlist."
   },
   "not_in_mvp": [
     "background.daemon",
     "automatic.git.push",
     "automatic.external.message",
     "self_modify.active_policy",
-    "automatic.action.execute"
+    "automatic.action.execute",
+    "browser.automation",
+    "service.port_management",
+    "arbitrary.shell",
+    "agent.approve_changeset",
+    "agent.apply_changeset"
   ]
 }
