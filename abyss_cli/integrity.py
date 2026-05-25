@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from .disclosure import audit_context_manifest
+from .schema_validator import validate_schema_file
 from .utils import list_records, read_record, repo_root, runtime_root
 
 REQUIRED_DIRS = [
@@ -20,10 +22,59 @@ REQUIRED_DIRS = [
 ]
 
 REQUIRED_FILES = [
+    "ABYSS.md",
+    "ABYSS_CONSTITUTION.md",
+    "README.md",
+    "SYSTEM_MAP.md",
     "rules/capabilities.yaml",
+    "rules/agents.yaml",
+    "rules/modules.yaml",
+    "rules/context_manifest.yaml",
+    "rules/architecture_cognition.yaml",
+    "rules/contracts/change_set.v1.yaml",
+    "rules/contracts/context_request.v1.yaml",
+    "rules/contracts/blocked_result.v1.yaml",
+    "rules/contracts/harness_review.v1.yaml",
+    "rules/contracts/evolution_analysis.v1.yaml",
+    "rules/contracts/context_pack.v1.yaml",
+    "rules/contracts/external_work_feedback_card.v1.yaml",
+    "rules/schemas/change_set.v1.schema.json",
+    "rules/schemas/context_request.v1.schema.json",
+    "rules/schemas/blocked_result.v1.schema.json",
+    "rules/schemas/harness_review.v1.schema.json",
+    "rules/schemas/evolution_analysis.v1.schema.json",
+    "rules/schemas/context_pack.v1.schema.json",
+    "rules/schemas/external_work_feedback_card.v1.schema.json",
 ]
 
 SENSITIVE_NAME_PARTS = [".env", "secret", "token", "credential", "id_rsa", "id_ed25519"]
+
+MODULE_CAPSULE_REQUIRED_FIELDS = [
+    "files",
+    "responsibility",
+    "inputs",
+    "outputs",
+    "permissions",
+    "dependencies",
+    "risk_level",
+    "validation",
+    "failure_modes",
+    "observability",
+    "runtime_records",
+    "allowed_callers",
+    "forbidden_actions",
+    "invariants",
+]
+
+EXPECTED_CONTRACT_IDS = {
+    "rules/contracts/change_set.v1.yaml": "abyss.change_set.v1",
+    "rules/contracts/context_request.v1.yaml": "abyss.context_request.v1",
+    "rules/contracts/blocked_result.v1.yaml": "abyss.blocked_result.v1",
+    "rules/contracts/harness_review.v1.yaml": "abyss.harness_review.v1",
+    "rules/contracts/evolution_analysis.v1.yaml": "abyss.evolution_analysis.v1",
+    "rules/contracts/context_pack.v1.yaml": "abyss.context_pack.v1",
+    "rules/contracts/external_work_feedback_card.v1.yaml": "abyss.external_work_feedback_card.v1",
+}
 
 
 def run_checks() -> tuple[bool, list[str]]:
@@ -147,6 +198,122 @@ def run_checks() -> tuple[bool, list[str]]:
             ok = False
             messages.append(f"INVALID_CAPABILITIES_FILE {exc}")
 
+    # Cognition layer and minimum-disclosure checks
+    readme_path = root / "README.md"
+    if readme_path.exists():
+        try:
+            readme_text = readme_path.read_text(encoding="utf-8", errors="replace")[:1000]
+            if "ABYSS.md" not in readme_text:
+                ok = False
+                messages.append("README_DOES_NOT_POINT_TO_ABYSS_ENTRYPOINT")
+        except Exception as exc:
+            ok = False
+            messages.append(f"INVALID_README_FILE {exc}")
+
+    architecture_path = root / "rules" / "architecture_cognition.yaml"
+    if architecture_path.exists():
+        try:
+            architecture_text = architecture_path.read_text(encoding="utf-8", errors="replace")
+            for required_text in [
+                "entrypoint: ABYSS.md",
+                "rules/contracts/",
+                ".local/knot_provider_workspace",
+                "authoritative_runtime_process_path: .local/runtime/process/",
+                "non_authoritative_process_skeleton: process/",
+            ]:
+                if required_text not in architecture_text:
+                    ok = False
+                    messages.append(f"ARCHITECTURE_COGNITION_MISSING_TEXT {required_text}")
+        except Exception as exc:
+            ok = False
+            messages.append(f"INVALID_ARCHITECTURE_COGNITION_FILE {exc}")
+
+    for rel, contract_id in EXPECTED_CONTRACT_IDS.items():
+        path = root / rel
+        if path.exists():
+            try:
+                contract = read_record(path)
+                if contract.get("schema") != "abyss.contract.v1":
+                    ok = False
+                    messages.append(f"INVALID_CONTRACT_SCHEMA {rel} {contract.get('schema')}")
+                if contract.get("contract_id") != contract_id:
+                    ok = False
+                    messages.append(f"INVALID_CONTRACT_ID {rel} {contract.get('contract_id')}")
+                if not contract.get("hard_boundaries"):
+                    ok = False
+                    messages.append(f"CONTRACT_MISSING_HARD_BOUNDARIES {rel}")
+            except Exception as exc:
+                ok = False
+                messages.append(f"INVALID_CONTRACT_FILE {rel} {exc}")
+
+    modules_path = root / "rules" / "modules.yaml"
+    if modules_path.exists():
+        try:
+            modules_config = read_record(modules_path)
+            if modules_config.get("schema") not in {"abyss.module_manifest.v1", "abyss.module_manifest.v2"}:
+                ok = False
+                messages.append(f"INVALID_MODULES_SCHEMA {modules_config.get('schema')}")
+            modules = modules_config.get("modules", {})
+            if not isinstance(modules, dict):
+                ok = False
+                messages.append("INVALID_MODULES_MAP")
+            else:
+                for module_name, module_spec in modules.items():
+                    if not isinstance(module_spec, dict):
+                        ok = False
+                        messages.append(f"INVALID_MODULE_SPEC {module_name}")
+                        continue
+                    for field in MODULE_CAPSULE_REQUIRED_FIELDS:
+                        if field not in module_spec:
+                            ok = False
+                            messages.append(f"MODULE_CAPSULE_MISSING_FIELD {module_name}.{field}")
+                    for file_rel in module_spec.get("files", []) if isinstance(module_spec.get("files"), list) else []:
+                        if not (root / str(file_rel)).exists():
+                            ok = False
+                            messages.append(f"MODULE_FILE_MISSING {module_name} {file_rel}")
+        except Exception as exc:
+            ok = False
+            messages.append(f"INVALID_MODULES_FILE {exc}")
+
+    context_manifest_path = root / "rules" / "context_manifest.yaml"
+    if context_manifest_path.exists():
+        try:
+            context_manifest = read_record(context_manifest_path)
+            task_types = context_manifest.get("task_types", {})
+            if not isinstance(task_types, dict):
+                ok = False
+                messages.append("INVALID_CONTEXT_TASK_TYPES")
+            else:
+                for task_type, spec in task_types.items():
+                    if not isinstance(spec, dict):
+                        ok = False
+                        messages.append(f"INVALID_CONTEXT_TASK_SPEC {task_type}")
+                        continue
+                    for key in ["required_files", "required_rules"]:
+                        values = spec.get(key, [])
+                        if not isinstance(values, list):
+                            ok = False
+                            messages.append(f"INVALID_CONTEXT_{key.upper()} {task_type}")
+                            continue
+                        for rel in values:
+                            rel_str = str(rel)
+                            if "*" in rel_str or rel_str.endswith("/"):
+                                continue
+                            candidate = (root / rel_str).resolve()
+                            if not candidate.exists():
+                                ok = False
+                                messages.append(f"CONTEXT_REF_MISSING {task_type}.{key} {rel_str}")
+                            normalized = rel_str.replace("\\", "/")
+                            if normalized.startswith(".local/knot_provider_workspace"):
+                                ok = False
+                                messages.append(f"CONTEXT_REF_PROVIDER_WORKSPACE_DEFAULT {task_type}.{key} {rel_str}")
+                            if normalized.startswith(".local/runtime") and task_type not in {"runtime_investigation", "debug", "audit"}:
+                                ok = False
+                                messages.append(f"CONTEXT_REF_RUNTIME_DEFAULT {task_type}.{key} {rel_str}")
+        except Exception as exc:
+            ok = False
+            messages.append(f"INVALID_CONTEXT_MANIFEST_FILE {exc}")
+
     agents_path = root / "rules" / "agents.yaml"
     if agents_path.exists():
         try:
@@ -165,9 +332,45 @@ def run_checks() -> tuple[bool, list[str]]:
                 if not role_prompt.exists():
                     ok = False
                     messages.append(f"MISSING_AGENT_ROLE_PROMPT {required_agent} {role_prompt.relative_to(root) if role_prompt.is_relative_to(root) else role_prompt}")
+            brain = agents.get("brain") if isinstance(agents, dict) else None
+            if not isinstance(brain, dict):
+                ok = False
+                messages.append("MISSING_BRAIN_AGENT_CONTRACT")
+            else:
+                if brain.get("enabled") is not False:
+                    ok = False
+                    messages.append("BRAIN_AGENT_MUST_REMAIN_DISABLED_IN_V0")
+                forbidden = set(brain.get("forbidden", [])) if isinstance(brain.get("forbidden"), list) else set()
+                for required_forbidden in ["approve_roadmap_item", "approve_changeset", "apply_changeset", "modify_files", "bypass_harness", "replace_owner", "run_commands"]:
+                    if required_forbidden not in forbidden:
+                        ok = False
+                        messages.append(f"BRAIN_AGENT_MISSING_FORBIDDEN {required_forbidden}")
         except Exception as exc:
             ok = False
             messages.append(f"INVALID_AGENTS_FILE {exc}")
+
+    llm_providers_path = root / "rules" / "llm_providers.yaml"
+    if llm_providers_path.exists():
+        try:
+            llm_providers = read_record(llm_providers_path)
+            if llm_providers.get("schema") != "abyss.llm_providers.v2":
+                ok = False
+                messages.append(f"INVALID_LLM_PROVIDERS_SCHEMA {llm_providers.get('schema')}")
+            providers = llm_providers.get("providers", {})
+            cli_provider = providers.get("cli") if isinstance(providers, dict) else None
+            if not isinstance(cli_provider, dict):
+                ok = False
+                messages.append("MISSING_CLI_PROVIDER")
+            else:
+                if not isinstance(cli_provider.get("model", ""), str):
+                    ok = False
+                    messages.append("INVALID_CLI_PROVIDER_MODEL")
+                if not isinstance(cli_provider.get("model_argument", "--model"), str):
+                    ok = False
+                    messages.append("INVALID_CLI_PROVIDER_MODEL_ARGUMENT")
+        except Exception as exc:
+            ok = False
+            messages.append(f"INVALID_LLM_PROVIDERS_FILE {exc}")
 
     roadmap_path = root / "ROADMAP.md"
     if roadmap_path.exists():
