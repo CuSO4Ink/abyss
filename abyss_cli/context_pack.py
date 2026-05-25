@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from .utils import new_id, now_iso, read_record, repo_root, runtime_root, write_record
+from .disclosure import build_disclosure_plan
 
 CONTEXT_PACKS_DIR = runtime_root() / "process" / "context_packs"
 
@@ -449,6 +450,7 @@ def build_context_pack(
 
     # Resolve context specification
     context_spec = _resolve_context_spec(task_type)
+    disclosure_plan = build_disclosure_plan(task_type, context_spec)
 
     # Get required modules and files
     required_modules = context_spec.get("required_modules", [])
@@ -525,6 +527,7 @@ def build_context_pack(
         "constraints": system_brief.get("hard_constraints", []),
         "acceptance_criteria": context_spec.get("required_checks", []),
         "context_budget": context_budget,
+        "disclosure_plan": disclosure_plan,
     }
 
     # Persist the context pack record (without file contents to save space)
@@ -545,6 +548,18 @@ def build_context_pack(
         "symbol_index_file_count": len([f for f in symbol_index if f.get("exists")]),
         "total_content_size": total_content_size,
         "context_budget": context_budget,
+        "disclosure_plan": {
+            "schema": disclosure_plan.get("schema"),
+            "ok": disclosure_plan.get("ok"),
+            "task_type": disclosure_plan.get("task_type"),
+            "default_disclosure_level": disclosure_plan.get("default_disclosure_level"),
+            "max_disclosure_level": disclosure_plan.get("max_disclosure_level"),
+            "max_seen_level": disclosure_plan.get("max_seen_level"),
+            "recommended_action": disclosure_plan.get("recommended_action"),
+            "warnings": disclosure_plan.get("warnings", []),
+            "no_action_executed": True,
+            "no_approval_granted": True,
+        },
     }
     CONTEXT_PACKS_DIR.mkdir(parents=True, exist_ok=True)
     write_record(CONTEXT_PACKS_DIR / f"{pack_id}.yaml", pack_record)
@@ -576,6 +591,13 @@ def render_context_pack_for_prompt(context_pack: dict[str, Any]) -> str:
         if context_budget.get("over_warn_threshold"):
             sections.append("- warning: Context pack is large. Prefer narrow edit plans and request more specific context instead of guessing.\n")
         sections.append("\n")
+
+    # Disclosure plan section
+    disclosure_plan = context_pack.get("disclosure_plan", {})
+    if disclosure_plan:
+        sections.append("## Disclosure Plan (read-only)\n")
+        sections.append("This plan explains the declared disclosure boundary for this task. It does not grant approval, execution authority, source access beyond included files, or runtime access.\n\n")
+        sections.append(f"```json\n{json.dumps(disclosure_plan, ensure_ascii=False, indent=2)}\n```\n")
 
     # System Brief section
     sections.append("## System Brief\n")
@@ -657,6 +679,7 @@ def render_context_pack_summary(context_pack: dict[str, Any]) -> str:
     files_missing = context_pack.get("files_missing", [])
     modules = context_pack.get("modules_included", [])
     context_budget = context_pack.get("context_budget", {})
+    disclosure_plan = context_pack.get("disclosure_plan", {})
 
     lines = [
         f"Context Pack: {pack_id}",
@@ -667,6 +690,8 @@ def render_context_pack_summary(context_pack: dict[str, Any]) -> str:
     ]
     if context_budget:
         lines.append(f"  Content size: {context_budget.get('total_content_size')} / warn {context_budget.get('warn_threshold')}")
+    if disclosure_plan:
+        lines.append(f"  Disclosure: ok={disclosure_plan.get('ok')} max={disclosure_plan.get('max_disclosure_level')} seen={disclosure_plan.get('max_seen_level')} action={disclosure_plan.get('recommended_action')}")
     if files_missing:
         lines.append(f"  ⚠️ Files missing: {', '.join(files_missing)}")
 

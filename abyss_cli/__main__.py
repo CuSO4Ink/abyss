@@ -10,7 +10,7 @@ from .brain import render_brain_brief
 from .changeset import apply_changeset, dry_run_changeset, import_changeset, list_changesets, load_changeset, render_record, set_changeset_status
 from .data_sync import data_pull, data_push, data_status, init_data_repo
 from .direct_auth import authorize_direct_modification, direct_auth_status, init_direct_auth, list_direct_authorizations
-from .disclosure import audit_context_manifest, render_disclosure_audit
+from .disclosure import audit_context_manifest, build_disclosure_plan, render_disclosure_audit, render_disclosure_plan
 from .evolution import approve_proposal, create_change_request, create_proposal_from_request, finalize_direct_modification_mode, governance_status, list_evolution_records, record_to_json, reject_proposal, run_evolution_smoke, show_evolution_record
 from .external_collab import create_external_feedback_card, render_feedback_card_summary
 from .fsm import fsm_tick, fsm_watch
@@ -398,6 +398,15 @@ def cmd_disclosure_audit(args: argparse.Namespace) -> None:
     raise SystemExit(0 if audit.get("ok") else 1)
 
 
+def cmd_disclosure_plan(args: argparse.Namespace) -> None:
+    plan = build_disclosure_plan(args.task_type)
+    if args.json:
+        print(render_json(plan))
+    else:
+        print(render_disclosure_plan(plan))
+    raise SystemExit(0 if plan.get("ok") else 1)
+
+
 def cmd_direct_auth_init(args: argparse.Namespace) -> None:
     print(render_json(init_direct_auth(force=args.force, owner=args.owner)))
 
@@ -675,6 +684,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = disclosure_sub.add_parser("audit", help="audit context_manifest disclosure levels without changing context pack behavior")
     p.add_argument("--json", action="store_true", help="render the audit as JSON")
     p.set_defaults(func=cmd_disclosure_audit)
+    p = disclosure_sub.add_parser("plan", help="render the read-only disclosure plan for a task type")
+    p.add_argument("task_type", help="task type from rules/context_manifest.yaml, or unknown for fallback")
+    p.add_argument("--json", action="store_true", help="render the plan as JSON")
+    p.set_defaults(func=cmd_disclosure_plan)
 
     p = sub.add_parser("summary")
     p.add_argument("--check", action="store_true", help="include integrity check result")

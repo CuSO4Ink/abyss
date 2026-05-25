@@ -144,6 +144,90 @@ def audit_context_manifest() -> dict[str, Any]:
     }
 
 
+def build_disclosure_plan(task_type: str, spec: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Build a read-only disclosure plan for a task type.
+
+    The plan explains the minimum declared context level and boundary checks.
+    It does not expand context dynamically, grant source/runtime access, approve
+    work, or mutate files.
+    """
+    if spec is None:
+        manifest_path = repo_root() / "rules" / "context_manifest.yaml"
+        manifest = read_record(manifest_path)
+        task_types = manifest.get("task_types", {})
+        fallback = manifest.get("fallback", {})
+        if isinstance(task_types, dict) and task_type in task_types and isinstance(task_types[task_type], dict):
+            spec = task_types[task_type]
+        elif isinstance(fallback, dict):
+            spec = fallback
+        else:
+            spec = {}
+
+    analysis = analyze_task_disclosure(task_type, spec)
+    warnings = list(analysis.get("warnings") or [])
+    escalation_triggers = spec.get("escalation_triggers", []) if isinstance(spec, dict) else []
+    forbidden_paths = spec.get("forbidden_paths", []) if isinstance(spec, dict) else []
+    if not isinstance(escalation_triggers, list):
+        escalation_triggers = []
+    if not isinstance(forbidden_paths, list):
+        forbidden_paths = []
+
+    max_seen_level = str(analysis.get("max_seen_level") or "unknown")
+    max_disclosure_level = str(analysis.get("max_disclosure_level") or "unknown")
+    over_limit = disclosure_rank(max_seen_level) > disclosure_rank(max_disclosure_level)
+    missing_policy = not spec
+
+    recommended_action = "include_declared_context_only"
+    if missing_policy:
+        warnings.append(f"no disclosure policy found for task_type={task_type}; fallback/default context only")
+        recommended_action = "request_context_manifest_policy"
+    elif over_limit or warnings:
+        recommended_action = "reduce_context_or_request_owner_review"
+
+    return {
+        "schema": "abyss.disclosure_plan.v1",
+        "task_type": task_type,
+        "ok": not warnings and not over_limit and not missing_policy,
+        "default_disclosure_level": analysis.get("default_disclosure_level"),
+        "max_disclosure_level": max_disclosure_level,
+        "max_seen_level": max_seen_level,
+        "source_access": analysis.get("source_access"),
+        "runtime_access": analysis.get("runtime_access"),
+        "files": analysis.get("files", []),
+        "warnings": warnings,
+        "escalation_triggers": escalation_triggers,
+        "forbidden_paths": forbidden_paths,
+        "recommended_action": recommended_action,
+        "no_action_executed": True,
+        "no_approval_granted": True,
+    }
+
+
+def render_disclosure_plan(plan: dict[str, Any]) -> str:
+    lines = [
+        f"disclosure_plan_ok={plan.get('ok')}",
+        f"task_type={plan.get('task_type')}",
+        f"default={plan.get('default_disclosure_level')} max={plan.get('max_disclosure_level')} seen={plan.get('max_seen_level')}",
+        f"source_access={plan.get('source_access')} runtime_access={plan.get('runtime_access')}",
+        f"recommended_action={plan.get('recommended_action')}",
+    ]
+    warnings = plan.get("warnings") or []
+    lines.append(f"warnings={len(warnings)}")
+    for warning in warnings:
+        lines.append(f"WARNING {warning}")
+    triggers = plan.get("escalation_triggers") or []
+    if triggers:
+        lines.append("escalation_triggers:")
+        for trigger in triggers:
+            lines.append(f"- {trigger}")
+    forbidden = plan.get("forbidden_paths") or []
+    if forbidden:
+        lines.append("forbidden_paths:")
+        for path in forbidden:
+            lines.append(f"- {path}")
+    return "\n".join(lines)
+
+
 def render_disclosure_audit(audit: dict[str, Any]) -> str:
     lines = [
         f"disclosure_audit_ok={audit.get('ok')}",
