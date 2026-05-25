@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "abyss.harness_review.v1",
+  "type": "object",
+  "required": ["schema", "id", "target_type", "target_id", "verdict", "findings"],
+  "properties": {
+    "schema": {"const": "abyss.harness_review.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "target_type": {"type": "string", "minLength": 1},
+    "target_id": {"type": "string", "minLength": 1},
+    "verdict": {"enum": ["ok", "review_required", "violation"]},
+    "findings": {"type": "array"},
+    "created_at": {"type": "string"},
+    "risk_level": {"type": "string"},
+    "recommendation": {"type": "string"},
+    "recommendations": {"type": "array"},
+    "no_action_executed": {"type": "boolean"},
+    "metadata": {"type": "object"}
+  }
+}

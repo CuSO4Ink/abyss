@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "abyss.blocked_result.v1",
+  "type": "object",
+  "required": ["schema", "id", "reason", "blocked_by"],
+  "properties": {
+    "schema": {"const": "abyss.blocked_result.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "reason": {"type": "string", "minLength": 1},
+    "blocked_by": {"type": ["string", "array"]},
+    "target_id": {"type": "string"},
+    "evidence": {"type": ["string", "array", "object"]},
+    "recommended_next_step": {"type": "string"},
+    "owner_decision_needed": {"type": "boolean"}
+  }
+}

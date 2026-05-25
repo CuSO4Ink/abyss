@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "abyss.context_request.v1",
+  "type": "object",
+  "required": ["schema", "id", "reason", "missing_context"],
+  "properties": {
+    "schema": {"const": "abyss.context_request.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "reason": {"type": "string", "minLength": 1},
+    "missing_context": {"type": ["string", "array", "object"]},
+    "target_id": {"type": "string"},
+    "task_type": {"type": "string"},
+    "requested_files": {"type": "array", "items": {"type": "string"}},
+    "requested_modules": {"type": "array", "items": {"type": "string"}},
+    "requested_rules": {"type": "array", "items": {"type": "string"}},
+    "why_needed": {"type": "string"},
+    "blocking_level": {"type": "string"}
+  }
+}

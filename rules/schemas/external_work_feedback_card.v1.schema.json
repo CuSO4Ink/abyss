@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "abyss.external_work_feedback_card.v1",
+  "type": "object",
+  "required": ["schema", "id", "source_platform", "stored_result_path", "candidate_material_only", "no_action_executed"],
+  "properties": {
+    "schema": {"const": "abyss.external_work_feedback_card.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "task_id": {"type": "string"},
+    "source_platform": {"type": "string", "minLength": 1},
+    "source_path": {"type": "string"},
+    "stored_result_path": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string"},
+    "candidate_material_only": {"const": true},
+    "no_action_executed": {"const": true},
+    "does_not_create_proposal": {"type": "boolean"},
+    "does_not_approve_or_apply": {"type": "boolean"},
+    "sections_detected": {"type": "array", "items": {"type": "string"}},
+    "missing_expected_sections": {"type": "array", "items": {"type": "string"}},
+    "content_length": {"type": "integer"},
+    "sections": {"type": "object"},
+    "recommended_intake_path": {"type": "array", "items": {"type": "string"}}
+  }
+}

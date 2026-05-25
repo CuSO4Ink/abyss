@@ -76,6 +76,16 @@ EXPECTED_CONTRACT_IDS = {
     "rules/contracts/external_work_feedback_card.v1.yaml": "abyss.external_work_feedback_card.v1",
 }
 
+EXPECTED_SCHEMA_IDS = {
+    "rules/schemas/change_set.v1.schema.json": "abyss.change_set.v1",
+    "rules/schemas/context_request.v1.schema.json": "abyss.context_request.v1",
+    "rules/schemas/blocked_result.v1.schema.json": "abyss.blocked_result.v1",
+    "rules/schemas/harness_review.v1.schema.json": "abyss.harness_review.v1",
+    "rules/schemas/evolution_analysis.v1.schema.json": "abyss.evolution_analysis.v1",
+    "rules/schemas/context_pack.v1.schema.json": "abyss.context_pack.v1",
+    "rules/schemas/external_work_feedback_card.v1.schema.json": "abyss.external_work_feedback_card.v1",
+}
+
 
 def run_checks() -> tuple[bool, list[str]]:
     root = repo_root()
@@ -246,6 +256,21 @@ def run_checks() -> tuple[bool, list[str]]:
                 ok = False
                 messages.append(f"INVALID_CONTRACT_FILE {rel} {exc}")
 
+    for rel, schema_id in EXPECTED_SCHEMA_IDS.items():
+        path = root / rel
+        if path.exists():
+            for schema_error in validate_schema_file(path):
+                ok = False
+                messages.append(f"INVALID_JSON_SCHEMA {rel} {schema_error}")
+            try:
+                schema = read_record(path)
+                if schema.get("$id") != schema_id:
+                    ok = False
+                    messages.append(f"INVALID_JSON_SCHEMA_ID {rel} {schema.get('$id')}")
+            except Exception as exc:
+                ok = False
+                messages.append(f"INVALID_JSON_SCHEMA_FILE {rel} {exc}")
+
     modules_path = root / "rules" / "modules.yaml"
     if modules_path.exists():
         try:
@@ -313,6 +338,15 @@ def run_checks() -> tuple[bool, list[str]]:
         except Exception as exc:
             ok = False
             messages.append(f"INVALID_CONTEXT_MANIFEST_FILE {exc}")
+
+    try:
+        disclosure_audit = audit_context_manifest()
+        for warning in disclosure_audit.get("warnings", []):
+            ok = False
+            messages.append(f"DISCLOSURE_AUDIT_WARNING {warning}")
+    except Exception as exc:
+        ok = False
+        messages.append(f"DISCLOSURE_AUDIT_FAILED {exc}")
 
     agents_path = root / "rules" / "agents.yaml"
     if agents_path.exists():

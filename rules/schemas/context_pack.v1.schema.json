@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "abyss.context_pack.v1",
+  "type": "object",
+  "required": ["schema", "id", "agent_id", "task_type", "created_at", "files_included", "files_missing"],
+  "properties": {
+    "schema": {"const": "abyss.context_pack.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "agent_id": {"type": "string", "minLength": 1},
+    "task_type": {"type": "string"},
+    "created_at": {"type": "string"},
+    "roadmap_id": {"type": "string"},
+    "proposal_id": {"type": "string"},
+    "system_brief_included": {"type": "boolean"},
+    "architecture_cognition_included": {"type": "boolean"},
+    "modules_included": {"type": "array", "items": {"type": "string"}},
+    "files_included": {"type": "array", "items": {"type": "string"}},
+    "files_missing": {"type": "array", "items": {"type": "string"}},
+    "file_count": {"type": "integer"},
+    "symbol_index_file_count": {"type": "integer"},
+    "total_content_size": {"type": "integer"},
+    "context_budget": {"type": "object"}
+  }
+}

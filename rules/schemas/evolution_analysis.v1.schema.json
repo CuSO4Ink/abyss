@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "abyss.evolution_analysis.v1",
+  "type": "object",
+  "required": ["schema", "id", "request_id", "summary", "recommendation"],
+  "properties": {
+    "schema": {"const": "abyss.evolution_analysis.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "request_id": {"type": "string", "minLength": 1},
+    "summary": {"type": "string"},
+    "recommendation": {"type": ["string", "object"]},
+    "risks": {"type": ["array", "string"]},
+    "scope": {"type": ["array", "string", "object"]},
+    "implementation_notes": {"type": ["array", "string"]},
+    "validation": {"type": ["array", "string", "object"]},
+    "open_questions": {"type": "array"}
+  }
+}
