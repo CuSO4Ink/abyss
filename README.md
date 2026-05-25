@@ -43,7 +43,18 @@ Abyss cognition starts from `ABYSS.md`, then moves through constitution, system 
 
 `rules/modules.yaml` is the module capsule manifest. `rules/contracts/` contains machine-readable contracts for structured records such as `abyss.change_set.v1`, `abyss.context_request.v1`, `abyss.blocked_result.v1`, `abyss.harness_review.v1`, `abyss.evolution_analysis.v1`, `abyss.context_pack.v1`, and `abyss.external_work_feedback_card.v1`.
 
-`python -m abyss_cli check` validates key cognition-layer expectations: required entry files, contract presence, module capsule fields, context manifest references, Brain Agent v0 read-only boundaries, and runtime noise exclusions.
+`python -m abyss_cli check` validates key cognition-layer expectations: required entry files, contract presence, JSON Schema presence, module capsule fields, context manifest references, disclosure audit warnings, Brain Agent v0 read-only boundaries, and runtime noise exclusions.
+
+Read-only cognition commands:
+
+```powershell
+python -m abyss_cli brain brief
+python -m abyss_cli brain brief --json
+python -m abyss_cli disclosure audit
+python -m abyss_cli disclosure audit --json
+```
+
+These commands explain state and disclosure boundaries only. They do not execute work, approve changes, modify files, schedule tasks, or replace Owner/Harness authority.
 
 ## Layered data architecture
 

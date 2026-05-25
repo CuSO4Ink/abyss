@@ -72,7 +72,10 @@ abyss data init|status|pull|push
 - `abyss_cli/workflow.py` — native autonomous workflow runner; advances approved roadmap work through implementation, dry-run, HarnessAgent review, owner approval, executor apply, check, and report without external assistant state-chaining.
 - `abyss_cli/owner.py` — Owner Inbox approval surface for user decisions, including automatic continuation after approval.
 - `abyss_cli/summary.py` — user-facing status overview for active workflows, pending approvals, failures, changesets, and optional integrity result.
-- `abyss_cli/integrity.py` — checks repository structure, runtime references, workflow records, safety invariants, cognition-layer synchronization, module capsule completeness, contract presence, and minimum-disclosure boundaries.
+- `abyss_cli/integrity.py` — checks repository structure, runtime references, workflow records, safety invariants, cognition-layer synchronization, module capsule completeness, contract/schema presence, and minimum-disclosure boundaries.
+- `abyss_cli/brain.py` — renders Brain Agent v0 read-only status briefs; explains state and next candidates without execution, approval, mutation, or scheduling.
+- `abyss_cli/disclosure.py` — audits `rules/context_manifest.yaml` against L0-L7 disclosure levels without replacing current context pack behavior.
+- `abyss_cli/schema_validator.py` — validates structured records against the local JSON Schema subset; structural validation only, not governance approval.
 
 ## Data flow
 
