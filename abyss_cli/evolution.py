@@ -9,6 +9,8 @@ from .audit import append_event
 from .llm_executor import LLM_RESULTS_DIR, _provider_response, load_provider_config
 from .utils import latest_record, new_id, now_iso, read_record, relative_to_repo, repo_root, resolve_record_arg, runtime_root, write_record
 from .context_pack import load_context_manifest, detect_task_type
+from .request_rules import detect_governance_core_scope
+
 
 
 EVOLUTION_DIR = runtime_root() / "evolution"
@@ -354,8 +356,10 @@ def create_proposal_from_request(request_value: str) -> dict[str, Any]:
     
     # Infer task_coverage_manifest from request/proposal text using context_manifest keywords
     task_coverage_manifest = _infer_task_coverage_manifest(request)
+    governance_core_detection = detect_governance_core_scope(f"{request.get('summary') or ''}\n{request.get('details') or ''}")
     
     proposal = {
+
         "schema": "abyss.evolution_proposal.v1",
         "id": proposal_id,
         "type": "evolution_proposal",
@@ -395,7 +399,30 @@ def create_proposal_from_request(request_value: str) -> dict[str, Any]:
     }
     if task_coverage_manifest:
         proposal["task_coverage_manifest"] = task_coverage_manifest
+    if governance_core_detection.get("requires_meta_governance"):
+        proposal["governance_core_detection"] = governance_core_detection
+        proposal["recommended_request_type"] = governance_core_detection.get("recommended_request_type")
+        proposal["recommended_governance_route"] = governance_core_detection.get("recommended_route")
+        proposal["risk_level"] = "L3"
+        proposal["recommended_chain"] = [
+            "record_raw_request",
+            "classify_as_governance_mutation_or_meta_evolution_request",
+            "review_under_prior_accepted_rules",
+            "wait_for_explicit_owner_approval",
+            "require_risk_assessment_rollback_validation_and_activation_note",
+            "apply_only_after_harness_and_owner_approval",
+            "activate_only_in_later_cycle",
+        ]
+        proposal["acceptance_checks"] = [
+            "Governance-core scope is explicitly classified before any implementation work.",
+            "The proposal cannot proceed through ordinary self-evolution as a self-approving closure.",
+            "Self Evolution and Brain Agent may analyze or prepare but cannot approve, apply, activate, or retroactively legitimize governance-core changes.",
+            "Risk assessment, rollback plan, validation plan, activation note, old-rule review, and explicit Owner approval are required before implementation.",
+            "Accepted governance-core changes activate only in a later workflow cycle, not in the cycle that approved them.",
+            "No governance-core change was applied, activated, or scheduled by this proposal record.",
+        ]
     write_record(PROPOSALS_DIR / f"{proposal_id}.yaml", proposal)
+
     request["status"] = "proposed"
     request["updated_at"] = now_iso()
     write_record(request_path, request)

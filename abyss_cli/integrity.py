@@ -4,8 +4,10 @@ import re
 from pathlib import Path
 
 from .disclosure import audit_context_manifest
+from .request_rules import validate_request_rules_config
 from .schema_validator import validate_schema_file
 from .utils import list_records, read_record, repo_root, runtime_root
+
 
 REQUIRED_DIRS = [
     "rules",
@@ -31,6 +33,7 @@ REQUIRED_FILES = [
     "rules/modules.yaml",
     "rules/context_manifest.yaml",
     "rules/architecture_cognition.yaml",
+    "rules/request_types.v1.yaml",
     "rules/contracts/change_set.v1.yaml",
     "rules/contracts/context_request.v1.yaml",
     "rules/contracts/blocked_result.v1.yaml",
@@ -38,6 +41,7 @@ REQUIRED_FILES = [
     "rules/contracts/evolution_analysis.v1.yaml",
     "rules/contracts/context_pack.v1.yaml",
     "rules/contracts/external_work_feedback_card.v1.yaml",
+    "rules/contracts/request_envelope.v1.yaml",
     "rules/schemas/change_set.v1.schema.json",
     "rules/schemas/context_request.v1.schema.json",
     "rules/schemas/blocked_result.v1.schema.json",
@@ -45,7 +49,9 @@ REQUIRED_FILES = [
     "rules/schemas/evolution_analysis.v1.schema.json",
     "rules/schemas/context_pack.v1.schema.json",
     "rules/schemas/external_work_feedback_card.v1.schema.json",
+    "rules/schemas/request_envelope.v1.schema.json",
 ]
+
 
 SENSITIVE_NAME_PARTS = [".env", "secret", "token", "credential", "id_rsa", "id_ed25519"]
 
@@ -74,6 +80,7 @@ EXPECTED_CONTRACT_IDS = {
     "rules/contracts/evolution_analysis.v1.yaml": "abyss.evolution_analysis.v1",
     "rules/contracts/context_pack.v1.yaml": "abyss.context_pack.v1",
     "rules/contracts/external_work_feedback_card.v1.yaml": "abyss.external_work_feedback_card.v1",
+    "rules/contracts/request_envelope.v1.yaml": "abyss.request_envelope.v1",
 }
 
 EXPECTED_SCHEMA_IDS = {
@@ -84,6 +91,7 @@ EXPECTED_SCHEMA_IDS = {
     "rules/schemas/evolution_analysis.v1.schema.json": "abyss.evolution_analysis.v1",
     "rules/schemas/context_pack.v1.schema.json": "abyss.context_pack.v1",
     "rules/schemas/external_work_feedback_card.v1.schema.json": "abyss.external_work_feedback_card.v1",
+    "rules/schemas/request_envelope.v1.schema.json": "abyss.request_envelope.v1",
 }
 
 
@@ -271,7 +279,12 @@ def run_checks() -> tuple[bool, list[str]]:
                 ok = False
                 messages.append(f"INVALID_JSON_SCHEMA_FILE {rel} {exc}")
 
+    for request_rule_error in validate_request_rules_config():
+        ok = False
+        messages.append(request_rule_error)
+
     modules_path = root / "rules" / "modules.yaml"
+
     if modules_path.exists():
         try:
             modules_config = read_record(modules_path)

@@ -462,7 +462,71 @@
         ".local/knot_provider_workspace/"
       ]
     },
+    "governance_core_mutation": {
+      "description": "Meta-governance handling for changes to governance-core surfaces such as Self Evolution, Harness policy, approval gates, permission boundaries, Memory policy, context disclosure policy, Git authority, external AI authority, global rules, constitution-level rules, or governance contracts.",
+      "required_modules": [
+        "evolution",
+        "workflow",
+        "owner",
+        "harness_review",
+        "changeset",
+        "context_broker",
+        "integrity",
+        "cli_entry"
+      ],
+      "required_files": [
+        "abyss_cli/evolution.py",
+        "abyss_cli/evolution_analysis.py",
+        "abyss_cli/workflow.py",
+        "abyss_cli/owner.py",
+        "abyss_cli/harness.py",
+        "abyss_cli/harness_review.py",
+        "abyss_cli/changeset.py",
+        "abyss_cli/context_pack.py",
+        "abyss_cli/disclosure.py",
+        "abyss_cli/integrity.py",
+        "abyss_cli/request_rules.py",
+        "abyss_cli/request_envelope.py",
+        "abyss_cli/__main__.py",
+        "rules/request_types.v1.yaml",
+        "rules/context_manifest.yaml",
+        "rules/governance.yaml",
+        "rules/capabilities.yaml",
+        "rules/policy.yaml",
+        "rules/contracts/request_envelope.v1.yaml",
+        "rules/schemas/request_envelope.v1.schema.json",
+        "ABYSS.md",
+        "ABYSS_CONSTITUTION.md",
+        "SYSTEM_MAP.md"
+      ],
+      "required_rules": [
+        "rules/request_types.v1.yaml",
+        "rules/context_manifest.yaml",
+        "rules/governance.yaml",
+        "rules/capabilities.yaml",
+        "rules/policy.yaml"
+      ],
+      "required_checks": [
+        "python -m abyss_cli check",
+        "python -m abyss_cli request types --all --json",
+        "python -m compileall -q abyss_cli"
+      ],
+      "default_disclosure_level": "L6_source",
+      "max_disclosure_level": "L6_source",
+      "source_access": true,
+      "runtime_access": false,
+      "escalation_triggers": [
+        "governance_core_surface_detected",
+        "old_rule_review_required",
+        "owner_approval_required",
+        "delayed_activation_required"
+      ],
+      "forbidden_paths": [
+        ".local/knot_provider_workspace/"
+      ]
+    },
     "summary_feature": {
+
       "description": "Modifying system summary output, status rendering, workflow state-debt classification, no-op implementation outcome handling, or probe/robustness task grounding",
       "required_modules": [
         "summary",
@@ -597,12 +661,35 @@
         "task package",
         "developer protocol"
       ],
+      "governance_core_mutation": [
+        "meta self-evolution",
+        "meta-governance",
+        "meta governance",
+        "governance-core",
+        "governance core",
+        "governance mutation",
+        "governance_mutation",
+        "meta_evolution_request",
+        "self evolution may evolve itself",
+        "delayed activation",
+        "old-rule review",
+        "old rule review",
+        "approval gate",
+        "permission boundary",
+        "context disclosure policy",
+        "memory policy",
+        "git authority",
+        "external ai authority",
+        "constitution-level",
+        "sovereign kernel"
+      ],
       "governance_change": [
         "governance",
         "policy",
         "capability",
         "rule"
       ],
+
       "summary_feature": [
         "summary",
         "status",
@@ -632,8 +719,10 @@
     },
     "priority": {
       "workflow_smoke_test": 110,
+      "governance_core_mutation": 120,
       "external_collaboration": 105,
       "context_broker_feature": 100,
+
       "changeset_validation_feature": 90,
       "workflow_bugfix": 80,
       "workflow_feature": 70,

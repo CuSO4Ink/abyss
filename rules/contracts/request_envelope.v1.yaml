@@ -1,0 +1,52 @@
+{
+  "schema": "abyss.contract.v1",
+  "contract_id": "abyss.request_envelope.v1",
+  "purpose": "Normalized request envelope for making Abyss request semantics explicit before context selection, governance routing, validation, and coordination.",
+  "authority": "semantic_normalization_only",
+  "required_fields": [
+    "schema",
+    "request_id",
+    "request_type",
+    "source",
+    "created_at",
+    "created_by",
+    "title",
+    "description",
+    "status",
+    "governance_route",
+    "requires_code_change",
+    "requires_cognition_update",
+    "requires_owner_approval",
+    "required_context",
+    "expected_artifacts",
+    "validation_plan"
+  ],
+  "optional_fields": [
+    "display_key",
+    "user_intent",
+    "scope",
+    "risk_level",
+    "related_documents",
+    "request_fields",
+    "missing_required_fields",
+    "warnings",
+    "notes",
+    "contract_version"
+  ],
+  "hard_boundaries": [
+    "Request Envelope normalization grants no execution authority.",
+    "Request Envelope normalization grants no approval authority.",
+    "Mutation requests must still pass proposal, workflow, ChangeSet, dry-run, Harness review, Owner approval, executor apply, and check.",
+    "request_id is identity only; request_type is the authoritative semantic field.",
+    "Automatic natural-language classification must not be authoritative in V0.",
+    "Brain Agent may prepare or recommend envelopes but must not approve or execute them.",
+    "External models may receive request metadata but cannot create executable tasks directly.",
+    "Governance-core changes must be represented as governance_mutation or meta_evolution_request and routed to meta_governance.",
+    "Self Evolution may propose governance-core changes but must not approve, apply, activate, or retroactively legitimize changes to itself.",
+    "Governance-core activation requires prior-rule review, explicit Owner approval, rollback plan, validation plan, activation note, and delayed activation in a later cycle."
+  ],
+  "producer_modules": ["request_envelope", "request_parser", "brain_candidate_preparation"],
+  "consumer_modules": ["context_broker", "self_evolution", "harness_review", "insight", "brain"],
+  "runtime_records": [".local/runtime/process/requests/"],
+  "disclosure_level": "L5_contracts"
+}

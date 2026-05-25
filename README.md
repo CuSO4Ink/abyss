@@ -41,9 +41,11 @@ The canonical structured rules live in `rules/design_principles.yaml`; the highe
 
 Abyss cognition starts from `ABYSS.md`, then moves through constitution, system brief, direction documents, `SYSTEM_MAP.md`, module capsules in `rules/modules.yaml`, and contracts in `rules/contracts/` before source code. Source files under `abyss_cli/` are implementation evidence, not the default entrypoint.
 
-`rules/modules.yaml` is the module capsule manifest. `rules/contracts/` contains machine-readable contracts for structured records such as `abyss.change_set.v1`, `abyss.context_request.v1`, `abyss.blocked_result.v1`, `abyss.harness_review.v1`, `abyss.evolution_analysis.v1`, `abyss.context_pack.v1`, and `abyss.external_work_feedback_card.v1`.
+`rules/modules.yaml` is the module capsule manifest. `rules/contracts/` contains machine-readable contracts for structured records such as `abyss.change_set.v1`, `abyss.context_request.v1`, `abyss.blocked_result.v1`, `abyss.harness_review.v1`, `abyss.evolution_analysis.v1`, `abyss.context_pack.v1`, `abyss.external_work_feedback_card.v1`, and `abyss.request_envelope.v1`.
 
-`python -m abyss_cli check` validates key cognition-layer expectations: required entry files, contract presence, JSON Schema presence, module capsule fields, context manifest references, disclosure audit warnings, Brain Agent v0 read-only boundaries, and runtime noise exclusions.
+`rules/request_types.v1.yaml` is the canonical V0 request semantics source. `request_id` tracks identity only; `request_type` is the authoritative semantic field for parsing, routing, validation, context selection, and governance behavior.
+
+`python -m abyss_cli check` validates key cognition-layer expectations: required entry files, contract presence, JSON Schema presence, request type semantics, module capsule fields, context manifest references, disclosure audit warnings, Brain Agent v0 read-only boundaries, and runtime noise exclusions.
 
 Read-only cognition commands:
 
@@ -130,6 +132,26 @@ From this repository root, direct module execution also works without installati
 python -m abyss_cli intent new "总结当前 git diff，生成组内同步说明"
 python -m abyss_cli prompt build latest --copy
 python -m abyss_cli check
+```
+
+## Request semantics V0
+
+Abyss has a canonical Request Envelope layer for making request semantics explicit before context selection or governance routing:
+
+```powershell
+python -m abyss_cli request types
+python -m abyss_cli request types --all
+python -m abyss_cli request normalize --type maintenance_request --title "Refactor integrity checks" --field target_module=abyss_cli/integrity.py --field maintenance_kind=refactor
+python -m abyss_cli request validate path\to\request_envelope.json
+```
+
+V0 boundaries:
+
+```text
+Request normalization grants no execution authority.
+Request normalization grants no approval authority.
+Automatic natural-language classification is not authoritative in V0.
+Mutation requests still require proposal, workflow, ChangeSet, dry-run, Harness review, Owner approval, executor apply, and check.
 ```
 
 ## Manual LLM loop

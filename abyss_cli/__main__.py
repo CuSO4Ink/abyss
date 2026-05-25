@@ -20,11 +20,15 @@ from .intent import INTENTS_DIR, create_intent
 from .llm_executor import run_llm
 from .owner import approve_owner_item, list_owner_items, reject_owner_item, render_owner_item
 from .prompt_builder import build_external_developer_prompt, build_prompt
+from .request_envelope import load_request_envelope, normalize_request_envelope, render_json as render_request_json, validate_request_envelope
+from .request_rules import detect_governance_core_scope, governance_core_surfaces, list_request_type_definitions, validate_request_rules_config
+
 from .result import import_result
 from .review import REVIEWS_DIR, pending_reviews, set_review_status
 from .summary import render_summary
 from .utils import latest_record, read_record, repo_root, resolve_record_arg, run_git
 from .workflow import list_reports, list_workflows, load_report, render_json, retry_workflow, start_workflow, workflow_run_until_wait, workflow_tick, workflow_watch
+
 
 
 def cmd_status(_: argparse.Namespace) -> None:
@@ -444,7 +448,112 @@ def cmd_external_import_result(args: argparse.Namespace) -> None:
     print(render_feedback_card_summary(card))
 
 
+def cmd_request_types(args: argparse.Namespace) -> None:
+    errors = validate_request_rules_config()
+    records = list_request_type_definitions(include_reserved=args.all)
+    if args.json:
+        print(render_request_json({
+            "schema": "abyss.request_types_listing.v1",
+            "ok": not errors,
+            "errors": errors,
+            "request_types": records,
+            "no_action_executed": True,
+            "no_approval_granted": True,
+        }), end="")
+        raise SystemExit(0 if not errors else 1)
+    for record in records:
+        print(f"{record.get('request_type')} [{record.get('status')}] route={record.get('default_route')} mutation={record.get('mutation_risk')}")
+    if errors:
+        for error in errors:
+            print(error)
+    raise SystemExit(0 if not errors else 1)
+
+
+def cmd_request_normalize(args: argparse.Namespace) -> None:
+    request_fields = {}
+    for item in args.field or []:
+        if "=" not in item:
+            raise SystemExit(f"Invalid --field value, expected key=value: {item}")
+        key, value = item.split("=", 1)
+        request_fields[key] = value
+    envelope = normalize_request_envelope(
+        request_type=args.type,
+        title=args.title,
+        description=args.description or "",
+        request_id=args.request_id or "",
+        source=args.source,
+        created_by=args.created_by,
+        scope=args.scope or [],
+        risk_level=args.risk_level,
+        required_context=args.required_context or [],
+        expected_artifacts=args.expected_artifact or [],
+        validation_plan=args.validation or [],
+        related_documents=args.related_document or [],
+        notes=args.notes or "",
+        request_fields=request_fields,
+    )
+    print(render_request_json(envelope), end="")
+    validation = validate_request_envelope(envelope)
+    raise SystemExit(0 if validation.get("ok") else 1)
+
+
+def cmd_request_validate(args: argparse.Namespace) -> None:
+    path = Path(args.path)
+    if not path.is_absolute():
+        path = (Path.cwd() / path).resolve()
+    if not path.exists():
+        raise SystemExit(f"Request envelope file not found: {path}")
+    envelope = load_request_envelope(path)
+    validation = validate_request_envelope(envelope)
+    if args.json:
+        print(render_request_json(validation), end="")
+    else:
+        print(f"ok={validation.get('ok')}")
+        for error in validation.get("errors", []):
+            print(f"ERROR {error}")
+        for warning in validation.get("warnings", []):
+            print(f"WARNING {warning}")
+        for field in validation.get("missing_required_fields", []):
+            print(f"MISSING_FIELD {field}")
+    raise SystemExit(0 if validation.get("ok") else 1)
+
+
+def cmd_request_governance_core(args: argparse.Namespace) -> None:
+    text_parts = [args.text or ""]
+    for path_value in args.path or []:
+        text_parts.append(path_value)
+    detection = detect_governance_core_scope("\n".join(text_parts), paths=args.path or [])
+    if args.json:
+        print(render_request_json(detection), end="")
+    else:
+        print(f"requires_meta_governance={detection.get('requires_meta_governance')}")
+        print(f"recommended_request_type={detection.get('recommended_request_type')}")
+        print(f"recommended_route={detection.get('recommended_route')}")
+        for keyword in detection.get("matched_keywords", []):
+            print(f"MATCH_KEYWORD {keyword}")
+        for surface, hits in detection.get("matched_surfaces", {}).items():
+            print(f"MATCH_SURFACE {surface}: {', '.join(hits)}")
+    raise SystemExit(0)
+
+
+def cmd_request_governance_surfaces(args: argparse.Namespace) -> None:
+    surfaces = governance_core_surfaces()
+    if args.json:
+        print(render_request_json({
+            "schema": "abyss.governance_core_surfaces.v1",
+            "surfaces": surfaces,
+            "no_action_executed": True,
+            "no_approval_granted": True,
+        }), end="")
+    else:
+        for surface, paths in surfaces.items():
+            print(f"{surface}: {', '.join(paths)}")
+    raise SystemExit(0)
+
+
 def build_parser() -> argparse.ArgumentParser:
+
+
     parser = argparse.ArgumentParser(prog="abyss", description="Abyss MVP CLI")
     sub = parser.add_subparsers(required=True)
 
@@ -705,7 +814,44 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true", help="render the plan as JSON")
     p.set_defaults(func=cmd_disclosure_plan)
 
+    p_request = sub.add_parser("request", help="work with normalized Request Envelope semantics")
+    request_sub = p_request.add_subparsers(required=True)
+    p = request_sub.add_parser("types", help="list canonical request types")
+    p.add_argument("--all", action="store_true", help="include reserved request types")
+    p.add_argument("--json", action="store_true", help="render the type list as JSON")
+    p.set_defaults(func=cmd_request_types)
+    p = request_sub.add_parser("normalize", help="build a Request Envelope candidate without creating a workflow")
+    p.add_argument("--type", required=True, help="canonical request_type, e.g. maintenance_request")
+    p.add_argument("--title", required=True, help="request title / user intent summary")
+    p.add_argument("--description", default="")
+    p.add_argument("--request-id", default="", help="explicit request id; omitted output is a candidate and not persisted")
+    p.add_argument("--source", default="cli")
+    p.add_argument("--created-by", default="owner")
+    p.add_argument("--scope", action="append", default=[])
+    p.add_argument("--risk-level", default="medium")
+    p.add_argument("--required-context", action="append", default=[])
+    p.add_argument("--expected-artifact", action="append", default=[])
+    p.add_argument("--validation", action="append", default=[])
+    p.add_argument("--related-document", action="append", default=[])
+    p.add_argument("--field", action="append", default=[], help="type-specific required field as key=value; repeatable")
+    p.add_argument("--notes", default="")
+    p.set_defaults(func=cmd_request_normalize)
+    p = request_sub.add_parser("validate", help="validate a Request Envelope JSON/YAML-compatible file")
+    p.add_argument("path")
+    p.add_argument("--json", action="store_true", help="render validation as JSON")
+    p.set_defaults(func=cmd_request_validate)
+    p = request_sub.add_parser("governance-core", help="detect whether text or paths touch governance-core surfaces")
+    p.add_argument("--text", default="")
+    p.add_argument("--path", action="append", default=[])
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_request_governance_core)
+    p = request_sub.add_parser("governance-surfaces", help="list protected governance-core surfaces")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_request_governance_surfaces)
+
     p = sub.add_parser("summary")
+
+
     p.add_argument("--check", action="store_true", help="include integrity check result")
     p.set_defaults(func=cmd_summary)
 

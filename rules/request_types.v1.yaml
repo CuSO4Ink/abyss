@@ -1,0 +1,237 @@
+{
+  "schema": "abyss.request_types.v1",
+  "standard_state": "accepted",
+  "standard_id": "standard.request_semantics.v1",
+  "purpose": "Canonical request type semantics for Abyss V0 request normalization, context selection, governance routing, and validation.",
+  "authority": "canonical_request_semantics",
+  "id_convention": {
+    "request_id_prefix": "REQ",
+    "request_id_format": "REQ-yyyymmdd-nnn",
+    "semantic_authority": "request_type",
+    "note": "request_id tracks identity only; request_type drives parsing, routing, validation, context selection, and governance behavior."
+  },
+  "active_request_types": [
+    "analysis_request",
+    "bugfix_request",
+    "maintenance_request",
+    "feature_request",
+    "architecture_request",
+    "governance_mutation",
+    "meta_evolution_request",
+    "external_task_request"
+  ],
+  "reserved_request_types": [
+    "documentation_request",
+    "insight_request",
+    "memory_request",
+    "git_checkpoint_request",
+    "obsidian_sync_request"
+  ],
+  "request_types": {
+    "analysis_request": {
+      "status": "active",
+      "purpose": "Read-only investigation, explanation, comparison, or recommendation.",
+      "required_fields": ["question", "scope", "required_context", "expected_output"],
+      "default_route": "analysis_readonly",
+      "mutation_risk": false,
+      "requires_code_change": false,
+      "requires_owner_approval": false,
+      "requires_validation_plan": false,
+      "requires_cognition_update_assessment": false,
+      "default_disclosure_level": "L4_cognition",
+      "hard_boundaries": [
+        "No executor apply.",
+        "No source mutation.",
+        "May produce a later decision request or implementation request only as candidate material."
+      ]
+    },
+    "bugfix_request": {
+      "status": "active",
+      "purpose": "Fix incorrect behavior with evidence of expected and actual behavior.",
+      "required_fields": ["symptom", "expected_behavior", "actual_behavior", "evidence", "affected_module", "validation_plan"],
+      "default_route": "self_evolution",
+      "mutation_risk": true,
+      "requires_code_change": true,
+      "requires_owner_approval": true,
+      "requires_validation_plan": true,
+      "requires_cognition_update_assessment": false,
+      "default_disclosure_level": "L6_source_scoped",
+      "hard_boundaries": [
+        "Must not bypass proposal, workflow, ChangeSet, dry-run, Harness review, Owner approval, and check.",
+        "Must include evidence and validation plan before mutation workflow advances."
+      ]
+    },
+    "maintenance_request": {
+      "status": "active",
+      "purpose": "Improve existing implementation without intentionally changing external behavior.",
+      "subtypes": ["cleanup", "refactor", "stability_hardening", "internal_documentation", "validation_hardening"],
+      "required_fields": ["target_module", "maintenance_kind", "maintenance_goal", "allowed_scope", "non_goals", "behavior_preservation_statement", "validation_plan", "rollback_plan", "cognition_update_assessment"],
+      "default_route": "self_evolution",
+      "mutation_risk": true,
+      "requires_code_change": true,
+      "requires_owner_approval": true,
+      "requires_validation_plan": true,
+      "requires_cognition_update_assessment": true,
+      "default_disclosure_level": "L6_source_scoped",
+      "hard_boundaries": [
+        "Refactor work is maintenance_request with maintenance_kind=refactor in V0.",
+        "Must preserve external behavior unless separately approved as feature or architecture change.",
+        "Must not bundle large unrelated refactors in one request."
+      ]
+    },
+    "feature_request": {
+      "status": "active",
+      "purpose": "Add new user-facing or system-facing capability.",
+      "required_fields": ["capability_description", "user_value", "affected_modules", "interfaces", "risk_level", "acceptance_criteria", "cognition_update_assessment"],
+      "default_route": "proposal_then_self_evolution",
+      "mutation_risk": true,
+      "requires_code_change": true,
+      "requires_owner_approval": true,
+      "requires_validation_plan": true,
+      "requires_cognition_update_assessment": true,
+      "default_disclosure_level": "L6_source_scoped",
+      "hard_boundaries": [
+        "Feature work requires acceptance criteria and Owner-approved proposal before implementation.",
+        "New authority or automation requires explicit governance review."
+      ]
+    },
+    "architecture_request": {
+      "status": "active",
+      "purpose": "Clarify or change system-level direction, boundaries, contracts, or cognition layers.",
+      "required_fields": ["proposed_direction", "reason", "affected_layers", "affected_documents", "owner_decision_needed", "cognition_update_required"],
+      "default_route": "decision_request",
+      "mutation_risk": false,
+      "requires_code_change": false,
+      "requires_owner_approval": true,
+      "requires_validation_plan": false,
+      "requires_cognition_update_assessment": true,
+      "default_disclosure_level": "L5_contracts",
+      "hard_boundaries": [
+        "Architecture acceptance is not implementation approval.",
+        "Accepted architecture may derive separate implementation requests."
+      ]
+    },
+    "governance_mutation": {
+      "status": "active",
+      "purpose": "Change governance-core surfaces such as Self Evolution, Harness policy, approval gates, permission boundaries, Memory policy, context disclosure policy, Git authority, external AI authority, global rules, constitution-level rules, or governance contracts.",
+      "required_fields": ["affected_governance_surface", "current_problem", "proposed_change", "old_rule_review", "risk_assessment", "owner_authority_impact", "rollback_plan", "validation_plan", "activation_policy", "owner_approval_required"],
+      "default_route": "meta_governance",
+      "mutation_risk": true,
+      "requires_code_change": true,
+      "requires_owner_approval": true,
+      "requires_validation_plan": true,
+      "requires_cognition_update_assessment": true,
+      "default_disclosure_level": "L6_source_scoped",
+      "hard_boundaries": [
+        "Governance-core changes must not proceed through ordinary self-evolution as a self-approving closure.",
+        "Self Evolution may identify, analyze, and propose but must not approve, apply, activate, or retroactively legitimize governance-core changes to itself.",
+        "Review must use prior accepted rules and explicit Owner approval.",
+        "Activation must be delayed to a later workflow cycle after validation and reporting."
+      ]
+    },
+    "meta_evolution_request": {
+      "status": "active",
+      "purpose": "Request a higher-level review for changes to the mechanisms that govern system changes, especially Self Evolution itself.",
+      "required_fields": ["affected_governance_surface", "reason", "current_problem", "proposed_change", "old_rule_review", "risk_assessment", "rollback_plan", "validation_plan", "activation_policy", "owner_approval_required"],
+      "default_route": "meta_governance",
+      "mutation_risk": true,
+      "requires_code_change": true,
+      "requires_owner_approval": true,
+      "requires_validation_plan": true,
+      "requires_cognition_update_assessment": true,
+      "default_disclosure_level": "L6_source_scoped",
+      "hard_boundaries": [
+        "vN may propose vN+1, but vN+1 must not approve its own activation.",
+        "External models or Brain Agent may prepare candidate material only; they hold no approval or activation authority.",
+        "Owner approval, rollback plan, validation plan, old-rule review, and delayed activation are mandatory."
+      ]
+    },
+    "external_task_request": {
+      "status": "active",
+      "purpose": "Package scoped work for an external model platform.",
+      "required_fields": ["task_brief", "allowed_scope", "context_package", "expected_return_format", "acceptance_criteria", "risk_boundaries", "forbidden_actions"],
+      "default_route": "external_collaboration",
+      "mutation_risk": false,
+      "requires_code_change": false,
+      "requires_owner_approval": false,
+      "requires_validation_plan": true,
+      "requires_cognition_update_assessment": false,
+      "default_disclosure_level": "L5_contracts",
+      "hard_boundaries": [
+        "External models receive no execution authority.",
+        "External results are candidate material only.",
+        "No runtime/source expansion beyond declared disclosure plan without Owner-approved escalation."
+      ]
+    },
+    "documentation_request": {
+      "status": "reserved",
+      "purpose": "Update cognition surface, user documentation, rules, or planning material.",
+      "required_fields": ["target_document", "reason", "disclosure_layer", "summary", "source_of_truth", "validation_method"],
+      "default_route": "documentation_update",
+      "mutation_risk": true,
+      "requires_code_change": false,
+      "requires_owner_approval": true,
+      "requires_validation_plan": true,
+      "requires_cognition_update_assessment": true,
+      "hard_boundaries": ["Reserved in V0; do not automate broad documentation sync."]
+    },
+    "insight_request": {
+      "status": "reserved",
+      "purpose": "Read-only system state snapshot, summary, drift check, or health check.",
+      "required_fields": ["snapshot_scope", "state_sources", "checks", "output_format"],
+      "default_route": "insight_readonly",
+      "mutation_risk": false,
+      "requires_code_change": false,
+      "requires_owner_approval": false,
+      "requires_validation_plan": false,
+      "requires_cognition_update_assessment": false,
+      "hard_boundaries": ["Reserved in V0; read-only observation only."]
+    },
+    "memory_request": {
+      "status": "reserved",
+      "purpose": "Store, retrieve, or review long-term curated records.",
+      "required_fields": ["memory_action", "record_type", "source", "evidence", "owner_or_policy_acceptance", "retention_reason"],
+      "default_route": "memory_governed",
+      "mutation_risk": true,
+      "requires_code_change": false,
+      "requires_owner_approval": true,
+      "requires_validation_plan": true,
+      "requires_cognition_update_assessment": true,
+      "hard_boundaries": ["No broad automatic Memory ingestion in V0.", "Only accepted, provenance-aware standards may become long-term memory."]
+    },
+    "git_checkpoint_request": {
+      "status": "reserved",
+      "purpose": "Create safe repository checkpoints and improve rollback support.",
+      "required_fields": ["repository", "change_summary", "related_workflow_or_report", "status_summary", "diff_summary", "commit_message", "owner_approval", "rollback_note"],
+      "default_route": "git_safety_layer",
+      "mutation_risk": true,
+      "requires_code_change": false,
+      "requires_owner_approval": true,
+      "requires_validation_plan": true,
+      "requires_cognition_update_assessment": false,
+      "hard_boundaries": ["No auto-push in V0.", "No history rewrite in V0.", "No branch deletion in V0.", "Local commit only after explicit Owner approval."]
+    },
+    "obsidian_sync_request": {
+      "status": "reserved",
+      "purpose": "Synchronize accepted notes, direction summaries, decision records, or working summaries into the human-facing Obsidian/user_data knowledge surface.",
+      "required_fields": ["source_document", "note_type", "target_location", "accepted_by", "provenance", "sync_mode", "privacy_level"],
+      "default_route": "user_data_sync_governed",
+      "mutation_risk": true,
+      "requires_code_change": false,
+      "requires_owner_approval": true,
+      "requires_validation_plan": true,
+      "requires_cognition_update_assessment": true,
+      "hard_boundaries": ["Obsidian/user_data is not execution authority.", "No raw model output by default.", "No noisy runtime logs by default.", "No mixing personal user_data content into the system implementation repository."]
+    }
+  },
+  "v0_non_goals": [
+    "No authoritative broad natural-language request classification.",
+    "No automatic workflow creation or approval from normalized requests.",
+    "No Owner approval gate changes through ordinary self-evolution; governance-core changes must use meta_governance.",
+    "No Brain Agent authority expansion beyond cognition execution, coordination, decision preparation, and recommendation; no governance-meaningful system modification authority.",
+    "No automatic Memory ingestion.",
+    "No automatic Obsidian/user_data sync.",
+    "No automatic Git commits, pushes, history rewrites, or branch deletion.",
+    "No external model direct execution."
+  ]
+}

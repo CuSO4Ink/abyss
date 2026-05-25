@@ -15,6 +15,8 @@ from typing import Any
 
 from .utils import new_id, now_iso, read_record, repo_root, runtime_root, write_record
 from .disclosure import build_disclosure_plan
+from .request_rules import context_task_type_for_request_type, request_rule_context_files_for_request_type
+
 
 CONTEXT_PACKS_DIR = runtime_root() / "process" / "context_packs"
 
@@ -180,7 +182,32 @@ def detect_task_type(text: str) -> str:
     text_lower = text.lower()
     scores: dict[str, tuple[int, int, int]] = {}
 
+    governance_core_terms = [
+        "meta self-evolution",
+        "meta-governance",
+        "meta governance",
+        "governance-core",
+        "governance core",
+        "governance mutation",
+        "governance_mutation",
+        "meta_evolution_request",
+        "delayed activation",
+        "old-rule review",
+        "old rule review",
+        "self evolution may evolve itself",
+        "approval gate",
+        "permission boundary",
+        "context disclosure policy",
+        "memory policy",
+        "git authority",
+        "external ai authority",
+        "sovereign kernel",
+    ]
+    if any(term in text_lower for term in governance_core_terms):
+        return "governance_core_mutation"
+
     # Brain brief / disclosure-plan / external onboarding readiness tasks need
+
     # the Brain and Disclosure surfaces in addition to external-collaboration
     # contracts. Detect these before broad context-broker or agent terms so the
     # Implementation Agent receives the exact files it must update.
@@ -555,7 +582,13 @@ def build_context_pack(
     Returns:
         A context pack dict with all resolved context.
     """
-    # Auto-detect task type if not provided
+    request_type = str(target_record.get("request_type") or "") if isinstance(target_record, dict) else ""
+
+    # Auto-detect task type if not provided. Request Envelope request_type is
+    # preferred when available because it is the canonical semantic field; the
+    # legacy keyword detector remains the fallback for older records.
+    if task_type is None:
+        task_type = context_task_type_for_request_type(request_type) if request_type else None
     if task_type is None:
         target_text = json.dumps(target_record, ensure_ascii=False)
         task_type = detect_task_type(target_text)
@@ -569,7 +602,9 @@ def build_context_pack(
     required_files = context_spec.get("required_files", [])
     symbol_index_files = context_spec.get("symbol_index_files", [])
     required_rules = context_spec.get("required_rules", [])
+    request_rule_files = request_rule_context_files_for_request_type(request_type) if request_type else []
     required_prompts = context_spec.get("required_prompts", [])
+
 
     # Get module-derived files
     module_files = _get_module_files(required_modules)
@@ -577,10 +612,11 @@ def build_context_pack(
     # Merge all required files (deduplicated, preserving order)
     all_files: list[str] = []
     seen: set[str] = set()
-    for f in required_files + module_files + required_rules + required_prompts:
+    for f in required_files + module_files + required_rules + request_rule_files + required_prompts:
         if f not in seen:
             seen.add(f)
             all_files.append(f)
+
 
     # Read file contents
     file_contents: list[dict[str, Any]] = []
@@ -619,6 +655,8 @@ def build_context_pack(
         "roadmap_id": roadmap_id,
         "proposal_id": proposal_id,
         "task_type": task_type,
+        "request_type": request_type,
+        "request_rule_files_included": request_rule_files,
         "created_at": now_iso(),
 
         "system_brief_included": True,
@@ -654,7 +692,10 @@ def build_context_pack(
         "roadmap_id": roadmap_id,
         "proposal_id": proposal_id,
         "task_type": task_type,
+        "request_type": request_type,
+        "request_rule_files_included": request_rule_files,
         "created_at": now_iso(),
+
         "system_brief_included": True,
         "modules_included": required_modules,
         "architecture_cognition_included": architecture_cognition.get("exists", False),
