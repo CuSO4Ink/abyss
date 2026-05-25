@@ -1,0 +1,18 @@
+{
+  "schema": "abyss.contract.v1",
+  "contract_id": "abyss.disclosure_plan.v1",
+  "purpose": "Read-only disclosure plan explaining the declared context boundary for a task type. Does not grant approval, execution authority, source access beyond included files, or runtime access.",
+  "authority": "advisory_boundary_only",
+  "required_fields": ["schema", "task_type", "ok", "default_disclosure_level", "max_disclosure_level", "max_seen_level", "source_access", "runtime_access", "files", "warnings", "recommended_action", "no_action_executed", "no_approval_granted"],
+  "optional_fields": ["escalation_triggers", "forbidden_paths"],
+  "hard_boundaries": [
+    "Disclosure plan grants no execution, approval, or governance authority.",
+    "Disclosure plan does not dynamically expand context beyond declared files.",
+    "Disclosure plan is advisory; it does not replace context_manifest or architecture_cognition as truth sources.",
+    "Provider workspace must never appear in disclosure plan files."
+  ],
+  "producer_modules": ["disclosure", "context_broker"],
+  "consumer_modules": ["context_broker", "agent_runner", "brain", "integrity"],
+  "runtime_records": [],
+  "disclosure_level": "L5_contracts"
+}

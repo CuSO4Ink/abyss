@@ -26,6 +26,101 @@ ARCHITECTURE_COGNITION_FILE = repo_root() / "rules" / "architecture_cognition.ya
 CONTEXT_CONTENT_BUDGET_WARN = 120000
 
 
+def validate_task_coverage_manifest(
+    target_record: dict[str, Any],
+    context_pack: dict[str, Any],
+) -> dict[str, Any]:
+    """Validate declared coverage manifest against the built context pack.
+
+    If the target record declares a `task_coverage_manifest` field, this function
+    checks that every declared expected file/domain is present in the context pack's
+    files_included list. Returns a structured coverage report.
+
+    This validator is deterministic and conservative:
+    - It does not perform semantic retrieval.
+    - It does not grant execution or approval authority.
+    - It only compares declared targets against included files.
+    """
+    manifest = target_record.get("task_coverage_manifest")
+    if not manifest or not isinstance(manifest, dict):
+        return {"schema": "abyss.coverage_check.v1", "has_manifest": False, "ok": True, "missing": [], "warnings": []}
+
+    allowed_fields = {
+        "expected_files",
+        "expected_domains",
+        "inferred_task_type",
+        "inference_method",
+    }
+    required_fields = {"expected_files", "expected_domains"}
+
+    warnings: list[str] = []
+    unknown_fields = sorted(set(manifest.keys()) - allowed_fields)
+    for field in unknown_fields:
+        warnings.append(f"COVERAGE_MANIFEST_UNKNOWN_FIELD {field}")
+
+    missing_required_fields = sorted(field for field in required_fields if field not in manifest)
+    for field in missing_required_fields:
+        warnings.append(f"COVERAGE_MANIFEST_MISSING_REQUIRED_FIELD {field}")
+
+    expected_files_raw = manifest.get("expected_files", [])
+    expected_domains_raw = manifest.get("expected_domains", [])
+
+    if isinstance(expected_files_raw, list):
+        expected_files: list[str] = []
+        for index, item in enumerate(expected_files_raw):
+            if isinstance(item, str):
+                expected_files.append(item)
+            else:
+                warnings.append(f"COVERAGE_MANIFEST_INVALID_EXPECTED_FILE index={index} type={type(item).__name__}")
+    else:
+        expected_files = []
+        warnings.append(f"COVERAGE_MANIFEST_INVALID_FIELD_TYPE expected_files type={type(expected_files_raw).__name__}")
+
+    if isinstance(expected_domains_raw, list):
+        expected_domains: list[str] = []
+        for index, item in enumerate(expected_domains_raw):
+            if isinstance(item, str):
+                expected_domains.append(item)
+            else:
+                warnings.append(f"COVERAGE_MANIFEST_INVALID_EXPECTED_DOMAIN index={index} type={type(item).__name__}")
+    else:
+        expected_domains = []
+        warnings.append(f"COVERAGE_MANIFEST_INVALID_FIELD_TYPE expected_domains type={type(expected_domains_raw).__name__}")
+
+    for optional_text_field in ("inferred_task_type", "inference_method"):
+        if optional_text_field in manifest and not isinstance(manifest.get(optional_text_field), str):
+            warnings.append(f"COVERAGE_MANIFEST_INVALID_FIELD_TYPE {optional_text_field} type={type(manifest.get(optional_text_field)).__name__}")
+
+    included_files: set[str] = set(context_pack.get("files_included", []))
+    modules_included: list[str] = context_pack.get("modules_included", [])
+
+    missing_files: list[str] = [f for f in expected_files if f not in included_files]
+
+    # Domain coverage: a domain is considered covered if at least one module
+    # from that domain is included in the context pack's modules_included list.
+    # Domain names map to module names in the module manifest.
+    missing_domains: list[str] = [d for d in expected_domains if d not in modules_included]
+
+    for f in missing_files:
+        warnings.append(f"COVERAGE_MANIFEST_MISSING_FILE {f}")
+    for d in missing_domains:
+        warnings.append(f"COVERAGE_MANIFEST_MISSING_DOMAIN {d}")
+
+    ok = not warnings
+
+    return {
+        "schema": "abyss.coverage_check.v1",
+        "has_manifest": True,
+        "ok": ok,
+        "expected_files": expected_files,
+        "expected_domains": expected_domains,
+        "missing_files": missing_files,
+        "missing_domains": missing_domains,
+        "warnings": warnings,
+    }
+
+
+
 def load_system_brief() -> dict[str, Any]:
     """Load the system brief that all governance agents receive."""
     if not SYSTEM_BRIEF_FILE.exists():
@@ -84,6 +179,23 @@ def detect_task_type(text: str) -> str:
 
     text_lower = text.lower()
     scores: dict[str, tuple[int, int, int]] = {}
+
+    # Brain brief / disclosure-plan / external onboarding readiness tasks need
+    # the Brain and Disclosure surfaces in addition to external-collaboration
+    # contracts. Detect these before broad context-broker or agent terms so the
+    # Implementation Agent receives the exact files it must update.
+    brain_onboarding_terms = [
+        "brain brief next candidate",
+        "brain brief next candidates",
+        "disclosure_plan",
+        "disclosure plan schema",
+        "external_model_onboarding",
+        "external model onboarding",
+        "canonical direction",
+        "global direction internalization",
+    ]
+    if any(term in text_lower for term in brain_onboarding_terms):
+        return "brain_onboarding_readiness"
 
     # Provider reliability tasks need llm_executor.py. Detect them before Context
     # Broker terms because stabilization proposals may mention "do not continue
@@ -530,6 +642,10 @@ def build_context_pack(
         "disclosure_plan": disclosure_plan,
     }
 
+    # Run coverage manifest validation if target declares one
+    coverage_check = validate_task_coverage_manifest(target_record, context_pack)
+    context_pack["coverage_check"] = coverage_check
+
     # Persist the context pack record (without file contents to save space)
     pack_record = {
         "schema": "abyss.context_pack.v1",
@@ -548,6 +664,13 @@ def build_context_pack(
         "symbol_index_file_count": len([f for f in symbol_index if f.get("exists")]),
         "total_content_size": total_content_size,
         "context_budget": context_budget,
+        "coverage_check": {
+            "has_manifest": coverage_check.get("has_manifest"),
+            "ok": coverage_check.get("ok"),
+            "missing_files": coverage_check.get("missing_files", []),
+            "missing_domains": coverage_check.get("missing_domains", []),
+            "warnings": coverage_check.get("warnings", []),
+        },
         "disclosure_plan": {
             "schema": disclosure_plan.get("schema"),
             "ok": disclosure_plan.get("ok"),
@@ -649,6 +772,15 @@ def render_context_pack_for_prompt(context_pack: dict[str, Any]) -> str:
         for f in encoding_warnings:
             sections.append(f"- `{f.get('path')}`: {f.get('encoding_warning')}\n")
         sections.append("\n")
+
+    # Coverage manifest check section
+    coverage_check = context_pack.get("coverage_check", {})
+    if coverage_check.get("has_manifest") and not coverage_check.get("ok"):
+        sections.append("## Coverage Manifest Warnings\n\n")
+        sections.append("The target record declares a `task_coverage_manifest` but the following declared targets are not covered by the current context pack:\n\n")
+        for warning in coverage_check.get("warnings", []):
+            sections.append(f"- {warning}\n")
+        sections.append("\nConsider requesting additional context or updating the manifest.\n\n")
 
     # Missing files warning
     missing = context_pack.get("files_missing", [])

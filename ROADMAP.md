@@ -987,6 +987,171 @@ Acceptance check:
 - The proposal can be inspected independently of ROADMAP.md.
 - No external interface is used for anything other than standard LLM invocation.
 
+### R041. Canonical direction, disclosure plan schema, and external model onboarding readiness
+
+Source proposal: `evo_prop_20260525_192617_4014e6`.
+
+Purpose: Canonical direction, disclosure plan schema, and external model onboarding readiness
+
+Why it is needed: Background: The previous AI handoff identified seven remaining instability/onboarding gaps: (1) Implementation Agent can still produce invalid ChangeSets, (2) provider/edit-plan outputs still have model uncertainty, (3) Brain Agent remains a read-only brief rather than a full coordination layer, (4) Brain brief next candidate text is slightly stale, (5) Disclosure Planner lacks formal contract/schema, (6) progressive disclosure can be narrowed below broad L6 source context, and (7) external model onboarding lacks a standalone one-page document.
+
+Requested bounded scope for the next development slice:
+1. Update Brain brief next candidates so they reflect the current canonical direction: Global Direction internalization, external model onboarding, disclosure_plan schema, and Implementation Agent output hardening.
+2. Add a formal disclosure_plan contract/schema baseline, without turning context_manifest into a full dynamic engine in one step.
+3. Further harden Implementation Agent ChangeSet/edit-plan constraints where bounded and testable.
+4. Add EXTERNAL_MODEL_ONBOARDING.md as a concise standalone onboarding page for external model platforms.
+5. Keep Brain Agent v0 read-only; do not grant execution, approval, scheduling, file mutation, or governance bypass authority.
+6. Keep changes governed through proposal, approval, ROADMAP, workflow, ChangeSet, validation, Harness, Owner approval, Executor, check, report.
+
+Out of scope:
+- Enabling Brain Agent execution or approval authority.
+- Replacing Owner, Harness, Executor, or ChangeSet validation with model output.
+- Large dynamic Context Broker rewrite.
+- Directly depending on abyss-data private planning paths as canonical direction.
+- Unattended production autonomy.
+
+Acceptance expectations:
+- The proposal separates immediate minimal slice from later Brain Agent coordination work.
+- Latest state sync commands remain brain brief, summary --check, and disclosure audit.
+- External model onboarding clearly states candidate-material-only boundaries and import path.
+- Any implementation must pass python -m abyss_cli check and relevant workflow/report validation.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R042. R042 Context Broker manifest-driven coverage check
+
+Source proposal: `evo_prop_20260525_195451_48a5b5`.
+
+Purpose: R042 Context Broker manifest-driven coverage check
+
+Why it is needed: Problem: Context Broker task detection and disclosure coverage remain partly hardcoded, so new task types, contracts, schemas, and root onboarding files can be missed until workflows block. Goal: add a small governed mechanism that lets proposal/roadmap tasks declare expected touched domains/files and lets Context Broker or workflow fail fast when declared target files are not covered by the disclosure plan/context pack. Scope: keep Context Broker deterministic and conservative; do not build semantic retrieval or a full dynamic engine; do not grant execution/approval authority; prefer manifest/contract-driven coverage validation and tests. Acceptance: (1) new task families can be represented without adding only ad-hoc keyword chains, (2) coverage check detects expected files absent from the context pack/disclosure plan, (3) existing disclosure audit remains OK, (4) R041-style contract/schema/onboarding additions are covered by an explicit declaration path, (5) compile/check pass.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R043. R043 Context Broker coverage manifest propagation
+
+Source proposal: `evo_prop_20260525_200700_69dbb8`.
+
+Purpose: R043 Context Broker coverage manifest propagation
+
+Why it is needed: Problem: R042 added deterministic validation for task_coverage_manifest, but real proposal/roadmap records do not yet carry that declaration, so the checker is mostly dormant. Goal: make the governed evolution chain attach a conservative task_coverage_manifest to proposals when expected touched files/domains can be deterministically inferred from approved request/proposal text and existing context manifest mappings. Scope: no semantic retrieval, no execution or approval authority, no workflow fail-fast escalation yet; preserve advisory warning behavior. Acceptance: (1) new proposals for context-broker related work carry task_coverage_manifest with expected_files and expected_domains, (2) Context Broker consumes that field without manual runtime edits, (3) missing declared coverage appears in context pack coverage_check warnings, (4) compile/check/disclosure audit pass.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R044. R044 Add proposal-generation files to context coverage for manifest propagation tasks
+
+Source proposal: `evo_prop_20260525_200916_239c4d`.
+
+Purpose: R044 Add proposal-generation files to context coverage for manifest propagation tasks
+
+Why it is needed: Problem: R043 was blocked by context_insufficient because the context_broker_feature context pack did not include abyss_cli/evolution.py or abyss_cli/evolution_analysis.py, even though the approved task needs to modify proposal generation to propagate task_coverage_manifest. Goal: minimally extend the relevant context manifest coverage so tasks about manifest propagation and proposal generation include the evolution proposal-generation files. Scope: update context coverage only; do not implement manifest propagation yet; do not add workflow fail-fast; do not grant new authority. Acceptance: (1) context_broker_feature or a more specific manifest-propagation task coverage includes abyss_cli/evolution.py and abyss_cli/evolution_analysis.py, (2) python -m abyss_cli check passes, (3) disclosure audit passes, (4) R043 can be retried without the same missing-files context_request.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R045. R045: tighten task_coverage_manifest schema so coverage declarations have explicit allowed fields, deterministic validat
+
+Source proposal: `evo_prop_20260525_203152_f0cf44`.
+
+Purpose: R045: tighten task_coverage_manifest schema so coverage declarations have explicit allowed fields, deterministic validation, and safe advisory behavior before any future fail-fast escalation
+
+Why it is needed: Approved evolution proposal.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R046. Close workflow accounting gap for corrected ChangeSet completion
+
+Source proposal: `evo_prop_20260525_205159_a0a765`.
+
+Purpose: Close workflow accounting gap for corrected ChangeSet completion
+
+Why it is needed: R045 was implemented through corrected ChangeSet chg_r045_corrected_task_coverage_manifest_schema and executor exec_20260525_204446_a06ee7, but the original workflow wf_20260525_203413_8036fd remains true_blocked because Abyss has no exposed/recognized way to classify a workflow completed by an applied corrected ChangeSet. Add the smallest governed status-accounting capability so summary/workflow accounting can classify such cases as superseded/completed-by-corrected-changeset without falsifying execution history or bypassing Owner/Harness.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
 ## Pending proposals
 
 None.

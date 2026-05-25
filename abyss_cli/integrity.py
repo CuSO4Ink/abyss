@@ -144,7 +144,7 @@ def run_checks() -> tuple[bool, list[str]]:
     for workflow_path in list_records(runtime / "process" / "workflows", "wf"):
         workflow = read_record(workflow_path)
         status = workflow.get("status")
-        if status not in {"implementation_pending", "implementation_running", "changeset_proposed", "dry_run_passed", "harness_review_running", "waiting_owner_approval", "approved_for_execution", "executing", "checking", "done", "failed", "blocked", "rejected"}:
+        if status not in {"implementation_pending", "implementation_running", "changeset_proposed", "dry_run_passed", "harness_review_running", "waiting_owner_approval", "approved_for_execution", "executing", "checking", "done", "failed", "blocked", "rejected", "superseded"}:
             ok = False
             messages.append(f"INVALID_WORKFLOW_STATUS {workflow_path.relative_to(root)} {status}")
         if workflow.get("changeset_id") and workflow.get("changeset_id") not in changeset_ids:
@@ -347,6 +347,24 @@ def run_checks() -> tuple[bool, list[str]]:
     except Exception as exc:
         ok = False
         messages.append(f"DISCLOSURE_AUDIT_FAILED {exc}")
+
+    # Validate task_coverage_manifest schema in context_manifest if present
+    if context_manifest_path.exists():
+        try:
+            cm = read_record(context_manifest_path)
+            coverage_schema = cm.get("task_coverage_manifest_schema")
+            if coverage_schema and isinstance(coverage_schema, dict):
+                required_schema_fields = coverage_schema.get("required_fields", [])
+                if not isinstance(required_schema_fields, list) or not required_schema_fields:
+                    pass  # Schema is optional; no error if absent
+                # Validate that the schema declaration is structurally sound
+                allowed_field_types = {"expected_files", "expected_domains"}
+                declared_fields = set(required_schema_fields)
+                unknown_fields = declared_fields - allowed_field_types - {"schema"}
+                for uf in sorted(unknown_fields):
+                    messages.append(f"COVERAGE_MANIFEST_SCHEMA_UNKNOWN_FIELD {uf}")
+        except Exception:
+            pass  # Coverage manifest schema is optional; parse errors handled above
 
     agents_path = root / "rules" / "agents.yaml"
     if agents_path.exists():

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "abyss.disclosure_plan.v1",
+  "type": "object",
+  "required": ["schema", "task_type", "ok", "default_disclosure_level", "max_disclosure_level", "max_seen_level", "source_access", "runtime_access", "files", "warnings", "recommended_action", "no_action_executed", "no_approval_granted"],
+  "properties": {
+    "schema": {"const": "abyss.disclosure_plan.v1"},
+    "task_type": {"type": "string", "minLength": 1},
+    "ok": {"type": "boolean"},
+    "default_disclosure_level": {"type": "string"},
+    "max_disclosure_level": {"type": "string"},
+    "max_seen_level": {"type": "string"},
+    "source_access": {"type": "boolean"},
+    "runtime_access": {"type": "boolean"},
+    "files": {"type": "array", "items": {"type": "object", "properties": {"path": {"type": "string"}, "level": {"type": "string"}}}},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "escalation_triggers": {"type": "array", "items": {"type": "string"}},
+    "forbidden_paths": {"type": "array", "items": {"type": "string"}},
+    "recommended_action": {"type": "string"},
+    "no_action_executed": {"const": true},
+    "no_approval_granted": {"const": true}
+  }
+}

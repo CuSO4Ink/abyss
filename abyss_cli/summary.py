@@ -26,7 +26,10 @@ def _extract_last_event(workflow: dict[str, Any]) -> dict[str, Any] | None:
 def _classify_workflow_outcome(workflow: dict[str, Any]) -> str:
     """Classify workflow outcome based on status and last event details."""
     status = workflow.get("status")
-    
+
+    if status == "superseded":
+        return "superseded_by_corrected_changeset"
+
     if status == "blocked":
         blocked_result_id = workflow.get("blocked_result_id")
         if blocked_result_id:
@@ -43,7 +46,7 @@ def _classify_workflow_outcome(workflow: dict[str, Any]) -> str:
                 if details.get("category") == "governance_constraint":
                     return "expected_governance_block"
         return "true_blocked"
-    
+
     if status == "failed":
         # Check if this failure has been explicitly superseded
         if workflow.get("superseded_by_workflow_id") or workflow.get("superseded_by_roadmap_id"):
@@ -53,13 +56,13 @@ def _classify_workflow_outcome(workflow: dict[str, Any]) -> str:
         if "context_request" in last_error:
             return "context_insufficient"
         return "true_failure"
-    
+
     if status == "done":
         return "successfully_completed"
-    
+
     if status == "rejected":
         return "owner_rejected"
-    
+
     return "active_or_pending"
 
 
@@ -82,6 +85,7 @@ def build_summary(*, include_check: bool = False) -> dict[str, Any]:
     # Separate true failures from satisfied/context issues
     true_failures = [item["workflow"] for item in classified_workflows if item["outcome"] == "true_failure"]
     superseded_failures = [item["workflow"] for item in classified_workflows if item["outcome"] == "superseded_failure"]
+    superseded_by_corrected = [item["workflow"] for item in classified_workflows if item["outcome"] == "superseded_by_corrected_changeset"]
     true_blocked = [item["workflow"] for item in classified_workflows if item["outcome"] == "true_blocked"]
     expected_governance_blocks = [item["workflow"] for item in classified_workflows if item["outcome"] == "expected_governance_block"]
     satisfied_outcomes = [item["workflow"] for item in classified_workflows if item["outcome"] == "satisfied_without_changes"]
@@ -104,6 +108,7 @@ def build_summary(*, include_check: bool = False) -> dict[str, Any]:
         "true_blocked": len(true_blocked),
         "expected_governance_blocks": len(expected_governance_blocks),
         "superseded_failures": len(superseded_failures),
+        "superseded_by_corrected_changeset": len(superseded_by_corrected),
         "invalid_changesets": len([item for item in changesets if item.get("status") == "invalid"]),
         "recent_completed_workflows": len(recent_completed),
     }
@@ -209,6 +214,18 @@ def build_summary(*, include_check: bool = False) -> dict[str, Any]:
                     "last_event": _extract_last_event(item),
                 }
                 for item in superseded_failures
+            ],
+            "superseded_by_corrected_changeset": [
+                {
+                    "id": item.get("id"),
+                    "roadmap_id": item.get("roadmap_id"),
+                    "status": item.get("status"),
+                    "superseded_by_changeset_id": item.get("superseded_by_changeset_id"),
+                    "superseded_by_workflow_id": item.get("superseded_by_workflow_id"),
+                    "superseded_confirmed_by": item.get("superseded_confirmed_by"),
+                    "last_event": _extract_last_event(item),
+                }
+                for item in superseded_by_corrected
             ]
         },
         "recent_completed_workflows": [

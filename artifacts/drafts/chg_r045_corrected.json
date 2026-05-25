@@ -1,0 +1,100 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r045_corrected_task_coverage_manifest_schema",
+  "roadmap_id": "R045",
+  "summary": "Tighten task_coverage_manifest schema in existing Context Broker code without introducing new imports or modules",
+  "risk_level": "L2",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/context_pack.py"
+      },
+      "input": {
+        "old_content": "    expected_files: list[str] = manifest.get(\"expected_files\", [])\n    expected_domains: list[str] = manifest.get(\"expected_domains\", [])\n\n    if not isinstance(expected_files, list):\n        expected_files = []\n    if not isinstance(expected_domains, list):\n        expected_domains = []\n\n    included_files: set[str] = set(context_pack.get(\"files_included\", []))\n    modules_included: list[str] = context_pack.get(\"modules_included\", [])\n\n    missing_files: list[str] = [f for f in expected_files if f not in included_files]\n",
+        "new_content": "    allowed_fields = {\n        \"expected_files\",\n        \"expected_domains\",\n        \"inferred_task_type\",\n        \"inference_method\",\n    }\n    required_fields = {\"expected_files\", \"expected_domains\"}\n\n    warnings: list[str] = []\n    unknown_fields = sorted(set(manifest.keys()) - allowed_fields)\n    for field in unknown_fields:\n        warnings.append(f\"COVERAGE_MANIFEST_UNKNOWN_FIELD {field}\")\n\n    missing_required_fields = sorted(field for field in required_fields if field not in manifest)\n    for field in missing_required_fields:\n        warnings.append(f\"COVERAGE_MANIFEST_MISSING_REQUIRED_FIELD {field}\")\n\n    expected_files_raw = manifest.get(\"expected_files\", [])\n    expected_domains_raw = manifest.get(\"expected_domains\", [])\n\n    if isinstance(expected_files_raw, list):\n        expected_files: list[str] = []\n        for index, item in enumerate(expected_files_raw):\n            if isinstance(item, str):\n                expected_files.append(item)\n            else:\n                warnings.append(f\"COVERAGE_MANIFEST_INVALID_EXPECTED_FILE index={index} type={type(item).__name__}\")\n    else:\n        expected_files = []\n        warnings.append(f\"COVERAGE_MANIFEST_INVALID_FIELD_TYPE expected_files type={type(expected_files_raw).__name__}\")\n\n    if isinstance(expected_domains_raw, list):\n        expected_domains: list[str] = []\n        for index, item in enumerate(expected_domains_raw):\n            if isinstance(item, str):\n                expected_domains.append(item)\n            else:\n                warnings.append(f\"COVERAGE_MANIFEST_INVALID_EXPECTED_DOMAIN index={index} type={type(item).__name__}\")\n    else:\n        expected_domains = []\n        warnings.append(f\"COVERAGE_MANIFEST_INVALID_FIELD_TYPE expected_domains type={type(expected_domains_raw).__name__}\")\n\n    for optional_text_field in (\"inferred_task_type\", \"inference_method\"):\n        if optional_text_field in manifest and not isinstance(manifest.get(optional_text_field), str):\n            warnings.append(f\"COVERAGE_MANIFEST_INVALID_FIELD_TYPE {optional_text_field} type={type(manifest.get(optional_text_field)).__name__}\")\n\n    included_files: set[str] = set(context_pack.get(\"files_included\", []))\n    modules_included: list[str] = context_pack.get(\"modules_included\", [])\n\n    missing_files: list[str] = [f for f in expected_files if f not in included_files]\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_002",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/context_pack.py"
+      },
+      "input": {
+        "old_content": "    warnings: list[str] = []\n    for f in missing_files:\n        warnings.append(f\"COVERAGE_MANIFEST_MISSING_FILE {f}\")\n    for d in missing_domains:\n        warnings.append(f\"COVERAGE_MANIFEST_MISSING_DOMAIN {d}\")\n\n    ok = len(missing_files) == 0 and len(missing_domains) == 0\n",
+        "new_content": "    for f in missing_files:\n        warnings.append(f\"COVERAGE_MANIFEST_MISSING_FILE {f}\")\n    for d in missing_domains:\n        warnings.append(f\"COVERAGE_MANIFEST_MISSING_DOMAIN {d}\")\n\n    ok = not warnings\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_003",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "rules/context_manifest.yaml"
+      },
+      "input": {
+        "old_content": "  \"task_coverage_manifest_schema\": {\n    \"description\": \"Schema for task_coverage_manifest declarations in proposal/roadmap records. Proposals may declare expected touched files and domains so Context Broker can fail fast when declared targets are absent from the context pack.\",\n    \"required_fields\": [\"expected_files\", \"expected_domains\"],\n    \"field_definitions\": {\n      \"expected_files\": \"List of relative file paths that the task expects to be included in the context pack for safe implementation.\",\n      \"expected_domains\": \"List of module/domain names (matching keys in modules.yaml) that the task expects to be represented in the context pack.\"\n    },\n    \"validation_behavior\": \"deterministic_comparison_only\",\n    \"authority\": \"advisory_fail_fast_warning\",\n    \"no_semantic_retrieval\": true,\n    \"no_execution_authority\": true\n  },",
+        "new_content": "  \"task_coverage_manifest_schema\": {\n    \"description\": \"Schema for task_coverage_manifest declarations in proposal/roadmap records. Proposals may declare expected files and domains so Context Broker can emit deterministic advisory warnings when declared targets are absent or malformed.\",\n    \"allowed_fields\": [\n      \"expected_files\",\n      \"expected_domains\",\n      \"inferred_task_type\",\n      \"inference_method\"\n    ],\n    \"required_fields\": [\"expected_files\", \"expected_domains\"],\n    \"field_definitions\": {\n      \"expected_files\": \"List of relative file paths that the task expects to be included in the context pack for safe implementation.\",\n      \"expected_domains\": \"List of module/domain names (matching keys in modules.yaml) that the task expects to be represented in the context pack.\",\n      \"inferred_task_type\": \"Optional deterministic task type inferred from context_manifest task_type_detection.\",\n      \"inference_method\": \"Optional deterministic method label explaining how the manifest was inferred.\"\n    },\n    \"field_types\": {\n      \"expected_files\": \"list[str]\",\n      \"expected_domains\": \"list[str]\",\n      \"inferred_task_type\": \"str\",\n      \"inference_method\": \"str\"\n    },\n    \"validation_behavior\": \"deterministic_structural_validation_and_comparison\",\n    \"authority\": \"advisory_warning_only\",\n    \"fail_fast_enabled\": false,\n    \"no_semantic_retrieval\": true,\n    \"no_execution_authority\": true\n  },"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "check_001",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m compileall -q abyss_cli"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_002",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    }
+  ],
+  "generated_by": "corrected_changeset",
+  "correction_reason": "R045 Implementation Agent proposed a new module and redundant imports that Harness rejected. This corrected slice keeps schema tightening inside existing Context Broker surfaces and avoids new imports."
+}

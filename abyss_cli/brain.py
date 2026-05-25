@@ -93,7 +93,11 @@ def build_brain_brief() -> dict[str, Any]:
     if disclosure_audit.get("warnings"):
         next_candidates.append("Review disclosure audit warnings and reduce over-disclosure before dynamic expansion.")
     else:
-        next_candidates.append("Proceed with cautious disclosure planner integration after schema validation is stable.")
+        next_candidates.append("Proceed with cautious disclosure planner integration after disclosure_plan.v1 schema validation is stable.")
+    next_candidates.append("Global Direction internalization: ensure Brain brief and external packages reflect current strategic direction.")
+    next_candidates.append("External model onboarding: validate EXTERNAL_MODEL_ONBOARDING.md as standalone import path for external platforms.")
+    next_candidates.append("Disclosure plan schema: stabilize disclosure_plan contract and JSON Schema for context governance.")
+    next_candidates.append("Implementation Agent output hardening: further constrain edit-plan/ChangeSet generation within R003 scope.")
     next_candidates.append("Keep Brain Agent as disabled/read-only while iterating brief quality and feedback-card summaries.")
 
     return {

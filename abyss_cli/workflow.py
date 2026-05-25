@@ -19,7 +19,7 @@ LOCK_PATH = runtime_root() / "process" / "workflow.lock"
 CONTEXT_PACKS_DIR = runtime_root() / "process" / "context_packs"
 
 
-TERMINAL_STATES = {"done", "failed", "blocked", "rejected"}
+TERMINAL_STATES = {"done", "failed", "blocked", "rejected", "superseded"}
 WAITING_STATES = {"waiting_owner_approval"}
 
 _STATE_DISPLAY_LABELS: dict[str, str] = {
@@ -36,6 +36,7 @@ _STATE_DISPLAY_LABELS: dict[str, str] = {
     "failed": "Failed",
     "blocked": "Blocked",
     "rejected": "Rejected",
+    "superseded": "Superseded by Corrected ChangeSet",
 }
 
 
@@ -449,6 +450,42 @@ def mark_workflow_owner_rejected(workflow_id: str, owner_item_id: str, reason: s
         raise SystemExit("Owner item does not match workflow")
     workflow["rejection_reason"] = reason
     return _record_transition(workflow, "rejected", "owner_rejected_changeset", {"owner_item_id": owner_item_id, "reason": reason})
+
+def mark_workflow_superseded(workflow_id: str, *, corrected_changeset_id: str, corrected_workflow_id: str = "", confirmed_by: str = "owner") -> dict[str, Any]:
+    """Mark a blocked/failed workflow as superseded by a corrected ChangeSet.
+
+    This transition requires Owner confirmation and records evidence linking
+    the corrected ChangeSet to the original workflow. The original execution
+    history remains unmodified.
+    """
+    workflow = load_workflow(workflow_id)
+    if workflow.get("status") not in {"blocked", "failed"}:
+        raise SystemExit(f"Only blocked or failed workflows can be superseded; current status: {workflow.get('status')}")
+    if not corrected_changeset_id:
+        raise SystemExit("corrected_changeset_id is required to mark a workflow as superseded")
+    # Verify the corrected changeset exists and is applied
+    try:
+        corrected_cs = load_changeset(corrected_changeset_id)
+    except (SystemExit, Exception) as exc:
+        raise SystemExit(f"Cannot load corrected changeset {corrected_changeset_id}: {exc}")
+    if corrected_cs.get("status") != "applied":
+        raise SystemExit(f"Corrected changeset must be in 'applied' status; current: {corrected_cs.get('status')}")
+    # Verify roadmap alignment
+    cs_roadmap = str(corrected_cs.get("roadmap_id") or "")
+    wf_roadmap = str(workflow.get("roadmap_id") or "")
+    if cs_roadmap and wf_roadmap and cs_roadmap != wf_roadmap:
+        raise SystemExit(f"Roadmap mismatch: workflow targets {wf_roadmap} but corrected changeset targets {cs_roadmap}")
+    workflow["superseded_by_changeset_id"] = corrected_changeset_id
+    if corrected_workflow_id:
+        workflow["superseded_by_workflow_id"] = corrected_workflow_id
+    workflow["superseded_confirmed_by"] = confirmed_by
+    return _record_transition(workflow, "superseded", "workflow_superseded_by_corrected_changeset", {
+        "corrected_changeset_id": corrected_changeset_id,
+        "corrected_workflow_id": corrected_workflow_id,
+        "confirmed_by": confirmed_by,
+        "original_status": workflow.get("status"),
+    })
+
 
 
 def render_json(record: Any) -> str:

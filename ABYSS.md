@@ -79,6 +79,7 @@ Abyss development and operation must respect these global rules:
 8. Any system modification must follow the governed path: proposal, approval, workflow, ChangeSet, validation, Harness review, Owner approval, executor apply, report.
 9. Any meaningful change must remain observable, auditable, and rollback-aware.
 10. Any change that alters structure, behavior, capability, Agent roles, context selection, or user-facing commands must update the corresponding cognition layer documents and rules.
+11. Abyss must maintain a minimal, layered, and verifiable cognition surface above source code, so stable system understanding is not hidden only in implementation details.
 
 For the highest-level rules, read `ABYSS_CONSTITUTION.md`.
 

@@ -291,7 +291,8 @@
         "workflow",
         "summary",
         "integrity",
-        "cli_entry"
+        "cli_entry",
+        "evolution"
       ],
       "required_files": [
         "abyss_cli/context_pack.py",
@@ -300,6 +301,8 @@
         "abyss_cli/summary.py",
         "abyss_cli/integrity.py",
         "abyss_cli/__main__.py",
+        "abyss_cli/evolution.py",
+        "abyss_cli/evolution_analysis.py",
         "rules/modules.yaml",
         "rules/context_manifest.yaml",
         "rules/system_brief.yaml",
@@ -315,6 +318,58 @@
       ],
       "required_checks": [
         "python -m abyss_cli check"
+      ],
+      "default_disclosure_level": "L5_contracts",
+      "max_disclosure_level": "L6_source",
+      "source_access": true,
+      "runtime_access": false,
+      "escalation_triggers": [
+        "contract_insufficient",
+        "implementation_change_required",
+        "debug_or_state_reconstruction_required"
+      ],
+      "forbidden_paths": [
+        ".local/knot_provider_workspace/"
+      ]
+    },
+    "brain_onboarding_readiness": {
+      "description": "Updating read-only Brain brief candidates, disclosure plan contract/schema, and external model onboarding documentation without granting Brain execution or approval authority",
+      "required_modules": [
+        "context_broker",
+        "integrity"
+      ],
+      "required_files": [
+        "ABYSS.md",
+        "SYSTEM_MAP.md",
+        "abyss_cli/brain.py",
+        "abyss_cli/disclosure.py",
+        "abyss_cli/context_pack.py",
+        "rules/context_manifest.yaml",
+        "rules/modules.yaml",
+        "rules/contracts/context_pack.v1.yaml",
+        "rules/contracts/context_request.v1.yaml",
+        "rules/contracts/external_work_feedback_card.v1.yaml",
+        "rules/schemas/context_pack.v1.schema.json",
+        "rules/schemas/context_request.v1.schema.json",
+        "rules/schemas/external_work_feedback_card.v1.schema.json"
+      ],
+      "symbol_index_files": [
+        "abyss_cli/brain.py",
+        "abyss_cli/disclosure.py",
+        "abyss_cli/context_pack.py",
+        "abyss_cli/integrity.py",
+        "abyss_cli/__main__.py"
+      ],
+      "required_rules": [
+        "rules/context_manifest.yaml",
+        "rules/modules.yaml",
+        "rules/agents.yaml",
+        "rules/capabilities.yaml"
+      ],
+      "required_checks": [
+        "python -m abyss_cli check",
+        "python -m abyss_cli disclosure audit",
+        "python -m abyss_cli brain brief"
       ],
       "default_disclosure_level": "L5_contracts",
       "max_disclosure_level": "L6_source",
@@ -524,6 +579,11 @@
         "context pack",
         "module manifest",
         "task type manifest",
+        "task_coverage_manifest",
+        "coverage manifest",
+        "coverage declaration",
+        "coverage declarations",
+        "coverage check",
         "progressive disclosure"
       ],
       "external_collaboration": [
@@ -583,6 +643,33 @@
       "summary_feature": 30,
       "evolution_feature": 20
     }
+  },
+  "task_coverage_manifest_schema": {
+    "description": "Schema for task_coverage_manifest declarations in proposal/roadmap records. Proposals may declare expected files and domains so Context Broker can emit deterministic advisory warnings when declared targets are absent or malformed.",
+    "allowed_fields": [
+      "expected_files",
+      "expected_domains",
+      "inferred_task_type",
+      "inference_method"
+    ],
+    "required_fields": ["expected_files", "expected_domains"],
+    "field_definitions": {
+      "expected_files": "List of relative file paths that the task expects to be included in the context pack for safe implementation.",
+      "expected_domains": "List of module/domain names (matching keys in modules.yaml) that the task expects to be represented in the context pack.",
+      "inferred_task_type": "Optional deterministic task type inferred from context_manifest task_type_detection.",
+      "inference_method": "Optional deterministic method label explaining how the manifest was inferred."
+    },
+    "field_types": {
+      "expected_files": "list[str]",
+      "expected_domains": "list[str]",
+      "inferred_task_type": "str",
+      "inference_method": "str"
+    },
+    "validation_behavior": "deterministic_structural_validation_and_comparison",
+    "authority": "advisory_warning_only",
+    "fail_fast_enabled": false,
+    "no_semantic_retrieval": true,
+    "no_execution_authority": true
   },
   "fallback": {
     "description": "When task type cannot be determined, include these baseline modules",

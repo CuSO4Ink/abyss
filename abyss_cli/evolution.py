@@ -8,6 +8,8 @@ from typing import Any
 from .audit import append_event
 from .llm_executor import LLM_RESULTS_DIR, _provider_response, load_provider_config
 from .utils import latest_record, new_id, now_iso, read_record, relative_to_repo, repo_root, resolve_record_arg, runtime_root, write_record
+from .context_pack import load_context_manifest, detect_task_type
+
 
 EVOLUTION_DIR = runtime_root() / "evolution"
 REQUESTS_DIR = EVOLUTION_DIR / "requests"
@@ -15,6 +17,46 @@ PROPOSALS_DIR = EVOLUTION_DIR / "proposals"
 SMOKE_DIR = EVOLUTION_DIR / "smoke_tests"
 GOVERNANCE_PATH = repo_root() / "rules" / "governance.yaml"
 ROADMAP_PATH = repo_root() / "ROADMAP.md"
+
+def _infer_task_coverage_manifest(request: dict[str, Any]) -> dict[str, Any] | None:
+    """Infer a conservative task_coverage_manifest from request text.
+
+    Uses context_manifest.yaml task_type_detection keywords to match the request
+    summary+details against known task types, then maps matched task types to
+    their declared required_files and required_modules (as expected_domains).
+
+    Returns None if no deterministic inference is possible.
+    This function performs no semantic retrieval and grants no execution authority.
+    """
+    summary = str(request.get("summary") or "")
+    details = str(request.get("details") or "")
+    combined_text = f"{summary} {details}"
+    if not combined_text.strip():
+        return None
+
+    task_type = detect_task_type(combined_text)
+    if task_type == "unknown":
+        return None
+
+    manifest = load_context_manifest()
+    task_types = manifest.get("task_types", {})
+    spec = task_types.get(task_type)
+    if not spec or not isinstance(spec, dict):
+        return None
+
+    expected_files = spec.get("required_files", [])
+    required_modules = spec.get("required_modules", [])
+
+    if not expected_files and not required_modules:
+        return None
+
+    return {
+        "expected_files": list(expected_files) if isinstance(expected_files, list) else [],
+        "expected_domains": list(required_modules) if isinstance(required_modules, list) else [],
+        "inferred_task_type": task_type,
+        "inference_method": "keyword_match_against_context_manifest",
+    }
+
 
 
 REQUEST_STATES = {
@@ -310,6 +352,9 @@ def create_proposal_from_request(request_value: str) -> dict[str, Any]:
             # If self-evolution agent fails, raise exception instead of silent fallback
             raise SystemExit(f"Self-evolution analysis failed for request {request.get('id')}: {e}")
     
+    # Infer task_coverage_manifest from request/proposal text using context_manifest keywords
+    task_coverage_manifest = _infer_task_coverage_manifest(request)
+    
     proposal = {
         "schema": "abyss.evolution_proposal.v1",
         "id": proposal_id,
@@ -348,6 +393,8 @@ def create_proposal_from_request(request_value: str) -> dict[str, Any]:
         "updated_at": now_iso(),
         "no_action_executed": True,
     }
+    if task_coverage_manifest:
+        proposal["task_coverage_manifest"] = task_coverage_manifest
     write_record(PROPOSALS_DIR / f"{proposal_id}.yaml", proposal)
     request["status"] = "proposed"
     request["updated_at"] = now_iso()

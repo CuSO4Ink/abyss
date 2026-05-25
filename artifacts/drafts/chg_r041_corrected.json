@@ -1,0 +1,91 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r041_brain_onboarding_readiness_corrected",
+  "roadmap_id": "R041",
+  "summary": "Update Brain brief next candidates, add disclosure_plan contract/schema, and add root external model onboarding page",
+  "risk_level": "L2",
+  "status": "proposed",
+  "generated_by": "corrected_changeset_from_invalid_edit_plan",
+  "source_invalid_changesets": [
+    "chg_invalid_20260525_193303_8f221c",
+    "chg_invalid_20260525_193428_b033a1"
+  ],
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {"path": "abyss_cli/brain.py"},
+      "input": {
+        "old_content": "next_candidates.append(\"Proceed with cautious disclosure planner integration after schema validation is stable.\")",
+        "new_content": "next_candidates.append(\"Proceed with cautious disclosure planner integration after disclosure_plan.v1 schema validation is stable.\")"
+      },
+      "preconditions": ["old_content_matches_once"],
+      "rollback": {"strategy": "manual_revert_from_git_diff"}
+    },
+    {
+      "id": "op_002",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {"path": "abyss_cli/brain.py"},
+      "input": {
+        "old_content": "next_candidates.append(\"Keep Brain Agent as disabled/read-only while iterating brief quality and feedback-card summaries.\")",
+        "new_content": "next_candidates.append(\"Global Direction internalization: ensure Brain brief and external packages reflect current strategic direction.\")\n    next_candidates.append(\"External model onboarding: validate EXTERNAL_MODEL_ONBOARDING.md as standalone import path for external platforms.\")\n    next_candidates.append(\"Disclosure plan schema: stabilize disclosure_plan contract and JSON Schema for context governance.\")\n    next_candidates.append(\"Implementation Agent output hardening: further constrain edit-plan/ChangeSet generation within R003 scope.\")\n    next_candidates.append(\"Keep Brain Agent as disabled/read-only while iterating brief quality and feedback-card summaries.\")"
+      },
+      "preconditions": ["old_content_matches_once"],
+      "rollback": {"strategy": "manual_revert_from_git_diff"}
+    },
+    {
+      "id": "op_003",
+      "kind": "fs.create_file",
+      "capability": "fs.write",
+      "target": {"path": "rules/contracts/disclosure_plan.v1.yaml"},
+      "input": {
+        "content": "{\n  \"schema\": \"abyss.contract.v1\",\n  \"contract_id\": \"abyss.disclosure_plan.v1\",\n  \"purpose\": \"Read-only disclosure plan explaining the declared context boundary for a task type. Does not grant approval, execution authority, source access beyond included files, or runtime access.\",\n  \"authority\": \"advisory_boundary_only\",\n  \"required_fields\": [\"schema\", \"task_type\", \"ok\", \"default_disclosure_level\", \"max_disclosure_level\", \"max_seen_level\", \"source_access\", \"runtime_access\", \"files\", \"warnings\", \"recommended_action\", \"no_action_executed\", \"no_approval_granted\"],\n  \"optional_fields\": [\"escalation_triggers\", \"forbidden_paths\"],\n  \"hard_boundaries\": [\n    \"Disclosure plan grants no execution, approval, or governance authority.\",\n    \"Disclosure plan does not dynamically expand context beyond declared files.\",\n    \"Disclosure plan is advisory; it does not replace context_manifest or architecture_cognition as truth sources.\",\n    \"Provider workspace must never appear in disclosure plan files.\"\n  ],\n  \"producer_modules\": [\"disclosure\", \"context_broker\"],\n  \"consumer_modules\": [\"context_broker\", \"agent_runner\", \"brain\", \"integrity\"],\n  \"runtime_records\": [],\n  \"disclosure_level\": \"L5_contracts\"\n}\n"
+      },
+      "preconditions": ["target_absent"],
+      "rollback": {"strategy": "manual_revert_from_git_diff"}
+    },
+    {
+      "id": "op_004",
+      "kind": "fs.create_file",
+      "capability": "fs.write",
+      "target": {"path": "rules/schemas/disclosure_plan.v1.schema.json"},
+      "input": {
+        "content": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"abyss.disclosure_plan.v1\",\n  \"type\": \"object\",\n  \"required\": [\"schema\", \"task_type\", \"ok\", \"default_disclosure_level\", \"max_disclosure_level\", \"max_seen_level\", \"source_access\", \"runtime_access\", \"files\", \"warnings\", \"recommended_action\", \"no_action_executed\", \"no_approval_granted\"],\n  \"properties\": {\n    \"schema\": {\"const\": \"abyss.disclosure_plan.v1\"},\n    \"task_type\": {\"type\": \"string\", \"minLength\": 1},\n    \"ok\": {\"type\": \"boolean\"},\n    \"default_disclosure_level\": {\"type\": \"string\"},\n    \"max_disclosure_level\": {\"type\": \"string\"},\n    \"max_seen_level\": {\"type\": \"string\"},\n    \"source_access\": {\"type\": \"boolean\"},\n    \"runtime_access\": {\"type\": \"boolean\"},\n    \"files\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"properties\": {\"path\": {\"type\": \"string\"}, \"level\": {\"type\": \"string\"}}}},\n    \"warnings\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}},\n    \"escalation_triggers\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}},\n    \"forbidden_paths\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}},\n    \"recommended_action\": {\"type\": \"string\"},\n    \"no_action_executed\": {\"const\": true},\n    \"no_approval_granted\": {\"const\": true}\n  }\n}\n"
+      },
+      "preconditions": ["target_absent"],
+      "rollback": {"strategy": "manual_revert_from_git_diff"}
+    },
+    {
+      "id": "op_005",
+      "kind": "fs.create_file",
+      "capability": "fs.write",
+      "target": {"path": "EXTERNAL_MODEL_ONBOARDING.md"},
+      "input": {
+        "content": "# External Model Onboarding\n\n**Status: governed onboarding surface.** This page explains how external model platforms collaborate with Abyss. External output remains candidate material only and must return through the governed import/review path before it can influence implementation.\n\n## Purpose\n\nThis page provides a concise standalone onboarding reference for external model platforms that collaborate with Abyss as temporary expert resources.\n\n## What Abyss is\n\nAbyss is a governed, local-first personal AI operating layer. It turns user intent into structured records, routes model output through explicit governance gates, and keeps every meaningful state transition auditable.\n\n## Your role as an external model platform\n\nYou are a temporary expert collaborator. You do not own Abyss memory, direction, governance, or execution authority.\n\nYou may receive a scoped task package containing:\n\n- Task objective and acceptance criteria\n- Relevant module capsules and contracts\n- Necessary source snippets, only when needed\n- Forbidden actions\n- Expected output format\n\n## What you must not do\n\n- Execute actions or modify files\n- Approve or reject roadmap items, proposals, or ChangeSets\n- Schedule work or run commands\n- Treat your output as approved, factual, or authoritative\n- Bypass governance, Harness, or Owner authority\n- Access runtime records unless explicitly provided for debugging\n\n## What you should return\n\nYour response should include:\n\n- Task understanding\n- Modules touched\n- Files touched\n- Proposed changes as candidate material\n- Risk assessment\n- Validation method\n- Architecture alignment\n- Open questions\n- Recommended next step\n\n## How your output enters Abyss\n\nYour response is imported as an `abyss.external_work_feedback_card.v1` candidate feedback card. It does not automatically create proposals, approvals, or workflow transitions. A human or future Brain Agent reviews the card and decides whether to intake it through the governed evolution path.\n\n## Import path\n\n```text\nexternal model response\n  -> abyss external import-result <file>\n  -> candidate feedback card\n  -> human/Brain Agent review\n  -> optional evolution request -> proposal -> approval -> ROADMAP -> workflow\n```\n\n## Cognition entrypoint\n\nStart from `ABYSS.md`. Follow progressive disclosure from L0 through L7 rather than reading source code directly.\n\n## Boundaries reminder\n\n- LLM output is candidate material, not truth or execution.\n- Harness, Owner, ChangeSet validation, Executor, audit, and roadmap approval remain authoritative.\n- External interfaces must not schedule, approve, execute, mutate files, alter state, or change governance.\n"
+      },
+      "preconditions": ["target_absent"],
+      "rollback": {"strategy": "manual_revert_from_git_diff"}
+    },
+    {
+      "id": "check_001",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {"path": "system"},
+      "input": {"command": "python -m compileall -q abyss_cli"},
+      "preconditions": ["changes_applied_before_check"],
+      "rollback": {"strategy": "not_applicable"}
+    },
+    {
+      "id": "check_002",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {"path": "system"},
+      "input": {"command": "python -m abyss_cli check"},
+      "preconditions": ["changes_applied_before_check"],
+      "rollback": {"strategy": "not_applicable"}
+    }
+  ],
+  "no_action_executed": true
+}

@@ -311,6 +311,17 @@ def cmd_workflow_watch(args: argparse.Namespace) -> None:
 def cmd_workflow_retry(args: argparse.Namespace) -> None:
     print(render_json(retry_workflow(args.workflow, from_stage=args.from_stage)))
 
+def cmd_workflow_supersede(args: argparse.Namespace) -> None:
+    from .workflow import mark_workflow_superseded
+    result = mark_workflow_superseded(
+        args.workflow,
+        corrected_changeset_id=args.changeset,
+        corrected_workflow_id=args.corrected_workflow or "",
+        confirmed_by="owner",
+    )
+    print(render_json(result))
+
+
 
 def cmd_workflow_list(args: argparse.Namespace) -> None:
     workflows = list_workflows()
@@ -617,8 +628,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("workflow", help="workflow id, filename, prefix, or latest")
     p.add_argument("--from-stage", choices=["implementation", "changeset", "harness_review"], default="implementation")
     p.set_defaults(func=cmd_workflow_retry)
+    p = workflow_sub.add_parser("supersede", help="mark a blocked/failed workflow as superseded by a corrected applied changeset (owner confirmation)")
+    p.add_argument("workflow", help="workflow id, filename, prefix, or latest")
+    p.add_argument("--changeset", required=True, help="applied corrected changeset id that completed the same roadmap item")
+    p.add_argument("--corrected-workflow", default=None, help="optional workflow id that produced the corrected changeset")
+    p.set_defaults(func=cmd_workflow_supersede)
     p = workflow_sub.add_parser("list")
-    p.add_argument("--status", default=None, help="filter workflows by displayed status (e.g. done, failed, blocked, rejected, satisfied_without_changes, implementation_pending, waiting_owner_approval)")
+    p.add_argument("--status", default=None, help="filter workflows by displayed status (e.g. done, failed, blocked, rejected, superseded, satisfied_without_changes, implementation_pending, waiting_owner_approval)")
     p.set_defaults(func=cmd_workflow_list)
 
     p_owner = sub.add_parser("owner")

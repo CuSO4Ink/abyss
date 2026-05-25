@@ -30,7 +30,10 @@ ALLOWED_FS_ROOTS = (
 )
 
 ALLOWED_FS_PATHS = {
+    "EXTERNAL_MODEL_ONBOARDING.md",
     "rules/context_manifest.yaml",
+    "rules/contracts/disclosure_plan.v1.yaml",
+    "rules/schemas/disclosure_plan.v1.schema.json",
 }
 
 BLOCKED_PATH_PREFIXES = (
