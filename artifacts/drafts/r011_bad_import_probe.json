@@ -1,0 +1,26 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r011_bad_import_probe",
+  "roadmap_id": "R011",
+  "summary": "Probe missing imported symbol validation",
+  "risk_level": "L2",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.append_file",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/harness_review.py"
+      },
+      "input": {
+        "content": "\nfrom .harness import definitely_missing_symbol\n"
+      },
+      "preconditions": [],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    }
+  ],
+  "no_action_executed": true
+}

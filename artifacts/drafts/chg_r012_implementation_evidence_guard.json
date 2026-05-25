@@ -1,0 +1,41 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r012_implementation_evidence_guard",
+  "roadmap_id": "R012",
+  "summary": "Harden Implementation Agent already_satisfied guard with target identifiers for audit and recovery.",
+  "risk_level": "L2",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {"path": "abyss_cli/agent_runner.py"},
+      "input": {
+        "old_content": "        if blocked_result.get(\"category\") == \"already_satisfied\" and target_record and _has_relevant_recent_implementation_failures(target_record):\n            raise SystemExit(\"Implementation agent returned already_satisfied despite relevant recent implementation failure evidence\")\n        record = {\n",
+        "new_content": "        if blocked_result.get(\"category\") == \"already_satisfied\" and target_record and _has_relevant_recent_implementation_failures(target_record):\n            roadmap_id = target_record.get(\"roadmap_entry\") or target_record.get(\"roadmap_id\") or \"unknown\"\n            proposal_id = target_record.get(\"id\") or \"unknown\"\n            raise SystemExit(f\"Implementation agent returned already_satisfied despite relevant recent implementation failure evidence for roadmap={roadmap_id} proposal={proposal_id}\")\n        record = {\n"
+      },
+      "preconditions": ["old_content_matches_once"],
+      "rollback": {"strategy": "manual_revert_from_git_diff"}
+    },
+    {
+      "id": "op_002",
+      "kind": "check.command",
+      "capability": "integrity.check",
+      "target": {"path": "system"},
+      "input": {"command": "python -m compileall -q abyss_cli"},
+      "preconditions": [],
+      "rollback": {"strategy": "not_required"}
+    },
+    {
+      "id": "op_003",
+      "kind": "check.command",
+      "capability": "integrity.check",
+      "target": {"path": "system"},
+      "input": {"command": "python -m abyss_cli check"},
+      "preconditions": [],
+      "rollback": {"strategy": "not_required"}
+    }
+  ],
+  "no_action_executed": true
+}

@@ -1,0 +1,44 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r021_implementation_agent_stability_corrected_v2",
+  "roadmap_id": "R021",
+  "summary": "Corrected minimal deterministic validation fix for Implementation Agent ChangeSets",
+  "risk_level": "L2",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {"path": "abyss_cli/agent_runner.py"},
+      "input": {
+        "old_content": "    # Fall back to changeset parsing (original behavior)\n    changeset = import_changeset_from_agent_output(response_text, agent_run_id=agent_run_id, result_path=result_path)\n    if changeset:\n        changeset[\"output_type\"] = \"changeset\"\n    return changeset\n",
+        "new_content": "    # Fall back to changeset parsing (original behavior)\n    changeset = import_changeset_from_agent_output(response_text, agent_run_id=agent_run_id, result_path=result_path)\n    if changeset:\n        ok, messages = validate_changeset(changeset, for_apply=True)\n        changeset[\"validation\"] = {\"ok\": ok, \"messages\": messages, \"validated_at\": now_iso()}\n        changeset[\"output_type\"] = \"changeset\"\n    return changeset\n"
+      },
+      "preconditions": ["old_content_matches_once"],
+      "rollback": {"strategy": "manual_revert_from_git_diff"}
+    },
+    {
+      "id": "op_002",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {"path": "abyss_cli/agent_runner.py"},
+      "input": {
+        "old_content": "        for wf in sorted(interesting, key=lambda item: item.get(\"updated_at\", \"\"), reverse=True)[:limit]:\n            last_event = (wf.get(\"history\") or [{}])[-1]\n            evidence[\"failed_or_blocked_workflows\"].append({\n                \"id\": wf.get(\"id\"),\n                \"roadmap_id\": wf.get(\"roadmap_id\"),\n                \"status\": wf.get(\"status\"),\n                \"last_error\": wf.get(\"last_error\"),\n                \"last_event\": last_event.get(\"event\"),\n                \"last_event_details\": last_event.get(\"details\", {}),\n                \"updated_at\": wf.get(\"updated_at\"),\n            })\n",
+        "new_content": "        for wf in sorted(interesting, key=lambda item: item.get(\"updated_at\", \"\"), reverse=True)[:limit]:\n            last_event = (wf.get(\"history\") or [{}])[-1]\n            history_messages: list[str] = []\n            for event in wf.get(\"history\") or []:\n                details = event.get(\"details\") if isinstance(event, dict) else {}\n                if isinstance(details, dict):\n                    for message in details.get(\"messages\") or []:\n                        history_messages.append(str(message))\n            evidence[\"failed_or_blocked_workflows\"].append({\n                \"id\": wf.get(\"id\"),\n                \"roadmap_id\": wf.get(\"roadmap_id\"),\n                \"status\": wf.get(\"status\"),\n                \"last_error\": wf.get(\"last_error\"),\n                \"last_event\": last_event.get(\"event\"),\n                \"last_event_details\": last_event.get(\"details\", {}),\n                \"failure_messages\": history_messages[-5:],\n                \"updated_at\": wf.get(\"updated_at\"),\n            })\n"
+      },
+      "preconditions": ["old_content_matches_once"],
+      "rollback": {"strategy": "manual_revert_from_git_diff"}
+    },
+    {
+      "id": "op_003",
+      "kind": "check.command",
+      "capability": "check.run",
+      "target": {"path": "system"},
+      "input": {"command": "python -m abyss_cli check"},
+      "preconditions": [],
+      "rollback": {"strategy": "none"}
+    }
+  ],
+  "no_action_executed": true
+}

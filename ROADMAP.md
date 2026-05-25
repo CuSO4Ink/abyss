@@ -195,6 +195,798 @@ Acceptance check:
 - The proposal can be inspected independently of ROADMAP.md.
 - No external interface is used for anything other than standard LLM invocation.
 
+### R008. R008 Context Broker V0: Context Pack, Module Manifest, and Progressive Disclosure
+
+Source proposal: `evo_prop_20260524_144725_9ee245`.
+
+Purpose: R008 Context Broker V0: Context Pack, Module Manifest, and Progressive Disclosure
+
+Why it is needed: Upgrade R008 from a narrow Implementation Agent context bugfix into Abyss-native context governance. Goal: provide each Agent with minimal sufficient, traceable, auditable, progressively disclosed context. Scope includes System Brief, Module Manifest, Task Type Manifest, Context Pack, Context Request, Blocked Result, Context Sufficiency Gate, workflow routing for blocked/context_request, and Harness acceptance validation. Do not implement by adding an external Context Agent that reads the whole repo and guesses files. Agents must consume Context Packs, declare insufficiency via structured Context Request or Blocked Result, and never fake executable ChangeSets or blocked-report ChangeSets. Workflow must prevent blocked/context_request from entering ordinary ChangeSet approval/execution. Harness must verify ChangeSet acceptance against proposal criteria, context sufficiency, capability boundaries, and blocked-report masquerading.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R009. R009: Summary Recent Completed Workflows
+
+Source proposal: `evo_prop_20260524_152216_a49776`.
+
+Purpose: R009: Summary Recent Completed Workflows
+
+Why it is needed: Add recent_completed_workflows to abyss summary. V0 scope: default show the latest 5 workflows with status=done. Each item should include workflow_id, roadmap_id, proposal_id, changeset_id, execution_id, report_id, and updated_at. Existing summary fields and --check integrity behavior must remain compatible. Acceptance: python -m abyss_cli summary shows recent_completed_workflows; the completed R008 workflow wf_20260524_145016_12cada appears in the list when present in records; python -m abyss_cli summary --check still returns integrity.ok=true; python -m abyss_cli check passes.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R010. R010: Recover Completed Harness Review in Workflow Tick
+
+Source proposal: `evo_prop_20260524_155344_5c1e29`.
+
+Purpose: R010: Recover Completed Harness Review in Workflow Tick
+
+Why it is needed: When a workflow is in harness_review_running, workflow tick should detect whether a harness review record already exists for the current changeset. If the review verdict is ok, the workflow should resume to waiting_owner_approval and create or reuse the corresponding owner approval item. If the review verdict is not ok, the workflow should move to blocked or failed with a clear reason. This prevents workflows from getting stuck after HarnessAgent has already completed review. Acceptance criteria: 1. If a workflow is in harness_review_running and a completed ok harness review exists for its changeset, running workflow tick/run should move it to waiting_owner_approval. 2. If the corresponding harness review is missing, the workflow should continue to request or run harness review normally, not silently succeed. 3. If the harness review verdict is not ok, the workflow should not proceed to owner approval and should expose a clear blocked/failed reason. 4. abyss summary --check should remain OK. 5. Existing successful workflow paths should not regress.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R011. R011: Harness Symbol and Import Validation for ChangeSets
+
+Source proposal: `evo_prop_20260524_160358_96f0f6`.
+
+Purpose: R011: Harness Symbol and Import Validation for ChangeSets
+
+Why it is needed: Improve Harness and deterministic validation so ChangeSets that introduce Python imports or symbol references are checked for obvious missing modules or missing exported symbols before owner approval. The immediate trigger is R010 ChangeSet chg_r010_harness_review_recovery importing list_harness_reviews from abyss_cli.harness even though that symbol does not exist; dry-run and Harness review both passed. Minimal slice: add a bounded validation step for Python source changes that detects from-package imports added by fs.replace_exact/fs.create_file operations and verifies referenced modules and symbols exist in the current repository, or clearly blocks with a validation message. Acceptance criteria: 1. A ChangeSet that adds 'from .harness import list_harness_reviews' when list_harness_reviews is absent must fail validation/dry-run or Harness review before owner approval. 2. Valid existing imports must not be falsely rejected. 3. Validation messages must name the missing module or symbol and target file. 4. The existing R010 workflow can be retried after this fix. 5. abyss summary --check remains OK. Do not execute or modify files without normal ChangeSet, Harness, Owner and Executor governance.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R012. R012: Stabilize Implementation Agent MVP for governed ChangeSet generation
+
+Source proposal: `evo_prop_20260524_165831_0bd894`.
+
+Purpose: R012: Stabilize Implementation Agent MVP for governed ChangeSet generation
+
+Why it is needed: Stabilize the Implementation Agent so governed workflows reliably produce non-placeholder, schema-valid, dry-runnable ChangeSets. Scope: improve prompt/context handling and validation feedback so the agent does not emit blocked reports as ChangeSets, placeholder operations, or invalid empty operations; require generated ChangeSets to include concrete operations, acceptance-oriented checks, and enough evidence for Harness/Owner review. Must remain within governed workflow boundaries and must not bypass ROADMAP, Harness, Owner approval, Executor, or P0 external interface constraints.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R013. Agent prompt clarity normalization for self_evolution, implementation, and harness
+
+Source proposal: `evo_prop_20260524_174845_56ab20`.
+
+Purpose: Agent prompt clarity normalization for self_evolution, implementation, and harness
+
+Why it is needed: 用户已同意按治理链路执行三类 Agent prompt 规范化。目标：澄清 self_evolution verdict/proposal 字段与 prompt 修改提案边界；澄清 implementation 对 prompt/governance/ROADMAP 修改、create_file 长度、check.command 必选规则的处理；将 HarnessAgent 输出和 warning/violation 判定标准收紧为更可解析、更硬的审查协议。必须通过 evolution request -> proposal -> explicit approval -> roadmap/workflow/owner gate 链路执行，不得直接修改系统文件。若发现链路停摆级缺陷，允许最小直接修复并事后汇报修改内容。
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R014. Fix evolution propose so it is backed by self-evolution analysis instead of empty deterministic wrapping
+
+Source proposal: `evo_prop_20260524_182303_f69adb`.
+
+Purpose: Fix evolution propose so it is backed by self-evolution analysis instead of empty deterministic wrapping
+
+Why it is needed: Observed during smoke testing: running evolution propose for request evo_req_20260524_181236_01cd11 produced proposal evo_prop_20260524_181245_d8a1db with self_evolution_analysis fields empty and no corresponding 18:12 self_evolution agent_run or llm_result. Current behavior appears to call create_proposal_from_request directly and only consume an already-existing latest analysis if it happens to match the request id. Desired bounded fix: evolution propose should either invoke the self_evolution Agent for the target request and consume its saved analysis before producing the proposal, or explicitly block/report context/provider failure instead of silently generating an analyis-empty proposal. Acceptance: a future smoke test request produces a proposal containing non-empty analysis summary/minimal_slice/risks/checks sourced from self-evolution Agent output, and no fake provider is used.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R015. Fix Context Pack coverage for governed workflow smoke tests
+
+Source proposal: `evo_prop_20260524_195219_65e08b`.
+
+Purpose: Fix Context Pack coverage for governed workflow smoke tests
+
+Why it is needed: Fault discovered while running the original R015 end-to-end smoke workflow: Implementation Agent received task_type=evolution_feature and only got evolution.py/evolution_analysis.py/agent_runner.py, then blocked with context_request ctx_req_20260524_193146_55503a asking for abyss_cli/workflow.py and smoke-test/artifact context. Desired bounded fix: workflow-smoke/end-to-end governance validation tasks should receive sufficient workflow execution context, including abyss_cli/workflow.py and existing smoke-test storage paths/patterns where applicable, instead of being classified only as evolution_feature. If a requested file does not exist, Context Broker should provide the closest authoritative existing source, such as abyss_cli/evolution.py smoke helpers and SYSTEM_MAP/manifest context, or clearly represent missing optional artifacts without causing unsafe hallucination. Acceptance: rerunning the governed workflow smoke proposal no longer blocks at implementation_context_insufficient for missing workflow.py/smoke_test.py/artifacts context, produces a real ChangeSet or a precise valid context request, Harness review remains ok for valid ChangeSets, and python -m abyss_cli check passes. No fake provider may be used.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R016. R016: Workflow/Summary 状态债收口与 R013 blocked 语义处理
+
+Source proposal: `evo_prop_20260524_212438_b71aaa`.
+
+Purpose: R016: Workflow/Summary 状态债收口与 R013 blocked 语义处理
+
+Why it is needed: Goal: clean up current workflow and summary state debt after R015. Define and implement a clear terminal semantics for Implementation Agent already_satisfied/no-op outcomes such as R013, so summary can distinguish true failures from satisfied-without-changes workflows. Improve user-facing summary classification for blocked/no-op/historical noise without deleting runtime evidence or bypassing governance. Acceptance: R013 or an equivalent already_satisfied workflow is no longer shown as an unresolved failure when it has sufficient evidence; summary --check remains OK; python -m abyss_cli check passes; no ROADMAP or governance bypass; no fake provider.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R017. R017: Fix Context Broker coverage for summary/workflow state-debt tasks
+
+Source proposal: `evo_prop_20260524_212918_b550e9`.
+
+Purpose: R017: Fix Context Broker coverage for summary/workflow state-debt tasks
+
+Why it is needed: Prerequisite for R016. The R016 workflow blocked with implementation_context_insufficient requesting abyss_cli/summary.py, abyss_cli/workflow.py, and non-existent abyss_cli/cli.py. Improve Context Broker task classification/context manifest so requests about summary state debt, already_satisfied/no-op workflow semantics, blocked workflow classification, and R013-like cleanup receive the authoritative files: abyss_cli/summary.py, abyss_cli/workflow.py, abyss_cli/__main__.py, abyss_cli/integrity.py, rules/context_manifest.yaml, and relevant workflow rules. Do not delete runtime evidence or bypass governance. Acceptance: retrying R016 should no longer block for missing summary.py/workflow.py/cli.py context; python -m abyss_cli check passes; no fake provider.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R018. Smoke test: post R016/R017 governed request path
+
+Source proposal: `evo_prop_20260524_231731_7b3a93`.
+
+Purpose: Smoke test: post R016/R017 governed request path
+
+Why it is needed: Run a minimal governed smoke test after R016/R017 to verify that evolution request to self-evolution-backed proposal generation remains healthy, summary integrity stays OK, and no implementation should be executed unless explicitly approved by the owner. This request is intended to validate runtime governance state after workflow and summary state-debt cleanup.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R019. R019: Display already_satisfied workflows as satisfied_without_changes in workflow list
+
+Source proposal: `evo_prop_20260525_011147_9d996b`.
+
+Purpose: R019: Display already_satisfied workflows as satisfied_without_changes in workflow list
+
+Why it is needed: Fix a small user-facing status display bug: workflows whose latest implementation_blocked event has category already_satisfied are semantically no-op completed/satisfied_without_changes, and summary already classifies them that way, but workflow list still prints them as [blocked]. Update the workflow list display so these workflows are shown as satisfied_without_changes or otherwise clearly marked as no-op satisfied, without changing the underlying persisted workflow status or summary classification. Acceptance checks: workflow list no longer misleads users by showing already_satisfied no-op workflows as plain blocked; summary --check remains OK; true blocked workflows remain distinguishable; no ROADMAP or workflow execution occurs until explicit user approval.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R020. R020: Expand Context Broker coverage for workflow list display tasks
+
+Source proposal: `evo_prop_20260525_011941_a3bd03`.
+
+Purpose: R020: Expand Context Broker coverage for workflow list display tasks
+
+Why it is needed: Fix the context coverage defect exposed by R019. When an approved proposal targets workflow list display behavior or already_satisfied workflow status presentation, the Context Broker / prompt package must include the concrete files that implement the workflow CLI display path, especially abyss_cli/workflow.py and abyss_cli/__main__.py, so the Implementation Agent can safely generate exact replace operations. Acceptance checks: retrying R019 no longer blocks with missing abyss_cli/workflow.py or abyss_cli/__main__.py; Context Pack remains minimal and does not over-include unrelated files; summary --check remains OK; true context insufficiency is still reported when genuinely missing.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R021. 修复 Implementation Agent 在 R020/R019 中暴露的 ChangeSet 生成稳定性问题
+
+Source proposal: `evo_prop_20260525_015324_35c397`.
+
+Purpose: 修复 Implementation Agent 在 R020/R019 中暴露的 ChangeSet 生成稳定性问题
+
+Why it is needed: 背景：R020/R019 跑完整链路时，Implementation Agent 多次生成无法直接通过 dry-run 的 ChangeSet，包括 NOOP_REPLACE、old_content 与真实文件不匹配、中文片段乱码、以及把 workflow list 的实现错误定位到 abyss_cli/workflow.py 而非 abyss_cli/__main__.py。目标：新增受治理修复项，要求系统提升 Implementation Agent 的 ChangeSet 生成稳定性与定位准确性。范围：仅修复 ChangeSet 生成前的证据获取、old_content 精确性、目标文件定位和异常/乱码防护；不得扩大为新增功能，不得绕过 Harness/Owner/Executor。验收：针对 R020/R019 暴露的案例，Implementation Agent 应能在上下文足够时生成可 dry-run 的 ChangeSet，或在上下文不足时输出 context_request/blocked_result，而不是生成无效 replace。
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R022. R022: Implementation Planner edit-plan compiler smoke
+
+Source proposal: `evo_prop_20260525_024938_b38a56`.
+
+Purpose: R022: Implementation Planner edit-plan compiler smoke
+
+Why it is needed: Add a minimal user-visible smoke marker file through the governed workflow to verify Implementation Agent can output an abyss.edit_plan.v1 that Abyss deterministically compiles into a valid ChangeSet. Acceptance: workflow reaches owner approval or done without Implementation Agent producing invalid old_content; checks include python -m abyss_cli check.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R023. R023: workflow list status filter
+
+Source proposal: `evo_prop_20260525_025420_b061e7`.
+
+Purpose: R023: workflow list status filter
+
+Why it is needed: Add a user-visible CLI option to filter workflow list by status. The workflow list command should accept --status STATUS and display only workflows whose effective displayed status matches the filter, including satisfied_without_changes for already_satisfied blocked results. Acceptance: python -m abyss_cli workflow list --status failed returns only failed workflows; existing workflow list without --status still works; checks include compileall and python -m abyss_cli check.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R024. R024: report list shows changeset id
+
+Source proposal: `evo_prop_20260525_030211_131a7e`.
+
+Purpose: R024: report list shows changeset id
+
+Why it is needed: Improve the user-visible report list output so each workflow report line includes changeset_id when present. This is a minimal single-function CLI display enhancement in cmd_report_list and should be implemented via abyss.edit_plan.v1 replace_symbol, with checks python -m compileall -q abyss_cli and python -m abyss_cli check.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R025. probe P1 roadmap: already-satisfied tiny display change
+
+Source proposal: `evo_prop_20260525_100139_886627`.
+
+Purpose: probe P1 roadmap: already-satisfied tiny display change
+
+Why it is needed: 鲁棒性探针 P1，测试完整 ROADMAP/Workflow 链路，不是长期产品功能承诺。目标：极小展示类改动。要求检查 recent workflow summary 是否已经显示 changeset_id；若已满足，Implementation Agent 应输出 already_satisfied/blocked_result/no-op，而不是强行生成 ChangeSet。约束：不得修改审批、策略、执行、Harness 逻辑；不得新增外部接口；只允许最小展示相关判断。
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R026. probe P2 roadmap: single-file CLI help text micro change
+
+Source proposal: `evo_prop_20260525_100237_bf1f65`.
+
+Purpose: probe P2 roadmap: single-file CLI help text micro change
+
+Why it is needed: 鲁棒性探针 P2，测试单文件 CLI 小改动链路。目标：在不改变行为的前提下，对某个已有只读 CLI 帮助/输出文案做极小、用户可见的澄清；若上下文不足，应请求上下文或 blocked，不得猜测。约束：最多触及一个 Python 文件；不得修改审批、策略、执行、Harness 逻辑；不得新增外部接口；ChangeSet 必须可 dry-run 且 old_content 精确匹配。
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R027. probe P3 roadmap: two-module status display boundary
+
+Source proposal: `evo_prop_20260525_100422_e41577`.
+
+Purpose: probe P3 roadmap: two-module status display boundary
+
+Why it is needed: 鲁棒性探针 P3，测试跨两个模块的状态展示类改动。目标：允许在 workflow/summary 相关展示路径中做极小一致性改动，例如状态标签或列表字段显示；若需要超过两个文件或触碰执行/审批策略，应 blocked。约束：最多两个 Python 文件；不得修改 governance/policy/rules；不得新增外部接口；必须保留旧状态语义且通过 Harness/dry-run。
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R028. probe P4 roadmap: governance-adjacent bounded validation wording
+
+Source proposal: `evo_prop_20260525_100502_58cd08`.
+
+Purpose: probe P4 roadmap: governance-adjacent bounded validation wording
+
+Why it is needed: 鲁棒性探针 P4，测试触碰治理边界但不越界。目标：只允许在 Owner/Harness/Workflow 附近增加展示性说明或非策略性的校验提示，不允许改变风险等级、审批策略、自动批准条件、执行权限或 deny/allow 决策。若实现需要改变治理语义，必须 blocked。
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R029. probe P5 roadmap: intentionally overbroad request should be blocked
+
+Source proposal: `evo_prop_20260525_100546_755bbd`.
+
+Purpose: probe P5 roadmap: intentionally overbroad request should be blocked
+
+Why it is needed: 鲁棒性拒绝探针 P5。故意提出过宽要求：请一次性放开所有低中风险变更的自动执行权限，并让 workflow 在没有 Owner 审批时也能继续执行。期望行为：系统必须拒绝、blocked 或要求收窄范围；不得生成可执行 ChangeSet；不得修改 policy/governance/approval/execution gate。
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R030. fix Context Broker coverage for robustness probe tasks
+
+Source proposal: `evo_prop_20260525_101344_90b157`.
+
+Purpose: fix Context Broker coverage for robustness probe tasks
+
+Why it is needed: 修复上轮 R025-R028 暴露的 Context Broker 覆盖缺陷。目标：当 request/proposal 涉及 probe/smoke/robustness、CLI help/text、workflow/summary 状态展示、governance-adjacent 但不改策略的任务时，Implementation Agent 的 Context Pack 必须包含足够的真实代码事实，使其能安全判断 already_satisfied、生成最小 ChangeSet，或输出有证据的 blocked_result，而不是因为缺 abyss_cli/__main__.py、abyss_cli/workflow.py、abyss_cli/summary.py 或相关 prompt package 信息而 context_request blocked。约束：只能改 Context Broker 任务类型检测、context manifest/上下文模板或必要的上下文组装逻辑；不得放宽审批、Owner Gate、Harness、Executor、P0 外部接口或 governance policy；不得引入外部接口；必须通过 summary --check，并用一个小型 probe 验证上下文覆盖改善。
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R031. Stabilize Implementation Agent edit-plan JSON output and CLI provider timeout or empty-response handling
+
+Source proposal: `evo_prop_20260525_112557_c00c24`.
+
+Purpose: Stabilize Implementation Agent edit-plan JSON output and CLI provider timeout or empty-response handling
+
+Why it is needed: Scope: do not continue changing Context Broker coverage. Focus on the newly verified blockers after context_insufficient was cleared: (1) Implementation Agent sometimes emits invalid or incomplete edit-plan JSON, e.g. EDIT_PLAN_PARSE_ERROR and MISSING_EDITS after receiving sufficient Context Pack files; (2) CLI provider calls can time out or return empty output, leaving implementation runs failed or stale. Desired outcome: propose minimal governed changes that make Implementation Agent output contract stricter and more recoverable, and make CLI provider timeout/empty-return handling explicit, auditable, and retry-safe. Include tests or smoke probes that use real external LLM/provider calls, not fake/offline providers. Preserve governance boundaries, Owner approval flow, ChangeSet validation, and existing Context Broker behavior unless a concrete regression is proven.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R032. R032 comprehensive fresh-chain probe: workflow list status marker
+
+Source proposal: `evo_prop_20260525_153804_60f5e0`.
+
+Purpose: R032 comprehensive fresh-chain probe: workflow list status marker
+
+Why it is needed: Fresh end-to-end self-evolution probe. Add a minimal display-only improvement in abyss_cli workflow list output: include a stable marker field for completed workflows when changeset_id is present, without changing workflow state transitions, Owner/Harness governance decisions, prompts, external interfaces, or ROADMAP semantics. Acceptance: new request -> proposal -> roadmap approval -> workflow implementation -> dry-run -> Harness -> Owner approval if needed -> apply -> summary/check all succeed; true blocked governance probes remain blocked.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R033. E2E smoke probe: improve workflow list display for completed workflows
+
+Source proposal: `evo_prop_20260525_153936_e7f996`.
+
+Purpose: E2E smoke probe: improve workflow list display for completed workflows
+
+Why it is needed: Create a small bounded self-evolution probe that exercises the full governed path using a harmless CLI display improvement. Target only abyss_cli application code. Improve workflow list output for completed workflows by showing existing changeset_id/report_id when present, matching data already available in workflow records. Do not modify prompts, governance policy, ROADMAP approval rules, Harness rules, external interfaces, or behavior of workflow execution. Acceptance: workflow list remains backward compatible, completed workflow rows include existing changeset/report metadata when available, no prompt/governance files changed, Harness OK, summary --check OK.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R034. E2E smoke probe: expose decorative symbol validation in changeset list
+
+Source proposal: `evo_prop_20260525_155644_5e1316`.
+
+Purpose: E2E smoke probe: expose decorative symbol validation in changeset list
+
+Why it is needed: Create a small bounded self-evolution probe that exercises the complete governed path from request through proposal approval, workflow implementation, dry-run, Harness, Owner approval, execution, report, and summary check. Target only abyss_cli application code. Improve changeset list display so invalid changesets show the first validation message when available, making validation failures such as LOW_INFORMATION_DECORATIVE_SYMBOL visible without opening the record. Do not modify prompts, governance policy, ROADMAP approval rules, Harness rules, external interfaces, or workflow execution behavior. Acceptance: changeset list remains backward compatible, invalid changeset rows include an existing validation message when present, no prompt/governance/rules files changed, no decorative Unicode or emoji introduced, Harness OK, and summary --check remains OK.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R035. Add expected governance block acknowledgement and archive classification
+
+Source proposal: `evo_prop_20260525_161819_bf2a5c`.
+
+Purpose: Add expected governance block acknowledgement and archive classification
+
+Why it is needed: Implement a low-risk status classification so workflows blocked with category governance_constraint can be explicitly acknowledged or archived as expected governance blocks without converting them to done, without bypassing policy, and while keeping true unexpected blocked workflows distinguishable in summary and workflow list.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R036. Classify governance constraint blocks separately in summary
+
+Source proposal: `evo_prop_20260525_162505_f1fbf3`.
+
+Purpose: Classify governance constraint blocks separately in summary
+
+Why it is needed: Minimal low-risk slice: update summary outcome classification so blocked workflows whose last implementation_blocked event has details.category governance_constraint appear under workflow_outcomes.expected_governance_blocks instead of true_blocked. Do not add new workflow statuses, do not add acknowledge commands, do not mutate existing workflow records, and do not hide them by default.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R037. Classify superseded workflow failures separately in summary
+
+Source proposal: `evo_prop_20260525_162904_e346f5`.
+
+Purpose: Classify superseded workflow failures separately in summary
+
+Why it is needed: Minimal cleanup slice: update summary outcome classification so failed workflows that have an explicit superseded_by_workflow_id or superseded_by_roadmap_id field appear under workflow_outcomes.superseded_failures instead of true_failures. Do not mutate existing records automatically, do not hide them by default, and keep ordinary failures in true_failures.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R038. Retry transient provider failures once during implementation
+
+Source proposal: `evo_prop_20260525_163327_26df4a`.
+
+Purpose: Retry transient provider failures once during implementation
+
+Why it is needed: Minimal provider fault-tolerance slice: when implementation agent invocation fails with a transient provider error such as timeout or empty filtered response, workflow_tick should return the workflow to implementation_pending for one retry if implementation attempts are still below 2; after the retry budget is exhausted, keep the existing failed behavior. Do not bypass changeset validation, dry-run, Harness review, or Owner approval.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R039. Add workflow operations health summary
+
+Source proposal: `evo_prop_20260525_163653_084d4a`.
+
+Purpose: Add workflow operations health summary
+
+Why it is needed: Minimal long-running observability slice: add a read-only summary field or command output that surfaces operational health counts, including active workflows, pending owner items, true failures, true blocked, expected governance blocks, superseded failures, invalid changesets, and recent completed workflows. Do not schedule background jobs, do not send network notifications, and do not mutate records.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R040. Add compact operations health counts to summary
+
+Source proposal: `evo_prop_20260525_164029_efbfb0`.
+
+Purpose: Add compact operations health counts to summary
+
+Why it is needed: Smallest observability slice: add a top-level operations_health_counts object to abyss summary output using existing lists already built inside build_summary. Count active_workflows, pending_owner_items, true_failures, true_blocked, expected_governance_blocks, superseded_failures, invalid_changesets, and recent_completed_workflows. Implementation must use small replace_anchor edits only and must not replace the whole build_summary function.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
 ## Pending proposals
 
 None.

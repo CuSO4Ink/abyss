@@ -1,0 +1,19 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_probe_decorative_symbol_validation",
+  "roadmap_id": "R-PROBE",
+  "summary": "Probe decorative symbol validation",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.create_file",
+      "target": {
+        "path": "artifacts/drafts/probe_decorative_symbol_output.txt"
+      },
+      "input": {
+        "content": "status: ✓ applied\n"
+      }
+    }
+  ]
+}
