@@ -1,11 +1,15 @@
 {
   "schema": "abyss.context_manifest.v1",
   "purpose": "Maps task types to required context modules, files, and rules. Used by Context Broker to build context packs.",
-
   "task_types": {
     "workflow_smoke_test": {
       "description": "Governed workflow smoke tests and end-to-end validation",
-      "required_modules": ["workflow", "agent_runner", "context_broker", "changeset"],
+      "required_modules": [
+        "workflow",
+        "agent_runner",
+        "context_broker",
+        "changeset"
+      ],
       "required_files": [
         "abyss_cli/workflow.py",
         "abyss_cli/agent_runner.py",
@@ -20,28 +24,65 @@
         "rules/modules.yaml",
         "rules/context_manifest.yaml"
       ],
-      "required_checks": ["python -m abyss_cli check"]
+      "required_checks": [
+        "python -m abyss_cli check"
+      ],
+      "default_disclosure_level": "L6_source",
+      "max_disclosure_level": "L6_source",
+      "source_access": true,
+      "runtime_access": false,
+      "escalation_triggers": [
+        "contract_insufficient",
+        "implementation_change_required",
+        "debug_or_state_reconstruction_required"
+      ],
+      "forbidden_paths": [
+        ".local/knot_provider_workspace/"
+      ]
     },
     "cli_feature": {
       "description": "Adding or modifying CLI commands and their routing",
-      "required_modules": ["cli_entry", "workflow", "agent_runner", "summary"],
+      "required_modules": [
+        "cli_entry",
+        "workflow",
+        "agent_runner",
+        "summary"
+      ],
       "required_files": [
         "abyss_cli/__main__.py",
         "abyss_cli/workflow.py",
         "abyss_cli/summary.py",
         "abyss_cli/agent_runner.py"
       ],
-
       "required_rules": [
         "rules/capabilities.yaml",
         "rules/agents.yaml"
       ],
-      "required_checks": ["python -m abyss_cli check"]
+      "required_checks": [
+        "python -m abyss_cli check"
+      ],
+      "default_disclosure_level": "L6_source",
+      "max_disclosure_level": "L6_source",
+      "source_access": true,
+      "runtime_access": false,
+      "escalation_triggers": [
+        "contract_insufficient",
+        "implementation_change_required",
+        "debug_or_state_reconstruction_required"
+      ],
+      "forbidden_paths": [
+        ".local/knot_provider_workspace/"
+      ]
     },
-
     "workflow_feature": {
       "description": "Modifying workflow state machine, transitions, or orchestration logic",
-      "required_modules": ["workflow", "owner", "changeset", "harness_review", "cli_entry"],
+      "required_modules": [
+        "workflow",
+        "owner",
+        "changeset",
+        "harness_review",
+        "cli_entry"
+      ],
       "required_files": [
         "abyss_cli/workflow.py",
         "abyss_cli/owner.py",
@@ -53,12 +94,30 @@
         "rules/capabilities.yaml",
         "rules/agents.yaml"
       ],
-      "required_checks": ["python -m abyss_cli check"]
+      "required_checks": [
+        "python -m abyss_cli check"
+      ],
+      "default_disclosure_level": "L6_source",
+      "max_disclosure_level": "L6_source",
+      "source_access": true,
+      "runtime_access": false,
+      "escalation_triggers": [
+        "contract_insufficient",
+        "implementation_change_required",
+        "debug_or_state_reconstruction_required"
+      ],
+      "forbidden_paths": [
+        ".local/knot_provider_workspace/"
+      ]
     },
-
     "workflow_bugfix": {
       "description": "Fixing bugs in workflow, owner, changeset, or harness review",
-      "required_modules": ["workflow", "owner", "changeset", "harness_review"],
+      "required_modules": [
+        "workflow",
+        "owner",
+        "changeset",
+        "harness_review"
+      ],
       "required_files": [
         "abyss_cli/workflow.py",
         "abyss_cli/owner.py",
@@ -68,12 +127,31 @@
       "required_rules": [
         "rules/capabilities.yaml"
       ],
-      "required_checks": ["python -m abyss_cli check"]
+      "required_checks": [
+        "python -m abyss_cli check"
+      ],
+      "default_disclosure_level": "L6_source",
+      "max_disclosure_level": "L6_source",
+      "source_access": true,
+      "runtime_access": false,
+      "escalation_triggers": [
+        "contract_insufficient",
+        "implementation_change_required",
+        "debug_or_state_reconstruction_required"
+      ],
+      "forbidden_paths": [
+        ".local/knot_provider_workspace/"
+      ]
     },
-
     "changeset_validation_feature": {
       "description": "Adding or modifying ChangeSet validation, dry-run checks, import checks, symbol validation, edit-plan compilation, or Implementation Agent ChangeSet stability",
-      "required_modules": ["changeset", "harness_review", "workflow", "agent_runner", "context_broker"],
+      "required_modules": [
+        "changeset",
+        "harness_review",
+        "workflow",
+        "agent_runner",
+        "context_broker"
+      ],
       "required_files": [
         "abyss_cli/changeset.py",
         "abyss_cli/harness.py",
@@ -85,8 +163,6 @@
         "abyss_cli/patch_compiler.py",
         "rules/context_manifest.yaml"
       ],
-
-
       "symbol_index_files": [
         "abyss_cli/__init__.py",
         "abyss_cli/__main__.py",
@@ -120,12 +196,29 @@
       "required_checks": [
         "python -m abyss_cli check",
         "python -m compileall -q abyss_cli"
+      ],
+      "default_disclosure_level": "L6_source",
+      "max_disclosure_level": "L6_source",
+      "source_access": true,
+      "runtime_access": false,
+      "escalation_triggers": [
+        "contract_insufficient",
+        "implementation_change_required",
+        "debug_or_state_reconstruction_required"
+      ],
+      "forbidden_paths": [
+        ".local/knot_provider_workspace/"
       ]
     },
-
     "agent_feature": {
       "description": "Adding or modifying agent behavior, prompts, provider reliability, or output parsing",
-      "required_modules": ["agent_runner", "llm_executor", "patch_compiler", "changeset", "harness_review"],
+      "required_modules": [
+        "agent_runner",
+        "llm_executor",
+        "patch_compiler",
+        "changeset",
+        "harness_review"
+      ],
       "required_files": [
         "abyss_cli/agent_runner.py",
         "abyss_cli/llm_executor.py",
@@ -133,23 +226,38 @@
         "abyss_cli/changeset.py",
         "abyss_cli/harness_review.py"
       ],
-
       "required_rules": [
         "rules/agents.yaml",
         "rules/capabilities.yaml",
         "rules/llm_providers.yaml"
       ],
-      "required_checks": ["python -m abyss_cli check"],
+      "required_checks": [
+        "python -m abyss_cli check"
+      ],
       "required_prompts": [
         "prompts/agents/harness_agent.md",
         "prompts/agents/implementation_agent.md",
         "prompts/agents/self_evolution_agent.md"
+      ],
+      "default_disclosure_level": "L6_source",
+      "max_disclosure_level": "L6_source",
+      "source_access": true,
+      "runtime_access": false,
+      "escalation_triggers": [
+        "contract_insufficient",
+        "implementation_change_required",
+        "debug_or_state_reconstruction_required"
+      ],
+      "forbidden_paths": [
+        ".local/knot_provider_workspace/"
       ]
     },
-
     "evolution_feature": {
       "description": "Modifying evolution request/proposal/analysis chain",
-      "required_modules": ["evolution", "agent_runner"],
+      "required_modules": [
+        "evolution",
+        "agent_runner"
+      ],
       "required_files": [
         "abyss_cli/evolution.py",
         "abyss_cli/evolution_analysis.py",
@@ -159,12 +267,32 @@
         "rules/agents.yaml",
         "rules/capabilities.yaml"
       ],
-      "required_checks": ["python -m abyss_cli check"]
+      "required_checks": [
+        "python -m abyss_cli check"
+      ],
+      "default_disclosure_level": "L6_source",
+      "max_disclosure_level": "L6_source",
+      "source_access": true,
+      "runtime_access": false,
+      "escalation_triggers": [
+        "contract_insufficient",
+        "implementation_change_required",
+        "debug_or_state_reconstruction_required"
+      ],
+      "forbidden_paths": [
+        ".local/knot_provider_workspace/"
+      ]
     },
-
     "context_broker_feature": {
       "description": "Modifying context broker, context pack generation, or module manifest",
-      "required_modules": ["context_broker", "agent_runner", "workflow", "summary", "integrity", "cli_entry"],
+      "required_modules": [
+        "context_broker",
+        "agent_runner",
+        "workflow",
+        "summary",
+        "integrity",
+        "cli_entry"
+      ],
       "required_files": [
         "abyss_cli/context_pack.py",
         "abyss_cli/agent_runner.py",
@@ -185,9 +313,22 @@
         "rules/contracts/context_pack.v1.yaml",
         "rules/contracts/context_request.v1.yaml"
       ],
-      "required_checks": ["python -m abyss_cli check"]
+      "required_checks": [
+        "python -m abyss_cli check"
+      ],
+      "default_disclosure_level": "L5_contracts",
+      "max_disclosure_level": "L6_source",
+      "source_access": true,
+      "runtime_access": false,
+      "escalation_triggers": [
+        "contract_insufficient",
+        "implementation_change_required",
+        "debug_or_state_reconstruction_required"
+      ],
+      "forbidden_paths": [
+        ".local/knot_provider_workspace/"
+      ]
     },
-
     "external_collaboration": {
       "description": "Building governed external model collaboration task packages using progressive disclosure before source code",
       "required_modules": [],
@@ -217,12 +358,28 @@
         "rules/contracts/context_request.v1.yaml",
         "rules/contracts/blocked_result.v1.yaml"
       ],
-      "required_checks": ["python -m abyss_cli check"]
+      "required_checks": [
+        "python -m abyss_cli check"
+      ],
+      "default_disclosure_level": "L5_contracts",
+      "max_disclosure_level": "L5_contracts",
+      "source_access": false,
+      "runtime_access": false,
+      "escalation_triggers": [
+        "contract_insufficient",
+        "implementation_change_required",
+        "debug_or_state_reconstruction_required"
+      ],
+      "forbidden_paths": [
+        ".local/knot_provider_workspace/"
+      ]
     },
-
     "governance_change": {
       "description": "Modifying governance rules, policies, or capabilities",
-      "required_modules": ["integrity", "cli_entry"],
+      "required_modules": [
+        "integrity",
+        "cli_entry"
+      ],
       "required_files": [
         "abyss_cli/integrity.py",
         "rules/governance.yaml",
@@ -234,12 +391,33 @@
         "rules/capabilities.yaml",
         "rules/policy.yaml"
       ],
-      "required_checks": ["python -m abyss_cli check"]
+      "required_checks": [
+        "python -m abyss_cli check"
+      ],
+      "default_disclosure_level": "L5_contracts",
+      "max_disclosure_level": "L6_source",
+      "source_access": true,
+      "runtime_access": false,
+      "escalation_triggers": [
+        "contract_insufficient",
+        "implementation_change_required",
+        "debug_or_state_reconstruction_required"
+      ],
+      "forbidden_paths": [
+        ".local/knot_provider_workspace/"
+      ]
     },
-
     "summary_feature": {
       "description": "Modifying system summary output, status rendering, workflow state-debt classification, no-op implementation outcome handling, or probe/robustness task grounding",
-      "required_modules": ["summary", "workflow", "integrity", "cli_entry", "agent_runner", "context_broker", "changeset"],
+      "required_modules": [
+        "summary",
+        "workflow",
+        "integrity",
+        "cli_entry",
+        "agent_runner",
+        "context_broker",
+        "changeset"
+      ],
       "required_files": [
         "abyss_cli/summary.py",
         "abyss_cli/workflow.py",
@@ -261,26 +439,136 @@
       "required_rules": [
         "rules/context_manifest.yaml"
       ],
-      "required_checks": ["python -m abyss_cli check"]
+      "required_checks": [
+        "python -m abyss_cli check"
+      ],
+      "default_disclosure_level": "L6_source",
+      "max_disclosure_level": "L6_source",
+      "source_access": true,
+      "runtime_access": false,
+      "escalation_triggers": [
+        "contract_insufficient",
+        "implementation_change_required",
+        "debug_or_state_reconstruction_required"
+      ],
+      "forbidden_paths": [
+        ".local/knot_provider_workspace/"
+      ]
     }
   },
-
-
   "task_type_detection": {
     "description": "Heuristics for auto-detecting task type from proposal/request text",
     "keywords": {
-      "workflow_smoke_test": ["workflow smoke", "governed workflow", "end-to-end smoke", "smoke test", "governance validation", "workflow validation", "smoke-test artifacts"],
-      "cli_feature": ["CLI", "command", "argparse", "subcommand", "routing", "cli help", "help text", "help output", "command output"],
-      "workflow_feature": ["workflow", "state machine", "orchestration", "transition"],
-      "workflow_bugfix": ["workflow bug", "workflow fix", "blocked", "retry"],
-      "changeset_validation_feature": ["changeset validation", "dry-run", "dry run", "import validation", "symbol validation", "missing symbol", "missing module", "missing exported symbols", "from-package imports", "validation messages"],
-      "agent_feature": ["agent", "prompt", "harness", "implementation agent", "self-evolution agent"],
-      "evolution_feature": ["evolution", "proposal", "request", "analysis"],
-      "context_broker_feature": ["context broker", "context governance", "context sufficiency", "context request", "context pack", "module manifest", "task type manifest", "progressive disclosure"],
-      "external_collaboration": ["external model", "external developer", "external collaboration", "external platform", "外部模型", "外部协作", "外部开发", "task package", "developer protocol"],
-      "governance_change": ["governance", "policy", "capability", "rule"],
-      "summary_feature": ["summary", "status", "display", "render", "state debt", "status debt", "already_satisfied", "no-op", "noop", "satisfied-without-changes", "unresolved failure", "状态债", "robustness probe", "probe/smoke", "probe task", "tiny display", "recent workflow summary", "workflow/summary", "status display", "governance-adjacent", "probe/robustness", "robustness task", "smoke/robustness", "probe coverage"]
-
+      "workflow_smoke_test": [
+        "workflow smoke",
+        "governed workflow",
+        "end-to-end smoke",
+        "smoke test",
+        "governance validation",
+        "workflow validation",
+        "smoke-test artifacts"
+      ],
+      "cli_feature": [
+        "CLI",
+        "command",
+        "argparse",
+        "subcommand",
+        "routing",
+        "cli help",
+        "help text",
+        "help output",
+        "command output"
+      ],
+      "workflow_feature": [
+        "workflow",
+        "state machine",
+        "orchestration",
+        "transition"
+      ],
+      "workflow_bugfix": [
+        "workflow bug",
+        "workflow fix",
+        "blocked",
+        "retry"
+      ],
+      "changeset_validation_feature": [
+        "changeset validation",
+        "dry-run",
+        "dry run",
+        "import validation",
+        "symbol validation",
+        "missing symbol",
+        "missing module",
+        "missing exported symbols",
+        "from-package imports",
+        "validation messages"
+      ],
+      "agent_feature": [
+        "agent",
+        "prompt",
+        "harness",
+        "implementation agent",
+        "self-evolution agent"
+      ],
+      "evolution_feature": [
+        "evolution",
+        "proposal",
+        "request",
+        "analysis"
+      ],
+      "context_broker_feature": [
+        "context broker",
+        "context governance",
+        "context sufficiency",
+        "context request",
+        "context pack",
+        "module manifest",
+        "task type manifest",
+        "progressive disclosure"
+      ],
+      "external_collaboration": [
+        "external model",
+        "external developer",
+        "external collaboration",
+        "external platform",
+        "外部模型",
+        "外部协作",
+        "外部开发",
+        "task package",
+        "developer protocol"
+      ],
+      "governance_change": [
+        "governance",
+        "policy",
+        "capability",
+        "rule"
+      ],
+      "summary_feature": [
+        "summary",
+        "status",
+        "display",
+        "render",
+        "state debt",
+        "status debt",
+        "already_satisfied",
+        "no-op",
+        "noop",
+        "satisfied-without-changes",
+        "unresolved failure",
+        "状态债",
+        "robustness probe",
+        "probe/smoke",
+        "probe task",
+        "tiny display",
+        "recent workflow summary",
+        "workflow/summary",
+        "status display",
+        "governance-adjacent",
+        "probe/robustness",
+        "robustness task",
+        "smoke/robustness",
+        "probe coverage"
+      ]
     },
     "priority": {
       "workflow_smoke_test": 110,
@@ -296,10 +584,14 @@
       "evolution_feature": 20
     }
   },
-
   "fallback": {
     "description": "When task type cannot be determined, include these baseline modules",
-    "required_modules": ["cli_entry", "workflow", "changeset", "agent_runner"],
+    "required_modules": [
+      "cli_entry",
+      "workflow",
+      "changeset",
+      "agent_runner"
+    ],
     "required_files": [
       "abyss_cli/__main__.py",
       "abyss_cli/workflow.py",
@@ -309,6 +601,13 @@
     "required_rules": [
       "rules/capabilities.yaml",
       "rules/agents.yaml"
+    ],
+    "default_disclosure_level": "L6_source",
+    "max_disclosure_level": "L6_source",
+    "source_access": true,
+    "runtime_access": false,
+    "forbidden_paths": [
+      ".local/knot_provider_workspace/"
     ]
   }
 }

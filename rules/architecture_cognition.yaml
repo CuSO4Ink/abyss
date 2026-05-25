@@ -105,6 +105,7 @@ disclosure_levels:
     access_rule: required_before_changeset_generation_or_agent_behavior_changes
     files:
       - rules/contracts/
+      - rules/schemas/
       - rules/contracts/change_set.v1.yaml
       - rules/contracts/context_request.v1.yaml
       - rules/contracts/blocked_result.v1.yaml
