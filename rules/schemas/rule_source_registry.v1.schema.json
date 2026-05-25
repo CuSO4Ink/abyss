@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "abyss.rule_source_registry.v1",
+  "type": "object",
+  "required": ["schema", "purpose", "authority", "rule_sources", "hard_boundaries"],
+  "properties": {
+    "schema": {"const": "abyss.rule_sources.v1"},
+    "purpose": {"type": "string", "minLength": 1},
+    "authority": {"type": "string", "minLength": 1},
+    "rule_sources": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["source_files", "affected_scopes", "consumers", "context_task_types", "validation_commands", "description"],
+        "properties": {
+          "source_files": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+          "affected_scopes": {"type": "array", "items": {"type": "string"}},
+          "consumers": {"type": "array", "items": {"type": "string"}},
+          "context_task_types": {"type": "array", "items": {"type": "string"}},
+          "validation_commands": {"type": "array", "items": {"type": "string"}},
+          "description": {"type": "string", "minLength": 1},
+          "deprecated": {"type": "boolean"},
+          "notes": {"type": "string"}
+        }
+      }
+    },
+    "hard_boundaries": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+  }
+}

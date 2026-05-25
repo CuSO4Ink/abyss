@@ -1,0 +1,135 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_rule_source_registry_v0_docs_and_checks",
+  "roadmap_id": "R048",
+  "summary": "Document Rule Source Registry V0 and allow its validation commands",
+  "risk_level": "L3",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "README.md"
+      },
+      "input": {
+        "old_content": "V0 boundaries:\n\n```text\nRequest normalization grants no execution authority.\nRequest normalization grants no approval authority.\nAutomatic natural-language classification is not authoritative in V0.\nMutation requests still require proposal, workflow, ChangeSet, dry-run, Harness review, Owner approval, executor apply, and check.\n```\n",
+        "new_content": "V0 boundaries:\n\n```text\nRequest normalization grants no execution authority.\nRequest normalization grants no approval authority.\nAutomatic natural-language classification is not authoritative in V0.\nMutation requests still require proposal, workflow, ChangeSet, dry-run, Harness review, Owner approval, executor apply, and check.\n```\n\n## Rule Source Registry V0\n\nAbyss has a lightweight rule source registry for declaring where accepted rule sources live and which consumers should include them in later context or validation paths:\n\n```powershell\npython -m abyss_cli rules list --json\npython -m abyss_cli rules validate --json\n```\n\nV0 boundaries:\n\n```text\nThe registry is declarative and discoverable only.\nIt grants no execution authority and no approval authority.\nIt is not an event bus, daemon, hot-reload system, broad rule engine, or automatic propagation authority.\nContext Broker may include declared rule source files for matching task types, and integrity checks fail on a missing or malformed registry.\n```\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_002",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "SYSTEM_MAP.md"
+      },
+      "input": {
+        "old_content": "- `abyss_cli/request_envelope.py` — builds and validates `abyss.request_envelope.v1` candidates; normalization grants no execution or approval authority.\n",
+        "new_content": "- `abyss_cli/request_envelope.py` — builds and validates `abyss.request_envelope.v1` candidates; normalization grants no execution or approval authority.\n- `abyss_cli/rule_registry.py` — deterministic Rule Source Registry V0 reader/validator; lists rule sources, validates source-file/command declarations, and exposes task-type rule files to Context Broker without granting execution or approval authority.\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_003",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "SYSTEM_MAP.md"
+      },
+      "input": {
+        "old_content": "normalized request semantics\n  -> request envelope candidate\n  -> request_type validation from rules/request_types.v1.yaml\n  -> Context Broker request_type-aware context mapping\n  -> later governed intake path if Owner chooses to proceed\n```\n",
+        "new_content": "normalized request semantics\n  -> request envelope candidate\n  -> request_type validation from rules/request_types.v1.yaml\n  -> Context Broker request_type-aware context mapping\n  -> later governed intake path if Owner chooses to proceed\n```\n\n```text\naccepted rule source\n  -> rules/rule_sources.v1.yaml registry entry\n  -> rule_registry validation and listing\n  -> Context Broker task-type rule source inclusion\n  -> integrity check failure if registry is missing or malformed\n  -> no execution, approval, scheduling, or mutation authority\n```\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_004",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "SYSTEM_MAP.md"
+      },
+      "input": {
+        "old_content": "- `rules/` — rule truth sources; especially `rules/request_types.v1.yaml`, `rules/policy.yaml`, `rules/llm_providers.yaml`, `rules/agents.yaml`, `rules/modules.yaml`, `rules/context_manifest.yaml`, `rules/architecture_cognition.yaml`, and `rules/governance.yaml`.\n",
+        "new_content": "- `rules/` — rule truth sources; especially `rules/rule_sources.v1.yaml`, `rules/request_types.v1.yaml`, `rules/policy.yaml`, `rules/llm_providers.yaml`, `rules/agents.yaml`, `rules/modules.yaml`, `rules/context_manifest.yaml`, `rules/architecture_cognition.yaml`, and `rules/governance.yaml`.\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_005",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/changeset.py"
+      },
+      "input": {
+        "old_content": "ALLOWED_CHECK_COMMANDS = {\n    \"python -m abyss_cli check\": [\"python\", \"-m\", \"abyss_cli\", \"check\"],\n    \"python -m compileall -q abyss_cli\": [\"python\", \"-m\", \"compileall\", \"-q\", \"abyss_cli\"],\n}\n",
+        "new_content": "ALLOWED_CHECK_COMMANDS = {\n    \"python -m abyss_cli check\": [\"python\", \"-m\", \"abyss_cli\", \"check\"],\n    \"python -m compileall -q abyss_cli\": [\"python\", \"-m\", \"compileall\", \"-q\", \"abyss_cli\"],\n    \"python -m abyss_cli rules validate --json\": [\"python\", \"-m\", \"abyss_cli\", \"rules\", \"validate\", \"--json\"],\n    \"python -m abyss_cli request types --all --json\": [\"python\", \"-m\", \"abyss_cli\", \"request\", \"types\", \"--all\", \"--json\"],\n    \"python -m abyss_cli summary --check\": [\"python\", \"-m\", \"abyss_cli\", \"summary\", \"--check\"],\n}\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "check_001",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m compileall -q abyss_cli"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_002",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    }
+  ],
+  "no_action_executed": true
+}

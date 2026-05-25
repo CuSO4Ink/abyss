@@ -1152,6 +1152,60 @@ Acceptance check:
 - The proposal can be inspected independently of ROADMAP.md.
 - No external interface is used for anything other than standard LLM invocation.
 
+### R047. Formalize Request Semantics / Rule Propagation V0 candidate patch
+
+Source proposal: `evo_prop_20260526_003346_5b4a9f`.
+
+Purpose: Formalize Request Semantics / Rule Propagation V0 candidate patch
+
+Why it is needed: Formal intake for artifacts/drafts/candidate_patch_request_semantics_v0.md. Background: an external assistant directly changed source/rules/docs for Request Semantics / Rule Propagation V0 without the Abyss self-evolution workflow. Treat current source state as candidate material only, not as approved governance output. Classification: governance_mutation / meta_evolution_request because the patch touches request lifecycle semantics, governance routing, Context Broker selection, integrity checks, rules/contracts/schemas, and user-facing governance docs. Required old-rule review: use the rules accepted before the ungoverned candidate patch and before any new rule can legitimize itself. Scope to review: rules/request_types.v1.yaml, rules/contracts/request_envelope.v1.yaml, rules/schemas/request_envelope.v1.schema.json, abyss_cli/request_rules.py, abyss_cli/request_envelope.py, abyss_cli/__main__.py, abyss_cli/context_pack.py, abyss_cli/integrity.py, README.md, SYSTEM_MAP.md. Required decision: preserve useful candidate work through formal governance if it passes review, or quarantine/revert if it weakens governance. Risk assessment: prevents request_id from acting as semantic authority, adds explicit request_type semantics, but may expand governance surface and must not grant execution/approval authority. Owner authority impact: normalization and classification must grant no execution, approval, roadmap, or activation authority. Rollback plan: revert candidate patch commit(s) or apply a follow-up ChangeSet that removes request semantics files and integrations while preserving incident record. Validation plan: run python -m abyss_cli request types --all --json, request normalize/validate sample envelopes, request governance-core detection, python -m compileall -q abyss_cli, python -m abyss_cli check, python -m abyss_cli summary --check. Activation policy: if accepted, activate only as accepted governance in a later cycle after Owner approval, validation, and report; do not retroactively legitimize the original direct mutation. Required output: governance incident record, candidate patch review result, explicit Owner decision, and post-change report.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L3.
+
+Acceptance check:
+
+- Governance-core scope is explicitly classified before any implementation work.
+- The proposal cannot proceed through ordinary self-evolution as a self-approving closure.
+- Self Evolution and Brain Agent may analyze or prepare but cannot approve, apply, activate, or retroactively legitimize governance-core changes.
+- Risk assessment, rollback plan, validation plan, activation note, old-rule review, and explicit Owner approval are required before implementation.
+- Accepted governance-core changes activate only in a later workflow cycle, not in the cycle that approved them.
+- No governance-core change was applied, activated, or scheduled by this proposal record.
+
+### R048. Implement Rule Source Registry and Consumer Contract V0
+
+Source proposal: `evo_prop_20260526_005510_217e64`.
+
+Purpose: Implement Rule Source Registry and Consumer Contract V0
+
+Why it is needed: Owner decision after R047 blocked_result blk_20260526_005342_191fcc: preserve the useful Request Semantics / Rule Propagation V0 candidate patch as candidate material, do not quarantine/revert it, and create a bounded follow-up implementation to add the missing minimal Rule Source Registry + Consumer Contract mechanism. Scope: start from artifacts/drafts/candidate_patch_request_semantics_v0.md and existing request semantics files, then add a lightweight registry declaring rule sources, source files, affected scopes, consumers, context task inclusion, validation commands, and hard boundaries. Minimal target: add rules/rule_sources.v1.yaml, rules/contracts/rule_source_registry.v1.yaml, rules/schemas/rule_source_registry.v1.schema.json, a deterministic abyss_cli/rule_registry.py reader/validator, CLI commands to list/validate rule source registry, Context Broker integration so rule sources declared for a task type are automatically included in context packs, Integrity integration so missing registry files or invalid consumer contracts fail check, and README/SYSTEM_MAP documentation. Non-goals: no event bus, no daemon, no real-time propagation, no hot reload, no broad rule engine, no automatic approval/execution authority. Governance boundaries: registry grants no execution/approval authority; it only makes accepted rule sources discoverable and checkable. Validation plan: python -m abyss_cli rules list --json, python -m abyss_cli rules validate --json, python -m abyss_cli request types --all --json, python -m compileall -q abyss_cli, python -m abyss_cli check, python -m abyss_cli summary --check. Rollback plan: remove the new rule registry files and integrations via ChangeSet while preserving R047 incident record and candidate patch document. Activation policy: bounded implementation may be produced after this explicit Owner preserve decision; governance-core rule changes remain subject to Harness review and Owner approval before executor apply.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L3.
+
+Acceptance check:
+
+- Governance-core scope is explicitly classified before any implementation work.
+- The proposal cannot proceed through ordinary self-evolution as a self-approving closure.
+- Self Evolution and Brain Agent may analyze or prepare but cannot approve, apply, activate, or retroactively legitimize governance-core changes.
+- Risk assessment, rollback plan, validation plan, activation note, old-rule review, and explicit Owner approval are required before implementation.
+- Accepted governance-core changes activate only in a later workflow cycle, not in the cycle that approved them.
+- No governance-core change was applied, activated, or scheduled by this proposal record.
+
 ## Pending proposals
 
 None.

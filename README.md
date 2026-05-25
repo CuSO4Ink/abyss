@@ -154,6 +154,24 @@ Automatic natural-language classification is not authoritative in V0.
 Mutation requests still require proposal, workflow, ChangeSet, dry-run, Harness review, Owner approval, executor apply, and check.
 ```
 
+## Rule Source Registry V0
+
+Abyss has a lightweight rule source registry for declaring where accepted rule sources live and which consumers should include them in later context or validation paths:
+
+```powershell
+python -m abyss_cli rules list --json
+python -m abyss_cli rules validate --json
+```
+
+V0 boundaries:
+
+```text
+The registry is declarative and discoverable only.
+It grants no execution authority and no approval authority.
+It is not an event bus, daemon, hot-reload system, broad rule engine, or automatic propagation authority.
+Context Broker may include declared rule source files for matching task types, and integrity checks fail on a missing or malformed registry.
+```
+
 ## Manual LLM loop
 
 1. Create an intent.

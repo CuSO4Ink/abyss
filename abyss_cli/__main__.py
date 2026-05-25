@@ -22,6 +22,8 @@ from .owner import approve_owner_item, list_owner_items, reject_owner_item, rend
 from .prompt_builder import build_external_developer_prompt, build_prompt
 from .request_envelope import load_request_envelope, normalize_request_envelope, render_json as render_request_json, validate_request_envelope
 from .request_rules import detect_governance_core_scope, governance_core_surfaces, list_request_type_definitions, validate_request_rules_config
+from .rule_registry import list_rule_sources, render_rule_sources_json, render_validation_json, validate_rule_sources
+
 
 from .result import import_result
 from .review import REVIEWS_DIR, pending_reviews, set_review_status
@@ -550,6 +552,33 @@ def cmd_request_governance_surfaces(args: argparse.Namespace) -> None:
             print(f"{surface}: {', '.join(paths)}")
     raise SystemExit(0)
 
+def cmd_rules_list(args: argparse.Namespace) -> None:
+    if args.json:
+        print(render_rule_sources_json())
+    else:
+        sources = list_rule_sources()
+        if not sources:
+            print("no rule sources declared")
+            return
+        for source in sources:
+            print(f"{source.get('name')} files={','.join(source.get('source_files', []))} consumers={','.join(source.get('consumers', []))}")
+    raise SystemExit(0)
+
+
+def cmd_rules_validate(args: argparse.Namespace) -> None:
+    if args.json:
+        print(render_validation_json())
+    else:
+        result = validate_rule_sources()
+        print(f"ok={result.get('ok')} entries_checked={result.get('entries_checked')}")
+        for error in result.get("errors", []):
+            print(f"ERROR {error}")
+        for warning in result.get("warnings", []):
+            print(f"WARNING {warning}")
+    result = validate_rule_sources()
+    raise SystemExit(0 if result.get("ok") else 1)
+
+
 
 def build_parser() -> argparse.ArgumentParser:
 
@@ -848,6 +877,15 @@ def build_parser() -> argparse.ArgumentParser:
     p = request_sub.add_parser("governance-surfaces", help="list protected governance-core surfaces")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_request_governance_surfaces)
+    p_rules = sub.add_parser("rules", help="work with the Rule Source Registry")
+    rules_sub = p_rules.add_subparsers(required=True)
+    p = rules_sub.add_parser("list", help="list declared rule sources")
+    p.add_argument("--json", action="store_true", help="render the rule sources as JSON")
+    p.set_defaults(func=cmd_rules_list)
+    p = rules_sub.add_parser("validate", help="validate the rule source registry")
+    p.add_argument("--json", action="store_true", help="render validation as JSON")
+    p.set_defaults(func=cmd_rules_validate)
+
 
     p = sub.add_parser("summary")
 

@@ -283,6 +283,15 @@ def run_checks() -> tuple[bool, list[str]]:
         ok = False
         messages.append(request_rule_error)
 
+    # Rule Source Registry integrity checks
+    from .rule_registry import validate_rule_sources as _validate_rule_sources
+    rule_registry_result = _validate_rule_sources()
+    if not rule_registry_result.get("ok"):
+        for error in rule_registry_result.get("errors", []):
+            ok = False
+            messages.append(f"RULE_REGISTRY {error}")
+
+
     modules_path = root / "rules" / "modules.yaml"
 
     if modules_path.exists():

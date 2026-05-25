@@ -32,8 +32,11 @@ ALLOWED_FS_ROOTS = (
 ALLOWED_FS_PATHS = {
     "EXTERNAL_MODEL_ONBOARDING.md",
     "rules/context_manifest.yaml",
+    "rules/rule_sources.v1.yaml",
     "rules/contracts/disclosure_plan.v1.yaml",
+    "rules/contracts/rule_source_registry.v1.yaml",
     "rules/schemas/disclosure_plan.v1.schema.json",
+    "rules/schemas/rule_source_registry.v1.schema.json",
 }
 
 BLOCKED_PATH_PREFIXES = (
@@ -56,6 +59,9 @@ BLOCKED_PATHS = {
 ALLOWED_CHECK_COMMANDS = {
     "python -m abyss_cli check": ["python", "-m", "abyss_cli", "check"],
     "python -m compileall -q abyss_cli": ["python", "-m", "compileall", "-q", "abyss_cli"],
+    "python -m abyss_cli rules validate --json": ["python", "-m", "abyss_cli", "rules", "validate", "--json"],
+    "python -m abyss_cli request types --all --json": ["python", "-m", "abyss_cli", "request", "types", "--all", "--json"],
+    "python -m abyss_cli summary --check": ["python", "-m", "abyss_cli", "summary", "--check"],
 }
 
 LOW_INFORMATION_DECORATIVE_SYMBOLS = {

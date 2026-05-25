@@ -62,6 +62,7 @@ abyss data init|status|pull|push
 - `abyss_cli/context_pack.py` — Context Broker; reads cognition/context manifests, prefers canonical Request Envelope `request_type` when present, injects `rules/architecture_cognition.yaml`, tracks context size budget, and records context pack metadata.
 - `abyss_cli/request_rules.py` — canonical request semantics access layer; reads `rules/request_types.v1.yaml`, request envelope contract/schema locations, V0 request type defaults, and request_type-to-context task mapping.
 - `abyss_cli/request_envelope.py` — builds and validates `abyss.request_envelope.v1` candidates; normalization grants no execution or approval authority.
+- `abyss_cli/rule_registry.py` — deterministic Rule Source Registry V0 reader/validator; lists rule sources, validates source-file/command declarations, and exposes task-type rule files to Context Broker without granting execution or approval authority.
 - `abyss_cli/external_collab.py` — imports external model output as candidate feedback cards without creating proposals, approvals, executions, or workflow transitions.
 - `abyss_cli/harness_review.py` — parses HarnessAgent output into local harness review records for action proposals and ChangeSets.
 - `abyss_cli/result.py` — imports LLM output and extracts action proposals.
@@ -125,12 +126,21 @@ normalized request semantics
   -> later governed intake path if Owner chooses to proceed
 ```
 
+```text
+accepted rule source
+  -> rules/rule_sources.v1.yaml registry entry
+  -> rule_registry validation and listing
+  -> Context Broker task-type rule source inclusion
+  -> integrity check failure if registry is missing or malformed
+  -> no execution, approval, scheduling, or mutation authority
+```
+
 Request envelopes, external collaboration packages, and feedback cards are cognition-first and candidate-material-only. They do not grant execution, approval, scheduling, file mutation, proposal creation, workflow transitions, or governance authority.
 
 ## System directories
 
 - `abyss_cli/` — implementation code.
-- `rules/` — rule truth sources; especially `rules/request_types.v1.yaml`, `rules/policy.yaml`, `rules/llm_providers.yaml`, `rules/agents.yaml`, `rules/modules.yaml`, `rules/context_manifest.yaml`, `rules/architecture_cognition.yaml`, and `rules/governance.yaml`.
+- `rules/` — rule truth sources; especially `rules/rule_sources.v1.yaml`, `rules/request_types.v1.yaml`, `rules/policy.yaml`, `rules/llm_providers.yaml`, `rules/agents.yaml`, `rules/modules.yaml`, `rules/context_manifest.yaml`, `rules/architecture_cognition.yaml`, and `rules/governance.yaml`.
 - `rules/contracts/` — machine-readable contracts for structured records such as ChangeSets, context requests, blocked results, Harness reviews, evolution analyses, context packs, request envelopes, and external feedback cards. Contracts are L5 disclosure material and should be read before source code when record structure matters.
 - `prompts/` — system, mode, and agent prompt templates.
 - `artifacts/drafts/` — low-risk generated drafts.

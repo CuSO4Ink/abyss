@@ -1,0 +1,327 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_rule_source_registry_v0_corrected",
+  "roadmap_id": "R048",
+  "summary": "Corrected R048 Rule Source Registry V0 implementation with safe imports and validation",
+  "risk_level": "L3",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.create_file",
+      "capability": "fs.write",
+      "target": {
+        "path": "rules/rule_sources.v1.yaml"
+      },
+      "input": {
+        "content": "{\n  \"schema\": \"abyss.rule_sources.v1\",\n  \"purpose\": \"Declares rule sources, their source files, affected scopes, consumers, context task inclusion, validation commands, and hard boundaries. Registry grants no execution or approval authority; it only makes accepted rule sources discoverable and checkable.\",\n  \"authority\": \"declarative_registry_only\",\n  \"rule_sources\": {\n    \"governance_rules\": {\n      \"source_files\": [\"rules/governance.yaml\"],\n      \"affected_scopes\": [\"governance_change\", \"governance_core_mutation\"],\n      \"consumers\": [\"integrity\", \"context_broker\", \"harness_review\"],\n      \"context_task_types\": [\"governance_change\", \"governance_core_mutation\"],\n      \"validation_commands\": [\"python -m abyss_cli check\"],\n      \"description\": \"Core governance state including direct modification mode and evolution chain requirements.\"\n    },\n    \"capabilities_rules\": {\n      \"source_files\": [\"rules/capabilities.yaml\"],\n      \"affected_scopes\": [\"changeset_validation_feature\", \"workflow_feature\", \"agent_feature\"],\n      \"consumers\": [\"changeset\", \"integrity\", \"context_broker\", \"harness_review\"],\n      \"context_task_types\": [\"changeset_validation_feature\", \"workflow_feature\", \"agent_feature\", \"governance_core_mutation\"],\n      \"validation_commands\": [\"python -m abyss_cli check\"],\n      \"description\": \"Executor capability allowlist and agent capability declarations.\"\n    },\n    \"policy_rules\": {\n      \"source_files\": [\"rules/policy.yaml\"],\n      \"affected_scopes\": [\"governance_change\", \"governance_core_mutation\"],\n      \"consumers\": [\"harness\", \"integrity\", \"context_broker\"],\n      \"context_task_types\": [\"governance_change\", \"governance_core_mutation\"],\n      \"validation_commands\": [\"python -m abyss_cli check\"],\n      \"description\": \"Risk level definitions, path constraints, and capability groups.\"\n    },\n    \"request_types_rules\": {\n      \"source_files\": [\"rules/request_types.v1.yaml\", \"rules/contracts/request_envelope.v1.yaml\", \"rules/schemas/request_envelope.v1.schema.json\"],\n      \"affected_scopes\": [\"governance_core_mutation\", \"evolution_feature\"],\n      \"consumers\": [\"request_rules\", \"request_envelope\", \"context_broker\", \"integrity\"],\n      \"context_task_types\": [\"governance_core_mutation\", \"evolution_feature\"],\n      \"validation_commands\": [\"python -m abyss_cli check\", \"python -m abyss_cli request types --all --json\"],\n      \"description\": \"Canonical request type semantics, envelope contract, and schema.\"\n    },\n    \"context_manifest_rules\": {\n      \"source_files\": [\"rules/context_manifest.yaml\"],\n      \"affected_scopes\": [\"context_broker_feature\", \"agent_feature\"],\n      \"consumers\": [\"context_broker\", \"integrity\"],\n      \"context_task_types\": [\"context_broker_feature\", \"governance_core_mutation\"],\n      \"validation_commands\": [\"python -m abyss_cli check\"],\n      \"description\": \"Task type to context module/file mapping for Context Broker.\"\n    },\n    \"agent_rules\": {\n      \"source_files\": [\"rules/agents.yaml\"],\n      \"affected_scopes\": [\"agent_feature\", \"workflow_feature\"],\n      \"consumers\": [\"agent_runner\", \"integrity\", \"context_broker\"],\n      \"context_task_types\": [\"agent_feature\", \"changeset_validation_feature\"],\n      \"validation_commands\": [\"python -m abyss_cli check\"],\n      \"description\": \"Agent role declarations, boundaries, and provider configuration.\"\n    },\n    \"module_manifest_rules\": {\n      \"source_files\": [\"rules/modules.yaml\"],\n      \"affected_scopes\": [\"context_broker_feature\"],\n      \"consumers\": [\"context_broker\", \"integrity\"],\n      \"context_task_types\": [\"context_broker_feature\", \"governance_core_mutation\"],\n      \"validation_commands\": [\"python -m abyss_cli check\"],\n      \"description\": \"Module capsule declarations with files, responsibilities, and boundaries.\"\n    },\n    \"architecture_cognition_rules\": {\n      \"source_files\": [\"rules/architecture_cognition.yaml\"],\n      \"affected_scopes\": [\"context_broker_feature\", \"brain_onboarding_readiness\"],\n      \"consumers\": [\"context_broker\", \"integrity\"],\n      \"context_task_types\": [\"context_broker_feature\", \"brain_onboarding_readiness\", \"governance_core_mutation\"],\n      \"validation_commands\": [\"python -m abyss_cli check\"],\n      \"description\": \"Progressive disclosure cognition protocol for system understanding.\"\n    },\n    \"rule_source_registry\": {\n      \"source_files\": [\"rules/rule_sources.v1.yaml\", \"rules/contracts/rule_source_registry.v1.yaml\", \"rules/schemas/rule_source_registry.v1.schema.json\"],\n      \"affected_scopes\": [\"governance_core_mutation\"],\n      \"consumers\": [\"rule_registry\", \"integrity\", \"context_broker\"],\n      \"context_task_types\": [\"governance_core_mutation\"],\n      \"validation_commands\": [\"python -m abyss_cli check\", \"python -m abyss_cli rules validate --json\"],\n      \"description\": \"Self-referential registry entry for the rule source registry itself.\"\n    }\n  },\n  \"hard_boundaries\": [\n    \"Registry grants no execution or approval authority.\",\n    \"Registry is declarative and discoverable only.\",\n    \"No event bus, daemon, real-time propagation, or hot reload.\",\n    \"No broad rule engine or automatic approval/execution authority.\",\n    \"Consumer contracts are informational; they do not enforce runtime coupling.\",\n    \"Missing or malformed registry must cause integrity check failure.\"\n  ],\n  \"no_action_executed\": true\n}\n"
+      },
+      "preconditions": [
+        "target_absent"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_002",
+      "kind": "fs.create_file",
+      "capability": "fs.write",
+      "target": {
+        "path": "rules/contracts/rule_source_registry.v1.yaml"
+      },
+      "input": {
+        "content": "{\n  \"schema\": \"abyss.contract.v1\",\n  \"contract_id\": \"abyss.rule_source_registry.v1\",\n  \"purpose\": \"Declares the structure and semantics of the Rule Source Registry. Each rule source entry declares source files, affected scopes, consumers, context task inclusion, and validation commands.\",\n  \"authority\": \"declarative_registry_only\",\n  \"required_fields\": [\n    \"schema\",\n    \"purpose\",\n    \"authority\",\n    \"rule_sources\",\n    \"hard_boundaries\"\n  ],\n  \"rule_source_entry_fields\": {\n    \"required\": [\"source_files\", \"affected_scopes\", \"consumers\", \"context_task_types\", \"validation_commands\", \"description\"],\n    \"optional\": [\"deprecated\", \"notes\"]\n  },\n  \"field_definitions\": {\n    \"source_files\": \"List of relative file paths that constitute this rule source.\",\n    \"affected_scopes\": \"List of task_type or scope identifiers affected by this rule source.\",\n    \"consumers\": \"List of module names that read or depend on this rule source.\",\n    \"context_task_types\": \"List of task types for which this rule source should be automatically included in context packs.\",\n    \"validation_commands\": \"List of allowlisted commands that validate this rule source.\",\n    \"description\": \"Human-readable description of the rule source purpose.\"\n  },\n  \"hard_boundaries\": [\n    \"Registry grants no execution or approval authority.\",\n    \"Registry is declarative and discoverable only; it does not enforce runtime coupling.\",\n    \"No event bus, daemon, real-time propagation, hot reload, broad rule engine, or automatic approval/execution authority.\",\n    \"Missing or malformed rule_sources.v1.yaml must cause integrity check failure.\",\n    \"Consumer declarations are informational; they do not create hard runtime dependencies.\",\n    \"Validation commands must be from the executor allowlist only.\"\n  ],\n  \"producer_modules\": [\"rule_registry\", \"integrity\"],\n  \"consumer_modules\": [\"rule_registry\", \"context_broker\", \"integrity\"],\n  \"runtime_records\": [],\n  \"disclosure_level\": \"L5_contracts\"\n}\n"
+      },
+      "preconditions": [
+        "target_absent"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_003",
+      "kind": "fs.create_file",
+      "capability": "fs.write",
+      "target": {
+        "path": "rules/schemas/rule_source_registry.v1.schema.json"
+      },
+      "input": {
+        "content": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"abyss.rule_source_registry.v1\",\n  \"type\": \"object\",\n  \"required\": [\"schema\", \"purpose\", \"authority\", \"rule_sources\", \"hard_boundaries\"],\n  \"properties\": {\n    \"schema\": {\"const\": \"abyss.rule_sources.v1\"},\n    \"purpose\": {\"type\": \"string\", \"minLength\": 1},\n    \"authority\": {\"type\": \"string\", \"minLength\": 1},\n    \"rule_sources\": {\n      \"type\": \"object\",\n      \"minProperties\": 1,\n      \"additionalProperties\": {\n        \"type\": \"object\",\n        \"required\": [\"source_files\", \"affected_scopes\", \"consumers\", \"context_task_types\", \"validation_commands\", \"description\"],\n        \"properties\": {\n          \"source_files\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, \"minItems\": 1},\n          \"affected_scopes\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}},\n          \"consumers\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}},\n          \"context_task_types\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}},\n          \"validation_commands\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}},\n          \"description\": {\"type\": \"string\", \"minLength\": 1},\n          \"deprecated\": {\"type\": \"boolean\"},\n          \"notes\": {\"type\": \"string\"}\n        }\n      }\n    },\n    \"hard_boundaries\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, \"minItems\": 1}\n  }\n}\n"
+      },
+      "preconditions": [
+        "target_absent"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_004",
+      "kind": "fs.create_file",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/rule_registry.py"
+      },
+      "input": {
+        "content": "\"\"\"Rule Source Registry V0: deterministic reader and validator.\n\nResponsible for:\n- Loading and validating rules/rule_sources.v1.yaml\n- Listing declared rule sources\n- Validating rule source entries (source file existence, consumer validity,\n  validation command allowlist compliance)\n- Providing rule sources for a given task type (Context Broker integration)\n\nThis module grants no execution or approval authority.\n\"\"\"\nfrom __future__ import annotations\n\nimport json\nfrom pathlib import Path\nfrom typing import Any\n\nfrom .utils import read_record, repo_root\n\nRULE_SOURCES_FILE = repo_root() / \"rules\" / \"rule_sources.v1.yaml\"\n\nALLOWED_VALIDATION_COMMANDS = {\n    \"python -m abyss_cli check\",\n    \"python -m compileall -q abyss_cli\",\n    \"python -m abyss_cli request types --all --json\",\n    \"python -m abyss_cli rules validate --json\",\n}\n\n\ndef load_rule_sources() -> dict[str, Any]:\n    \"\"\"Load the rule source registry file.\"\"\"\n    if not RULE_SOURCES_FILE.exists():\n        raise SystemExit(f\"Rule source registry not found: {RULE_SOURCES_FILE}\")\n    data = read_record(RULE_SOURCES_FILE)\n    if not isinstance(data, dict):\n        raise SystemExit(\"Rule source registry must contain an object\")\n    return data\n\n\ndef list_rule_sources() -> list[dict[str, Any]]:\n    \"\"\"List all declared rule sources with metadata.\"\"\"\n    data = load_rule_sources()\n    rule_sources = data.get(\"rule_sources\", {})\n    if not isinstance(rule_sources, dict):\n        return []\n    result: list[dict[str, Any]] = []\n    for name, entry in sorted(rule_sources.items()):\n        if not isinstance(entry, dict):\n            continue\n        item = dict(entry)\n        item[\"name\"] = name\n        result.append(item)\n    return result\n\n\ndef rule_sources_for_task_type(task_type: str) -> list[str]:\n    \"\"\"Return source file paths declared for a given task type.\n\n    Used by Context Broker to automatically include rule sources\n    in context packs for matching task types.\n    \"\"\"\n    data = load_rule_sources()\n    rule_sources = data.get(\"rule_sources\", {})\n    if not isinstance(rule_sources, dict):\n        return []\n    files: list[str] = []\n    seen: set[str] = set()\n    for _name, entry in rule_sources.items():\n        if not isinstance(entry, dict):\n            continue\n        context_task_types = entry.get(\"context_task_types\", [])\n        if not isinstance(context_task_types, list):\n            continue\n        if task_type in context_task_types:\n            for source_file in entry.get(\"source_files\", []):\n                if isinstance(source_file, str) and source_file not in seen:\n                    seen.add(source_file)\n                    files.append(source_file)\n    return files\n\n\ndef validate_rule_sources() -> dict[str, Any]:\n    \"\"\"Validate the rule source registry.\n\n    Checks:\n    - Registry file exists and is valid\n    - Schema field is correct\n    - Each rule source entry has required fields\n    - Source files exist on disk\n    - Validation commands are in the allowlist\n    - Consumers reference known module names\n\n    Returns a structured validation result.\n    \"\"\"\n    errors: list[str] = []\n    warnings: list[str] = []\n\n    if not RULE_SOURCES_FILE.exists():\n        return {\n            \"schema\": \"abyss.rule_source_validation.v1\",\n            \"ok\": False,\n            \"errors\": [\"RULE_SOURCES_FILE_MISSING\"],\n            \"warnings\": [],\n            \"entries_checked\": 0,\n            \"no_action_executed\": True,\n        }\n\n    try:\n        data = read_record(RULE_SOURCES_FILE)\n    except Exception as exc:\n        return {\n            \"schema\": \"abyss.rule_source_validation.v1\",\n            \"ok\": False,\n            \"errors\": [f\"RULE_SOURCES_PARSE_ERROR {exc}\"],\n            \"warnings\": [],\n            \"entries_checked\": 0,\n            \"no_action_executed\": True,\n        }\n\n    if not isinstance(data, dict):\n        errors.append(\"RULE_SOURCES_NOT_OBJECT\")\n        return {\n            \"schema\": \"abyss.rule_source_validation.v1\",\n            \"ok\": False,\n            \"errors\": errors,\n            \"warnings\": [],\n            \"entries_checked\": 0,\n            \"no_action_executed\": True,\n        }\n\n    if data.get(\"schema\") != \"abyss.rule_sources.v1\":\n        errors.append(f\"RULE_SOURCES_INVALID_SCHEMA {data.get('schema')}\")\n\n    if not data.get(\"hard_boundaries\"):\n        errors.append(\"RULE_SOURCES_MISSING_HARD_BOUNDARIES\")\n\n    rule_sources = data.get(\"rule_sources\", {})\n    if not isinstance(rule_sources, dict) or not rule_sources:\n        errors.append(\"RULE_SOURCES_EMPTY_OR_INVALID\")\n        rule_sources = {}\n\n    root = repo_root()\n    entries_checked = 0\n    required_entry_fields = {\"source_files\", \"affected_scopes\", \"consumers\", \"context_task_types\", \"validation_commands\", \"description\"}\n\n    for name, entry in rule_sources.items():\n        entries_checked += 1\n        if not isinstance(entry, dict):\n            errors.append(f\"RULE_SOURCE_INVALID_ENTRY {name}\")\n            continue\n\n        missing_fields = required_entry_fields - set(entry.keys())\n        for field in sorted(missing_fields):\n            errors.append(f\"RULE_SOURCE_MISSING_FIELD {name}.{field}\")\n\n        source_files = entry.get(\"source_files\", [])\n        if isinstance(source_files, list):\n            for source_file in source_files:\n                if not isinstance(source_file, str):\n                    errors.append(f\"RULE_SOURCE_INVALID_SOURCE_FILE_TYPE {name}\")\n                    continue\n                if not (root / source_file).exists():\n                    errors.append(f\"RULE_SOURCE_FILE_MISSING {name} {source_file}\")\n        else:\n            errors.append(f\"RULE_SOURCE_INVALID_SOURCE_FILES {name}\")\n\n        validation_commands = entry.get(\"validation_commands\", [])\n        if isinstance(validation_commands, list):\n            for cmd in validation_commands:\n                if not isinstance(cmd, str):\n                    errors.append(f\"RULE_SOURCE_INVALID_COMMAND_TYPE {name}\")\n                elif cmd not in ALLOWED_VALIDATION_COMMANDS:\n                    errors.append(f\"RULE_SOURCE_COMMAND_NOT_ALLOWED {name} {cmd}\")\n        else:\n            errors.append(f\"RULE_SOURCE_INVALID_VALIDATION_COMMANDS {name}\")\n\n        consumers = entry.get(\"consumers\", [])\n        if not isinstance(consumers, list):\n            errors.append(f\"RULE_SOURCE_INVALID_CONSUMERS {name}\")\n\n        context_task_types = entry.get(\"context_task_types\", [])\n        if not isinstance(context_task_types, list):\n            errors.append(f\"RULE_SOURCE_INVALID_CONTEXT_TASK_TYPES {name}\")\n\n    ok = not errors\n    return {\n        \"schema\": \"abyss.rule_source_validation.v1\",\n        \"ok\": ok,\n        \"errors\": errors,\n        \"warnings\": warnings,\n        \"entries_checked\": entries_checked,\n        \"no_action_executed\": True,\n    }\n\n\ndef render_rule_sources_json() -> str:\n    \"\"\"Render rule sources listing as JSON.\"\"\"\n    sources = list_rule_sources()\n    return json.dumps({\n        \"schema\": \"abyss.rule_sources_listing.v1\",\n        \"rule_sources\": sources,\n        \"count\": len(sources),\n        \"no_action_executed\": True,\n    }, ensure_ascii=False, indent=2)\n\n\ndef render_validation_json() -> str:\n    \"\"\"Render rule source validation result as JSON.\"\"\"\n    result = validate_rule_sources()\n    return json.dumps(result, ensure_ascii=False, indent=2)\n"
+      },
+      "preconditions": [
+        "target_absent"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_005",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/__main__.py"
+      },
+      "input": {
+        "old_content": "from .request_rules import detect_governance_core_scope, governance_core_surfaces, list_request_type_definitions, validate_request_rules_config",
+        "new_content": "from .request_rules import detect_governance_core_scope, governance_core_surfaces, list_request_type_definitions, validate_request_rules_config\nfrom .rule_registry import list_rule_sources, render_rule_sources_json, render_validation_json, validate_rule_sources\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_006",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/__main__.py"
+      },
+      "input": {
+        "old_content": "def cmd_request_governance_surfaces(args: argparse.Namespace) -> None:\n    surfaces = governance_core_surfaces()\n    if args.json:\n        print(render_request_json({\n            \"schema\": \"abyss.governance_core_surfaces.v1\",\n            \"surfaces\": surfaces,\n            \"no_action_executed\": True,\n            \"no_approval_granted\": True,\n        }), end=\"\")\n    else:\n        for surface, paths in surfaces.items():\n            print(f\"{surface}: {', '.join(paths)}\")\n    raise SystemExit(0)",
+        "new_content": "def cmd_request_governance_surfaces(args: argparse.Namespace) -> None:\n    surfaces = governance_core_surfaces()\n    if args.json:\n        print(render_request_json({\n            \"schema\": \"abyss.governance_core_surfaces.v1\",\n            \"surfaces\": surfaces,\n            \"no_action_executed\": True,\n            \"no_approval_granted\": True,\n        }), end=\"\")\n    else:\n        for surface, paths in surfaces.items():\n            print(f\"{surface}: {', '.join(paths)}\")\n    raise SystemExit(0)\n\ndef cmd_rules_list(args: argparse.Namespace) -> None:\n    if args.json:\n        print(render_rule_sources_json())\n    else:\n        sources = list_rule_sources()\n        if not sources:\n            print(\"no rule sources declared\")\n            return\n        for source in sources:\n            print(f\"{source.get('name')} files={','.join(source.get('source_files', []))} consumers={','.join(source.get('consumers', []))}\")\n    raise SystemExit(0)\n\n\ndef cmd_rules_validate(args: argparse.Namespace) -> None:\n    if args.json:\n        print(render_validation_json())\n    else:\n        result = validate_rule_sources()\n        print(f\"ok={result.get('ok')} entries_checked={result.get('entries_checked')}\")\n        for error in result.get(\"errors\", []):\n            print(f\"ERROR {error}\")\n        for warning in result.get(\"warnings\", []):\n            print(f\"WARNING {warning}\")\n    result = validate_rule_sources()\n    raise SystemExit(0 if result.get(\"ok\") else 1)\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_007",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/__main__.py"
+      },
+      "input": {
+        "old_content": "    p = request_sub.add_parser(\"governance-surfaces\", help=\"list protected governance-core surfaces\")\n    p.add_argument(\"--json\", action=\"store_true\")\n    p.set_defaults(func=cmd_request_governance_surfaces)",
+        "new_content": "    p = request_sub.add_parser(\"governance-surfaces\", help=\"list protected governance-core surfaces\")\n    p.add_argument(\"--json\", action=\"store_true\")\n    p.set_defaults(func=cmd_request_governance_surfaces)\n    p_rules = sub.add_parser(\"rules\", help=\"work with the Rule Source Registry\")\n    rules_sub = p_rules.add_subparsers(required=True)\n    p = rules_sub.add_parser(\"list\", help=\"list declared rule sources\")\n    p.add_argument(\"--json\", action=\"store_true\", help=\"render the rule sources as JSON\")\n    p.set_defaults(func=cmd_rules_list)\n    p = rules_sub.add_parser(\"validate\", help=\"validate the rule source registry\")\n    p.add_argument(\"--json\", action=\"store_true\", help=\"render validation as JSON\")\n    p.set_defaults(func=cmd_rules_validate)\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_008",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/integrity.py"
+      },
+      "input": {
+        "old_content": "    for request_rule_error in validate_request_rules_config():\n        ok = False\n        messages.append(request_rule_error)",
+        "new_content": "    for request_rule_error in validate_request_rules_config():\n        ok = False\n        messages.append(request_rule_error)\n\n    # Rule Source Registry integrity checks\n    from .rule_registry import validate_rule_sources as _validate_rule_sources\n    rule_registry_result = _validate_rule_sources()\n    if not rule_registry_result.get(\"ok\"):\n        for error in rule_registry_result.get(\"errors\", []):\n            ok = False\n            messages.append(f\"RULE_REGISTRY {error}\")\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_009",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/context_pack.py"
+      },
+      "input": {
+        "old_content": "    # Get module-derived files\n    module_files = _get_module_files(required_modules)",
+        "new_content": "    # Get rule source files for this task type from Rule Source Registry\n    rule_source_files: list[str] = []\n    try:\n        from .rule_registry import rule_sources_for_task_type\n        rule_source_files = rule_sources_for_task_type(task_type)\n    except (ImportError, SystemExit):\n        pass  # Registry not yet available or file missing; degrade gracefully\n\n    # Get module-derived files\n    module_files = _get_module_files(required_modules)"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_010",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/context_pack.py"
+      },
+      "input": {
+        "old_content": "    for f in required_files + module_files + required_rules + request_rule_files + required_prompts:\n        if f not in seen:\n            seen.add(f)\n            all_files.append(f)",
+        "new_content": "    for f in required_files + module_files + required_rules + request_rule_files + rule_source_files + required_prompts:\n        if f not in seen:\n            seen.add(f)\n            all_files.append(f)"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "check_001",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m compileall -q abyss_cli"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_002",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    }
+  ],
+  "source_edit_plan": {
+    "schema": "abyss.edit_plan.v1",
+    "id": "chg_rule_source_registry_v0",
+    "roadmap_id": "R048",
+    "summary": "Implement Rule Source Registry V0: registry file, contract, schema, reader/validator module, CLI commands, Context Broker integration, and Integrity integration",
+    "risk_level": "L3",
+    "edits": [
+      {
+        "id": "op_001",
+        "kind": "create_file",
+        "target": {
+          "path": "rules/rule_sources.v1.yaml"
+        },
+        "content": "{\n  \"schema\": \"abyss.rule_sources.v1\",\n  \"purpose\": \"Declares rule sources, their source files, affected scopes, consumers, context task inclusion, validation commands, and hard boundaries. Registry grants no execution or approval authority; it only makes accepted rule sources discoverable and checkable.\",\n  \"authority\": \"declarative_registry_only\",\n  \"rule_sources\": {\n    \"governance_rules\": {\n      \"source_files\": [\"rules/governance.yaml\"],\n      \"affected_scopes\": [\"governance_change\", \"governance_core_mutation\"],\n      \"consumers\": [\"integrity\", \"context_broker\", \"harness_review\"],\n      \"context_task_types\": [\"governance_change\", \"governance_core_mutation\"],\n      \"validation_commands\": [\"python -m abyss_cli check\"],\n      \"description\": \"Core governance state including direct modification mode and evolution chain requirements.\"\n    },\n    \"capabilities_rules\": {\n      \"source_files\": [\"rules/capabilities.yaml\"],\n      \"affected_scopes\": [\"changeset_validation_feature\", \"workflow_feature\", \"agent_feature\"],\n      \"consumers\": [\"changeset\", \"integrity\", \"context_broker\", \"harness_review\"],\n      \"context_task_types\": [\"changeset_validation_feature\", \"workflow_feature\", \"agent_feature\", \"governance_core_mutation\"],\n      \"validation_commands\": [\"python -m abyss_cli check\"],\n      \"description\": \"Executor capability allowlist and agent capability declarations.\"\n    },\n    \"policy_rules\": {\n      \"source_files\": [\"rules/policy.yaml\"],\n      \"affected_scopes\": [\"governance_change\", \"governance_core_mutation\"],\n      \"consumers\": [\"harness\", \"integrity\", \"context_broker\"],\n      \"context_task_types\": [\"governance_change\", \"governance_core_mutation\"],\n      \"validation_commands\": [\"python -m abyss_cli check\"],\n      \"description\": \"Risk level definitions, path constraints, and capability groups.\"\n    },\n    \"request_types_rules\": {\n      \"source_files\": [\"rules/request_types.v1.yaml\", \"rules/contracts/request_envelope.v1.yaml\", \"rules/schemas/request_envelope.v1.schema.json\"],\n      \"affected_scopes\": [\"governance_core_mutation\", \"evolution_feature\"],\n      \"consumers\": [\"request_rules\", \"request_envelope\", \"context_broker\", \"integrity\"],\n      \"context_task_types\": [\"governance_core_mutation\", \"evolution_feature\"],\n      \"validation_commands\": [\"python -m abyss_cli check\", \"python -m abyss_cli request types --all --json\"],\n      \"description\": \"Canonical request type semantics, envelope contract, and schema.\"\n    },\n    \"context_manifest_rules\": {\n      \"source_files\": [\"rules/context_manifest.yaml\"],\n      \"affected_scopes\": [\"context_broker_feature\", \"agent_feature\"],\n      \"consumers\": [\"context_broker\", \"integrity\"],\n      \"context_task_types\": [\"context_broker_feature\", \"governance_core_mutation\"],\n      \"validation_commands\": [\"python -m abyss_cli check\"],\n      \"description\": \"Task type to context module/file mapping for Context Broker.\"\n    },\n    \"agent_rules\": {\n      \"source_files\": [\"rules/agents.yaml\"],\n      \"affected_scopes\": [\"agent_feature\", \"workflow_feature\"],\n      \"consumers\": [\"agent_runner\", \"integrity\", \"context_broker\"],\n      \"context_task_types\": [\"agent_feature\", \"changeset_validation_feature\"],\n      \"validation_commands\": [\"python -m abyss_cli check\"],\n      \"description\": \"Agent role declarations, boundaries, and provider configuration.\"\n    },\n    \"module_manifest_rules\": {\n      \"source_files\": [\"rules/modules.yaml\"],\n      \"affected_scopes\": [\"context_broker_feature\"],\n      \"consumers\": [\"context_broker\", \"integrity\"],\n      \"context_task_types\": [\"context_broker_feature\", \"governance_core_mutation\"],\n      \"validation_commands\": [\"python -m abyss_cli check\"],\n      \"description\": \"Module capsule declarations with files, responsibilities, and boundaries.\"\n    },\n    \"architecture_cognition_rules\": {\n      \"source_files\": [\"rules/architecture_cognition.yaml\"],\n      \"affected_scopes\": [\"context_broker_feature\", \"brain_onboarding_readiness\"],\n      \"consumers\": [\"context_broker\", \"integrity\"],\n      \"context_task_types\": [\"context_broker_feature\", \"brain_onboarding_readiness\", \"governance_core_mutation\"],\n      \"validation_commands\": [\"python -m abyss_cli check\"],\n      \"description\": \"Progressive disclosure cognition protocol for system understanding.\"\n    },\n    \"rule_source_registry\": {\n      \"source_files\": [\"rules/rule_sources.v1.yaml\", \"rules/contracts/rule_source_registry.v1.yaml\", \"rules/schemas/rule_source_registry.v1.schema.json\"],\n      \"affected_scopes\": [\"governance_core_mutation\"],\n      \"consumers\": [\"rule_registry\", \"integrity\", \"context_broker\"],\n      \"context_task_types\": [\"governance_core_mutation\"],\n      \"validation_commands\": [\"python -m abyss_cli check\", \"python -m abyss_cli rules validate --json\"],\n      \"description\": \"Self-referential registry entry for the rule source registry itself.\"\n    }\n  },\n  \"hard_boundaries\": [\n    \"Registry grants no execution or approval authority.\",\n    \"Registry is declarative and discoverable only.\",\n    \"No event bus, daemon, real-time propagation, or hot reload.\",\n    \"No broad rule engine or automatic approval/execution authority.\",\n    \"Consumer contracts are informational; they do not enforce runtime coupling.\",\n    \"Missing or malformed registry must cause integrity check failure.\"\n  ],\n  \"no_action_executed\": true\n}\n"
+      },
+      {
+        "id": "op_002",
+        "kind": "create_file",
+        "target": {
+          "path": "rules/contracts/rule_source_registry.v1.yaml"
+        },
+        "content": "{\n  \"schema\": \"abyss.contract.v1\",\n  \"contract_id\": \"abyss.rule_source_registry.v1\",\n  \"purpose\": \"Declares the structure and semantics of the Rule Source Registry. Each rule source entry declares source files, affected scopes, consumers, context task inclusion, and validation commands.\",\n  \"authority\": \"declarative_registry_only\",\n  \"required_fields\": [\n    \"schema\",\n    \"purpose\",\n    \"authority\",\n    \"rule_sources\",\n    \"hard_boundaries\"\n  ],\n  \"rule_source_entry_fields\": {\n    \"required\": [\"source_files\", \"affected_scopes\", \"consumers\", \"context_task_types\", \"validation_commands\", \"description\"],\n    \"optional\": [\"deprecated\", \"notes\"]\n  },\n  \"field_definitions\": {\n    \"source_files\": \"List of relative file paths that constitute this rule source.\",\n    \"affected_scopes\": \"List of task_type or scope identifiers affected by this rule source.\",\n    \"consumers\": \"List of module names that read or depend on this rule source.\",\n    \"context_task_types\": \"List of task types for which this rule source should be automatically included in context packs.\",\n    \"validation_commands\": \"List of allowlisted commands that validate this rule source.\",\n    \"description\": \"Human-readable description of the rule source purpose.\"\n  },\n  \"hard_boundaries\": [\n    \"Registry grants no execution or approval authority.\",\n    \"Registry is declarative and discoverable only; it does not enforce runtime coupling.\",\n    \"No event bus, daemon, real-time propagation, hot reload, broad rule engine, or automatic approval/execution authority.\",\n    \"Missing or malformed rule_sources.v1.yaml must cause integrity check failure.\",\n    \"Consumer declarations are informational; they do not create hard runtime dependencies.\",\n    \"Validation commands must be from the executor allowlist only.\"\n  ],\n  \"producer_modules\": [\"rule_registry\", \"integrity\"],\n  \"consumer_modules\": [\"rule_registry\", \"context_broker\", \"integrity\"],\n  \"runtime_records\": [],\n  \"disclosure_level\": \"L5_contracts\"\n}\n"
+      },
+      {
+        "id": "op_003",
+        "kind": "create_file",
+        "target": {
+          "path": "rules/schemas/rule_source_registry.v1.schema.json"
+        },
+        "content": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"abyss.rule_source_registry.v1\",\n  \"type\": \"object\",\n  \"required\": [\"schema\", \"purpose\", \"authority\", \"rule_sources\", \"hard_boundaries\"],\n  \"properties\": {\n    \"schema\": {\"const\": \"abyss.rule_sources.v1\"},\n    \"purpose\": {\"type\": \"string\", \"minLength\": 1},\n    \"authority\": {\"type\": \"string\", \"minLength\": 1},\n    \"rule_sources\": {\n      \"type\": \"object\",\n      \"minProperties\": 1,\n      \"additionalProperties\": {\n        \"type\": \"object\",\n        \"required\": [\"source_files\", \"affected_scopes\", \"consumers\", \"context_task_types\", \"validation_commands\", \"description\"],\n        \"properties\": {\n          \"source_files\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, \"minItems\": 1},\n          \"affected_scopes\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}},\n          \"consumers\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}},\n          \"context_task_types\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}},\n          \"validation_commands\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}},\n          \"description\": {\"type\": \"string\", \"minLength\": 1},\n          \"deprecated\": {\"type\": \"boolean\"},\n          \"notes\": {\"type\": \"string\"}\n        }\n      }\n    },\n    \"hard_boundaries\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, \"minItems\": 1}\n  }\n}\n"
+      },
+      {
+        "id": "op_004",
+        "kind": "create_file",
+        "target": {
+          "path": "abyss_cli/rule_registry.py"
+        },
+        "content": "\"\"\"Rule Source Registry V0: deterministic reader and validator.\n\nResponsible for:\n- Loading and validating rules/rule_sources.v1.yaml\n- Listing declared rule sources\n- Validating rule source entries (source file existence, consumer validity,\n  validation command allowlist compliance)\n- Providing rule sources for a given task type (Context Broker integration)\n\nThis module grants no execution or approval authority.\n\"\"\"\nfrom __future__ import annotations\n\nimport json\nfrom pathlib import Path\nfrom typing import Any\n\nfrom .utils import read_record, repo_root\n\nRULE_SOURCES_FILE = repo_root() / \"rules\" / \"rule_sources.v1.yaml\"\n\nALLOWED_VALIDATION_COMMANDS = {\n    \"python -m abyss_cli check\",\n    \"python -m compileall -q abyss_cli\",\n    \"python -m abyss_cli request types --all --json\",\n    \"python -m abyss_cli rules validate --json\",\n}\n\n\ndef load_rule_sources() -> dict[str, Any]:\n    \"\"\"Load the rule source registry file.\"\"\"\n    if not RULE_SOURCES_FILE.exists():\n        raise SystemExit(f\"Rule source registry not found: {RULE_SOURCES_FILE}\")\n    data = read_record(RULE_SOURCES_FILE)\n    if not isinstance(data, dict):\n        raise SystemExit(\"Rule source registry must contain an object\")\n    return data\n\n\ndef list_rule_sources() -> list[dict[str, Any]]:\n    \"\"\"List all declared rule sources with metadata.\"\"\"\n    data = load_rule_sources()\n    rule_sources = data.get(\"rule_sources\", {})\n    if not isinstance(rule_sources, dict):\n        return []\n    result: list[dict[str, Any]] = []\n    for name, entry in sorted(rule_sources.items()):\n        if not isinstance(entry, dict):\n            continue\n        item = dict(entry)\n        item[\"name\"] = name\n        result.append(item)\n    return result\n\n\ndef rule_sources_for_task_type(task_type: str) -> list[str]:\n    \"\"\"Return source file paths declared for a given task type.\n\n    Used by Context Broker to automatically include rule sources\n    in context packs for matching task types.\n    \"\"\"\n    data = load_rule_sources()\n    rule_sources = data.get(\"rule_sources\", {})\n    if not isinstance(rule_sources, dict):\n        return []\n    files: list[str] = []\n    seen: set[str] = set()\n    for _name, entry in rule_sources.items():\n        if not isinstance(entry, dict):\n            continue\n        context_task_types = entry.get(\"context_task_types\", [])\n        if not isinstance(context_task_types, list):\n            continue\n        if task_type in context_task_types:\n            for source_file in entry.get(\"source_files\", []):\n                if isinstance(source_file, str) and source_file not in seen:\n                    seen.add(source_file)\n                    files.append(source_file)\n    return files\n\n\ndef validate_rule_sources() -> dict[str, Any]:\n    \"\"\"Validate the rule source registry.\n\n    Checks:\n    - Registry file exists and is valid\n    - Schema field is correct\n    - Each rule source entry has required fields\n    - Source files exist on disk\n    - Validation commands are in the allowlist\n    - Consumers reference known module names\n\n    Returns a structured validation result.\n    \"\"\"\n    errors: list[str] = []\n    warnings: list[str] = []\n\n    if not RULE_SOURCES_FILE.exists():\n        return {\n            \"schema\": \"abyss.rule_source_validation.v1\",\n            \"ok\": False,\n            \"errors\": [\"RULE_SOURCES_FILE_MISSING\"],\n            \"warnings\": [],\n            \"entries_checked\": 0,\n            \"no_action_executed\": True,\n        }\n\n    try:\n        data = read_record(RULE_SOURCES_FILE)\n    except Exception as exc:\n        return {\n            \"schema\": \"abyss.rule_source_validation.v1\",\n            \"ok\": False,\n            \"errors\": [f\"RULE_SOURCES_PARSE_ERROR {exc}\"],\n            \"warnings\": [],\n            \"entries_checked\": 0,\n            \"no_action_executed\": True,\n        }\n\n    if not isinstance(data, dict):\n        errors.append(\"RULE_SOURCES_NOT_OBJECT\")\n        return {\n            \"schema\": \"abyss.rule_source_validation.v1\",\n            \"ok\": False,\n            \"errors\": errors,\n            \"warnings\": [],\n            \"entries_checked\": 0,\n            \"no_action_executed\": True,\n        }\n\n    if data.get(\"schema\") != \"abyss.rule_sources.v1\":\n        errors.append(f\"RULE_SOURCES_INVALID_SCHEMA {data.get('schema')}\")\n\n    if not data.get(\"hard_boundaries\"):\n        errors.append(\"RULE_SOURCES_MISSING_HARD_BOUNDARIES\")\n\n    rule_sources = data.get(\"rule_sources\", {})\n    if not isinstance(rule_sources, dict) or not rule_sources:\n        errors.append(\"RULE_SOURCES_EMPTY_OR_INVALID\")\n        rule_sources = {}\n\n    root = repo_root()\n    entries_checked = 0\n    required_entry_fields = {\"source_files\", \"affected_scopes\", \"consumers\", \"context_task_types\", \"validation_commands\", \"description\"}\n\n    for name, entry in rule_sources.items():\n        entries_checked += 1\n        if not isinstance(entry, dict):\n            errors.append(f\"RULE_SOURCE_INVALID_ENTRY {name}\")\n            continue\n\n        missing_fields = required_entry_fields - set(entry.keys())\n        for field in sorted(missing_fields):\n            errors.append(f\"RULE_SOURCE_MISSING_FIELD {name}.{field}\")\n\n        source_files = entry.get(\"source_files\", [])\n        if isinstance(source_files, list):\n            for source_file in source_files:\n                if not isinstance(source_file, str):\n                    errors.append(f\"RULE_SOURCE_INVALID_SOURCE_FILE_TYPE {name}\")\n                    continue\n                if not (root / source_file).exists():\n                    errors.append(f\"RULE_SOURCE_FILE_MISSING {name} {source_file}\")\n        else:\n            errors.append(f\"RULE_SOURCE_INVALID_SOURCE_FILES {name}\")\n\n        validation_commands = entry.get(\"validation_commands\", [])\n        if isinstance(validation_commands, list):\n            for cmd in validation_commands:\n                if not isinstance(cmd, str):\n                    errors.append(f\"RULE_SOURCE_INVALID_COMMAND_TYPE {name}\")\n                elif cmd not in ALLOWED_VALIDATION_COMMANDS:\n                    errors.append(f\"RULE_SOURCE_COMMAND_NOT_ALLOWED {name} {cmd}\")\n        else:\n            errors.append(f\"RULE_SOURCE_INVALID_VALIDATION_COMMANDS {name}\")\n\n        consumers = entry.get(\"consumers\", [])\n        if not isinstance(consumers, list):\n            errors.append(f\"RULE_SOURCE_INVALID_CONSUMERS {name}\")\n\n        context_task_types = entry.get(\"context_task_types\", [])\n        if not isinstance(context_task_types, list):\n            errors.append(f\"RULE_SOURCE_INVALID_CONTEXT_TASK_TYPES {name}\")\n\n    ok = not errors\n    return {\n        \"schema\": \"abyss.rule_source_validation.v1\",\n        \"ok\": ok,\n        \"errors\": errors,\n        \"warnings\": warnings,\n        \"entries_checked\": entries_checked,\n        \"no_action_executed\": True,\n    }\n\n\ndef render_rule_sources_json() -> str:\n    \"\"\"Render rule sources listing as JSON.\"\"\"\n    sources = list_rule_sources()\n    return json.dumps({\n        \"schema\": \"abyss.rule_sources_listing.v1\",\n        \"rule_sources\": sources,\n        \"count\": len(sources),\n        \"no_action_executed\": True,\n    }, ensure_ascii=False, indent=2)\n\n\ndef render_validation_json() -> str:\n    \"\"\"Render rule source validation result as JSON.\"\"\"\n    result = validate_rule_sources()\n    return json.dumps(result, ensure_ascii=False, indent=2)\n"
+      },
+      {
+        "id": "op_005",
+        "kind": "append_after_anchor",
+        "target": {
+          "path": "abyss_cli/__main__.py"
+        },
+        "anchor": "from .request_rules import detect_governance_core_scope, governance_core_surfaces, list_request_type_definitions, validate_request_rules_config",
+        "new_content": "from .rule_registry import list_rule_sources, render_rule_sources_json, render_validation_json, validate_rule_sources\n"
+      },
+      {
+        "id": "op_006",
+        "kind": "append_after_anchor",
+        "target": {
+          "path": "abyss_cli/__main__.py"
+        },
+        "anchor": "def cmd_request_governance_surfaces(args: argparse.Namespace) -> None:\n    surfaces = governance_core_surfaces()\n    if args.json:\n        print(render_request_json({\n            \"schema\": \"abyss.governance_core_surfaces.v1\",\n            \"surfaces\": surfaces,\n            \"no_action_executed\": True,\n            \"no_approval_granted\": True,\n        }), end=\"\")\n    else:\n        for surface, paths in surfaces.items():\n            print(f\"{surface}: {', '.join(paths)}\")\n    raise SystemExit(0)",
+        "new_content": "\n\ndef cmd_rules_list(args: argparse.Namespace) -> None:\n    if args.json:\n        print(render_rule_sources_json())\n    else:\n        sources = list_rule_sources()\n        if not sources:\n            print(\"no rule sources declared\")\n            return\n        for source in sources:\n            print(f\"{source.get('name')} files={','.join(source.get('source_files', []))} consumers={','.join(source.get('consumers', []))}\")\n    raise SystemExit(0)\n\n\ndef cmd_rules_validate(args: argparse.Namespace) -> None:\n    if args.json:\n        print(render_validation_json())\n    else:\n        result = validate_rule_sources()\n        print(f\"ok={result.get('ok')} entries_checked={result.get('entries_checked')}\")\n        for error in result.get(\"errors\", []):\n            print(f\"ERROR {error}\")\n        for warning in result.get(\"warnings\", []):\n            print(f\"WARNING {warning}\")\n    result = validate_rule_sources()\n    raise SystemExit(0 if result.get(\"ok\") else 1)\n"
+      },
+      {
+        "id": "op_007",
+        "kind": "append_after_anchor",
+        "target": {
+          "path": "abyss_cli/__main__.py"
+        },
+        "anchor": "    p = request_sub.add_parser(\"governance-surfaces\", help=\"list protected governance-core surfaces\")\n    p.add_argument(\"--json\", action=\"store_true\")\n    p.set_defaults(func=cmd_request_governance_surfaces)",
+        "new_content": "\n    p_rules = sub.add_parser(\"rules\", help=\"work with the Rule Source Registry\")\n    rules_sub = p_rules.add_subparsers(required=True)\n    p = rules_sub.add_parser(\"list\", help=\"list declared rule sources\")\n    p.add_argument(\"--json\", action=\"store_true\", help=\"render the rule sources as JSON\")\n    p.set_defaults(func=cmd_rules_list)\n    p = rules_sub.add_parser(\"validate\", help=\"validate the rule source registry\")\n    p.add_argument(\"--json\", action=\"store_true\", help=\"render validation as JSON\")\n    p.set_defaults(func=cmd_rules_validate)\n"
+      },
+      {
+        "id": "op_008",
+        "kind": "replace_anchor",
+        "target": {
+          "path": "abyss_cli/integrity.py"
+        },
+        "anchor": "    for request_rule_error in validate_request_rules_config():\n        ok = False\n        messages.append(request_rule_error)",
+        "new_content": "    for request_rule_error in validate_request_rules_config():\n        ok = False\n        messages.append(request_rule_error)\n\n    # Rule Source Registry integrity checks\n    from .rule_registry import validate_rule_sources as _validate_rule_sources\n    rule_registry_result = _validate_rule_sources()\n    if not rule_registry_result.get(\"ok\"):\n        for error in rule_registry_result.get(\"errors\", []):\n            ok = False\n            messages.append(f\"RULE_REGISTRY {error}\")\n"
+      },
+      {
+        "id": "op_009",
+        "kind": "replace_anchor",
+        "target": {
+          "path": "abyss_cli/context_pack.py"
+        },
+        "anchor": "    # Get module-derived files\n    module_files = _get_module_files(required_modules)",
+        "new_content": "    # Get rule source files for this task type from Rule Source Registry\n    rule_source_files: list[str] = []\n    try:\n        from .rule_registry import rule_sources_for_task_type\n        rule_source_files = rule_sources_for_task_type(task_type)\n    except (ImportError, SystemExit):\n        pass  # Registry not yet available or file missing; degrade gracefully\n\n    # Get module-derived files\n    module_files = _get_module_files(required_modules)"
+      },
+      {
+        "id": "op_010",
+        "kind": "replace_anchor",
+        "target": {
+          "path": "abyss_cli/context_pack.py"
+        },
+        "anchor": "    for f in required_files + module_files + required_rules + request_rule_files + required_prompts:\n        if f not in seen:\n            seen.add(f)\n            all_files.append(f)",
+        "new_content": "    for f in required_files + module_files + required_rules + request_rule_files + rule_source_files + required_prompts:\n        if f not in seen:\n            seen.add(f)\n            all_files.append(f)"
+      }
+    ],
+    "checks": [
+      "python -m compileall -q abyss_cli",
+      "python -m abyss_cli check"
+    ]
+  },
+  "no_action_executed": true,
+  "output_type": "changeset",
+  "corrects": "chg_rule_source_registry_v0",
+  "correction_reason": "Fix __main__.py import newline issue identified by Harness and revalidate after stop-level allowlist/overlay repairs.",
+  "checks": [
+    "python -m compileall -q abyss_cli",
+    "python -m abyss_cli check"
+  ]
+}

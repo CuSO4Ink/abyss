@@ -1,0 +1,37 @@
+{
+  "schema": "abyss.contract.v1",
+  "contract_id": "abyss.rule_source_registry.v1",
+  "purpose": "Declares the structure and semantics of the Rule Source Registry. Each rule source entry declares source files, affected scopes, consumers, context task inclusion, and validation commands.",
+  "authority": "declarative_registry_only",
+  "required_fields": [
+    "schema",
+    "purpose",
+    "authority",
+    "rule_sources",
+    "hard_boundaries"
+  ],
+  "rule_source_entry_fields": {
+    "required": ["source_files", "affected_scopes", "consumers", "context_task_types", "validation_commands", "description"],
+    "optional": ["deprecated", "notes"]
+  },
+  "field_definitions": {
+    "source_files": "List of relative file paths that constitute this rule source.",
+    "affected_scopes": "List of task_type or scope identifiers affected by this rule source.",
+    "consumers": "List of module names that read or depend on this rule source.",
+    "context_task_types": "List of task types for which this rule source should be automatically included in context packs.",
+    "validation_commands": "List of allowlisted commands that validate this rule source.",
+    "description": "Human-readable description of the rule source purpose."
+  },
+  "hard_boundaries": [
+    "Registry grants no execution or approval authority.",
+    "Registry is declarative and discoverable only; it does not enforce runtime coupling.",
+    "No event bus, daemon, real-time propagation, hot reload, broad rule engine, or automatic approval/execution authority.",
+    "Missing or malformed rule_sources.v1.yaml must cause integrity check failure.",
+    "Consumer declarations are informational; they do not create hard runtime dependencies.",
+    "Validation commands must be from the executor allowlist only."
+  ],
+  "producer_modules": ["rule_registry", "integrity"],
+  "consumer_modules": ["rule_registry", "context_broker", "integrity"],
+  "runtime_records": [],
+  "disclosure_level": "L5_contracts"
+}

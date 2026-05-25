@@ -69,19 +69,21 @@ def _operation_new_python_content(operation: dict[str, Any]) -> str | None:
     return None
 
 
-def _module_file_from_parts(parts: list[str]) -> Path | None:
+def _module_file_from_parts(parts: list[str], overlay: dict[str, str] | None = None) -> Path | None:
 
     root = repo_root()
     module_file = root.joinpath(*parts).with_suffix(".py")
-    if module_file.exists():
+    module_rel = module_file.relative_to(root).as_posix()
+    if module_file.exists() or (overlay and module_rel in overlay):
         return module_file
     package_init = root.joinpath(*parts, "__init__.py")
-    if package_init.exists():
+    package_rel = package_init.relative_to(root).as_posix()
+    if package_init.exists() or (overlay and package_rel in overlay):
         return package_init
     return None
 
 
-def _resolve_import_from_module(source_path: str, node: ast.ImportFrom) -> tuple[Path | None, str]:
+def _resolve_import_from_module(source_path: str, node: ast.ImportFrom, overlay: dict[str, str] | None = None) -> tuple[Path | None, str]:
     source_parts = Path(source_path.replace("\\", "/")).with_suffix("").parts
     current_package = list(source_parts[:-1])
     if node.level:
@@ -96,7 +98,7 @@ def _resolve_import_from_module(source_path: str, node: ast.ImportFrom) -> tuple
     display = ".".join(module_parts) if module_parts else "." * node.level + (node.module or "")
     if not module_parts:
         return None, display
-    return _module_file_from_parts(module_parts), display
+    return _module_file_from_parts(module_parts, overlay=overlay), display
 
 
 def _python_exports_from_text(content: str, *, filename: str) -> set[str]:
@@ -163,7 +165,7 @@ def _validate_python_imports(changeset: dict[str, Any]) -> list[dict[str, Any]]:
                 continue
             if not node.level and not (node.module or "").startswith("abyss_cli"):
                 continue
-            module_file, module_display = _resolve_import_from_module(source_path, node)
+            module_file, module_display = _resolve_import_from_module(source_path, node, overlay=overlay)
             if module_file is None:
                 findings.append({
                     "type": "python_import_missing_module",
@@ -179,7 +181,7 @@ def _validate_python_imports(changeset: dict[str, Any]) -> list[dict[str, Any]]:
                     continue
                 if node.module is None:
                     submodule_parts = list(Path(module_display.replace(".", "/")).parts) + [alias.name]
-                    if _module_file_from_parts(submodule_parts) is None and alias.name not in exports:
+                    if _module_file_from_parts(submodule_parts, overlay=overlay) is None and alias.name not in exports:
                         findings.append({
                             "type": "python_import_missing_symbol",
                             "severity": "error",

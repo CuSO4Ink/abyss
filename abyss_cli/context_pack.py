@@ -606,13 +606,21 @@ def build_context_pack(
     required_prompts = context_spec.get("required_prompts", [])
 
 
+    # Get rule source files for this task type from Rule Source Registry
+    rule_source_files: list[str] = []
+    try:
+        from .rule_registry import rule_sources_for_task_type
+        rule_source_files = rule_sources_for_task_type(task_type)
+    except (ImportError, SystemExit):
+        pass  # Registry not yet available or file missing; degrade gracefully
+
     # Get module-derived files
     module_files = _get_module_files(required_modules)
 
     # Merge all required files (deduplicated, preserving order)
     all_files: list[str] = []
     seen: set[str] = set()
-    for f in required_files + module_files + required_rules + request_rule_files + required_prompts:
+    for f in required_files + module_files + required_rules + request_rule_files + rule_source_files + required_prompts:
         if f not in seen:
             seen.add(f)
             all_files.append(f)
