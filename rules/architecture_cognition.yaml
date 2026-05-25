@@ -1,0 +1,224 @@
+schema: abyss.architecture_cognition.v1
+entrypoint: ABYSS.md
+purpose: >-
+  Machine-readable cognition protocol for understanding Abyss through
+  progressive disclosure before reading implementation source code.
+
+global_rules:
+  - id: abyss_identity
+    rule: "Abyss is a governed local personal AI operating layer, not an unconstrained autonomous agent."
+
+  - id: owner_final_authority
+    rule: "Owner is the final authority for meaningful risk, direction changes, and execution approval."
+
+  - id: llm_output_candidate_only
+    rule: "LLM, Agent, and external model outputs are candidate material only; they are not facts, approvals, or actions."
+
+  - id: brain_agent_boundary
+    rule: "Brain Agent is responsible for cognition, coordination, task decomposition, direction alignment, and result integration; it must not directly execute, approve, or bypass governance."
+
+  - id: external_models_are_resources
+    rule: "External model platforms are replaceable expert resources; they do not own Abyss memory, direction, governance, or execution authority."
+
+  - id: progressive_disclosure
+    rule: "System cognition starts from ABYSS.md and follows progressive disclosure; source code is not the default entrypoint."
+
+  - id: contract_before_code
+    rule: "Contracts, capsules, and system maps should be read before source code; source code is the final evidence layer when contracts are insufficient or implementation changes are required."
+
+  - id: governed_change_path
+    rule: "Any system modification must follow the governed path: proposal, approval, workflow, changeset, validation, harness review, owner approval, executor apply, report."
+
+  - id: observable_auditable_rollback_aware
+    rule: "Any meaningful change must remain observable, auditable, and rollback-aware."
+
+  - id: cognition_layer_sync
+    rule: "Any change that alters structure, behavior, capability, agent roles, context selection, or user-facing commands must update the corresponding cognition layer documents and rules."
+
+principles:
+  - do_not_start_from_source_code_by_default
+  - contract_before_code
+  - progressive_disclosure
+  - runtime_evidence_only_when_needed
+  - external_output_is_candidate_material
+  - governance_chain_remains_authoritative
+
+roles:
+  human_reader:
+    default_entrypoint: ABYSS.md
+    goal: Understand system purpose, boundaries, and where to look next.
+  internal_agent:
+    default_entrypoint: ABYSS.md
+    goal: Build task context without overloading prompts or bypassing governance.
+  external_model_platform:
+    default_entrypoint: ABYSS.md
+    goal: Act as a temporary collaborator using scoped task packages only.
+  future_brain_agent:
+    default_entrypoint: ABYSS.md
+    goal: Coordinate cognition, task decomposition, direction alignment, and result integration.
+
+hard_boundaries:
+  - LLM output is candidate material, not truth or execution.
+  - Harness, Owner, ChangeSet validation, executor, audit, and roadmap approval remain authoritative.
+  - External interfaces must not schedule, approve, execute, mutate files, alter state, or change governance.
+  - Source code access is not the default cognition path.
+  - Runtime records are used only for debugging, audit, state reconstruction, or status evidence.
+  - .local/knot_provider_workspace is provider/prompt-package scratch space and must not enter default context unless explicitly debugging provider/package history.
+  - process/ in the system repo is a skeleton/legacy-visible process directory; .local/runtime/process/ is the authoritative local runtime record path.
+
+disclosure_levels:
+  L0_entry:
+    purpose: Minimal system cognition entrypoint.
+    access_rule: always_first
+    files:
+      - ABYSS.md
+
+  L1_law:
+    purpose: Hard constraints and constitutional boundaries.
+    access_rule: required_for_governed_or_architectural_work
+    files:
+      - ABYSS_CONSTITUTION.md
+      - rules/system_brief.yaml
+
+  L2_direction:
+    purpose: Current strategic direction and medium-term Brain Agent alignment.
+    access_rule: required_for_planning_architecture_or_external_collaboration
+    files:
+      - ../abyss-data/user_data/projects/abyss-future-planning/Global Direction Brief.md
+      - ../abyss-data/user_data/projects/abyss-future-planning/Brain Agent v0.md
+      - ../abyss-data/user_data/projects/abyss-future-planning/External Developer Protocol.md
+
+  L3_system_map:
+    purpose: Human-readable architecture map, commands, modules, data flow, and runtime record locations.
+    access_rule: required_for_operational_or_module_level_understanding
+    files:
+      - SYSTEM_MAP.md
+
+  L4_capsules:
+    purpose: Module and capability capsules.
+    access_rule: required_before_module_specific_planning_or_implementation
+    files:
+      - rules/modules.yaml
+
+  L5_contracts:
+    purpose: Agent roles, capabilities, context rules, provider rules, and machine contracts.
+    access_rule: required_before_changeset_generation_or_agent_behavior_changes
+    files:
+      - rules/contracts/
+      - rules/contracts/change_set.v1.yaml
+      - rules/contracts/context_request.v1.yaml
+      - rules/contracts/blocked_result.v1.yaml
+      - rules/contracts/harness_review.v1.yaml
+      - rules/contracts/evolution_analysis.v1.yaml
+      - rules/contracts/context_pack.v1.yaml
+      - rules/contracts/external_work_feedback_card.v1.yaml
+      - rules/capabilities.yaml
+      - rules/agents.yaml
+      - rules/context_manifest.yaml
+      - rules/llm_providers.yaml
+      - rules/policy.yaml
+      - rules/governance.yaml
+
+  L6_source:
+    purpose: Implementation evidence.
+    access_rule: only_when_contract_is_insufficient_or_code_change_is_required
+    files:
+      - abyss_cli/
+
+  L7_runtime:
+    purpose: Runtime evidence, audit, traces, workflows, reports, and state reconstruction.
+    access_rule: only_for_debug_audit_status_or_state_reconstruction
+    files:
+      - .local/runtime/
+      - audit/
+    excluded_by_default:
+      - .local/knot_provider_workspace/
+    authoritative_runtime_process_path: .local/runtime/process/
+    non_authoritative_process_skeleton: process/
+
+agent_default_reading_path:
+  - ABYSS.md
+  - ABYSS_CONSTITUTION.md
+  - rules/system_brief.yaml
+  - ../abyss-data/user_data/projects/abyss-future-planning/Global Direction Brief.md
+  - SYSTEM_MAP.md
+  - rules/modules.yaml
+
+modification_context_path:
+  - ABYSS.md
+  - ABYSS_CONSTITUTION.md
+  - rules/system_brief.yaml
+  - SYSTEM_MAP.md
+  - rules/modules.yaml
+  - rules/contracts/
+  - rules/capabilities.yaml
+  - rules/agents.yaml
+  - rules/context_manifest.yaml
+  - relevant source files under abyss_cli/
+
+runtime_investigation_path:
+  - ABYSS.md
+  - SYSTEM_MAP.md
+  - abyss summary --check
+  - relevant workflow, changeset, owner, execution, report, or audit records
+
+external_collaboration_protocol:
+  position: Temporary expert collaborator, not Brain Agent and not authority.
+  task_package_should_include:
+    - Global Direction Brief or a scoped excerpt
+    - current task objective
+    - relevant module capsules
+    - relevant rules and contracts
+    - necessary source snippets only when needed
+    - forbidden actions
+    - expected output format
+    - acceptance criteria
+  expected_return_fields:
+    - task_understanding
+    - modules_touched
+    - files_touched
+    - proposed_changes
+    - validation
+    - risk_assessment
+    - architecture_alignment
+    - open_questions
+    - recommended_next_step
+
+brain_agent_v0_boundary:
+  may:
+    - read ABYSS.md and progressive disclosure documents
+    - read current summary, workflows, reports, and audit evidence when needed
+    - explain current system state
+    - judge current phase and next candidates
+    - prepare external model platform task briefs
+    - compress external development results into feedback cards
+  must_not:
+    - modify files directly
+    - approve roadmap items
+    - approve changesets
+    - execute changesets
+    - bypass Harness
+    - replace Owner
+    - start infinite loops
+    - treat suggestions as approved tasks
+
+sync_expectations:
+  architecture_or_direction_changes:
+    - ABYSS.md
+    - SYSTEM_MAP.md
+    - ../abyss-data/user_data/projects/abyss-future-planning/Global Direction Brief.md
+    - ../abyss-data/user_data/projects/abyss-future-planning/Brain Agent v0.md
+    - ../abyss-data/user_data/projects/abyss-future-planning/External Developer Protocol.md
+  module_or_capability_changes:
+    - rules/modules.yaml
+    - rules/capabilities.yaml
+    - rules/agents.yaml
+    - rules/context_manifest.yaml
+  governance_or_execution_boundary_changes:
+    - ABYSS_CONSTITUTION.md
+    - rules/system_brief.yaml
+    - rules/governance.yaml
+    - rules/policy.yaml
+  operational_usage_changes:
+    - README.md
+    - SYSTEM_MAP.md

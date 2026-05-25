@@ -1,0 +1,22 @@
+{
+  "schema": "abyss.contract.v1",
+  "contract_id": "abyss.harness_review.v1",
+  "purpose": "HarnessAgent advisory review record for action proposals, ChangeSets, and boundary risks.",
+  "authority": "advisory_only_not_approval",
+  "required_fields": ["schema", "id", "target_type", "target_id", "verdict", "findings"],
+  "optional_fields": ["created_at", "risk_level", "recommendations", "no_action_executed", "metadata"],
+  "fields": {
+    "schema": "Must equal abyss.harness_review.v1",
+    "verdict": "One of ok, review_required, violation",
+    "findings": "List of review findings with evidence and severity"
+  },
+  "hard_boundaries": [
+    "Harness review is not Owner approval.",
+    "HarnessAgent must not approve, reject, execute, or mutate files.",
+    "HarnessAgent must assess implementation completeness as well as safety."
+  ],
+  "producer_agents": ["harness"],
+  "consumer_modules": ["harness_review", "workflow", "owner", "summary"],
+  "runtime_records": [".local/runtime/process/harness_reviews/"],
+  "disclosure_level": "L5_contracts"
+}

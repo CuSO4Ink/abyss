@@ -1,0 +1,17 @@
+{
+  "schema": "abyss.contract.v1",
+  "contract_id": "abyss.evolution_analysis.v1",
+  "purpose": "Self-evolution analysis candidate output used to inform proposals without modifying files or approving work.",
+  "authority": "candidate_material_only",
+  "required_fields": ["schema", "id", "request_id", "summary", "recommendation"],
+  "optional_fields": ["risks", "scope", "implementation_notes", "validation", "open_questions"],
+  "hard_boundaries": [
+    "Evolution analysis is advisory only.",
+    "It must not approve roadmap items or schedule work.",
+    "It must not modify policy, prompts, governance, or files."
+  ],
+  "producer_agents": ["self_evolution"],
+  "consumer_modules": ["evolution", "agent_runner"],
+  "runtime_records": [".local/runtime/process/evolution_analyses/"],
+  "disclosure_level": "L5_contracts"
+}

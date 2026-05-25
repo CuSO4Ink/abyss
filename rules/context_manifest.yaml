@@ -3,14 +3,35 @@
   "purpose": "Maps task types to required context modules, files, and rules. Used by Context Broker to build context packs.",
 
   "task_types": {
+    "workflow_smoke_test": {
+      "description": "Governed workflow smoke tests and end-to-end validation",
+      "required_modules": ["workflow", "agent_runner", "context_broker", "changeset"],
+      "required_files": [
+        "abyss_cli/workflow.py",
+        "abyss_cli/agent_runner.py",
+        "abyss_cli/context_pack.py",
+        "abyss_cli/changeset.py",
+        "abyss_cli/evolution.py",
+        "abyss_cli/evolution_analysis.py"
+      ],
+      "required_rules": [
+        "rules/capabilities.yaml",
+        "rules/agents.yaml",
+        "rules/modules.yaml",
+        "rules/context_manifest.yaml"
+      ],
+      "required_checks": ["python -m abyss_cli check"]
+    },
     "cli_feature": {
       "description": "Adding or modifying CLI commands and their routing",
-      "required_modules": ["cli_entry", "agent_runner", "summary"],
+      "required_modules": ["cli_entry", "workflow", "agent_runner", "summary"],
       "required_files": [
         "abyss_cli/__main__.py",
+        "abyss_cli/workflow.py",
         "abyss_cli/summary.py",
         "abyss_cli/agent_runner.py"
       ],
+
       "required_rules": [
         "rules/capabilities.yaml",
         "rules/agents.yaml"
@@ -20,12 +41,13 @@
 
     "workflow_feature": {
       "description": "Modifying workflow state machine, transitions, or orchestration logic",
-      "required_modules": ["workflow", "owner", "changeset", "harness_review"],
+      "required_modules": ["workflow", "owner", "changeset", "harness_review", "cli_entry"],
       "required_files": [
         "abyss_cli/workflow.py",
         "abyss_cli/owner.py",
         "abyss_cli/changeset.py",
-        "abyss_cli/harness_review.py"
+        "abyss_cli/harness_review.py",
+        "abyss_cli/__main__.py"
       ],
       "required_rules": [
         "rules/capabilities.yaml",
@@ -49,14 +71,69 @@
       "required_checks": ["python -m abyss_cli check"]
     },
 
+    "changeset_validation_feature": {
+      "description": "Adding or modifying ChangeSet validation, dry-run checks, import checks, symbol validation, edit-plan compilation, or Implementation Agent ChangeSet stability",
+      "required_modules": ["changeset", "harness_review", "workflow", "agent_runner", "context_broker"],
+      "required_files": [
+        "abyss_cli/changeset.py",
+        "abyss_cli/harness.py",
+        "abyss_cli/harness_review.py",
+        "abyss_cli/workflow.py",
+        "abyss_cli/agent_runner.py",
+        "abyss_cli/llm_executor.py",
+        "abyss_cli/context_pack.py",
+        "abyss_cli/patch_compiler.py",
+        "rules/context_manifest.yaml"
+      ],
+
+
+      "symbol_index_files": [
+        "abyss_cli/__init__.py",
+        "abyss_cli/__main__.py",
+        "abyss_cli/agent_runner.py",
+        "abyss_cli/audit.py",
+        "abyss_cli/changeset.py",
+        "abyss_cli/context_pack.py",
+        "abyss_cli/data_sync.py",
+        "abyss_cli/direct_auth.py",
+        "abyss_cli/evolution.py",
+        "abyss_cli/evolution_analysis.py",
+        "abyss_cli/fsm.py",
+        "abyss_cli/harness.py",
+        "abyss_cli/harness_review.py",
+        "abyss_cli/integrity.py",
+        "abyss_cli/intent.py",
+        "abyss_cli/llm_executor.py",
+        "abyss_cli/owner.py",
+        "abyss_cli/policy.py",
+        "abyss_cli/prompt_builder.py",
+        "abyss_cli/result.py",
+        "abyss_cli/review.py",
+        "abyss_cli/summary.py",
+        "abyss_cli/utils.py",
+        "abyss_cli/workflow.py"
+      ],
+      "required_rules": [
+        "rules/capabilities.yaml",
+        "rules/agents.yaml"
+      ],
+      "required_checks": [
+        "python -m abyss_cli check",
+        "python -m compileall -q abyss_cli"
+      ]
+    },
+
     "agent_feature": {
-      "description": "Adding or modifying agent behavior, prompts, or output parsing",
-      "required_modules": ["agent_runner", "llm_executor", "harness_review"],
+      "description": "Adding or modifying agent behavior, prompts, provider reliability, or output parsing",
+      "required_modules": ["agent_runner", "llm_executor", "patch_compiler", "changeset", "harness_review"],
       "required_files": [
         "abyss_cli/agent_runner.py",
         "abyss_cli/llm_executor.py",
+        "abyss_cli/patch_compiler.py",
+        "abyss_cli/changeset.py",
         "abyss_cli/harness_review.py"
       ],
+
       "required_rules": [
         "rules/agents.yaml",
         "rules/capabilities.yaml",
@@ -87,19 +164,58 @@
 
     "context_broker_feature": {
       "description": "Modifying context broker, context pack generation, or module manifest",
-      "required_modules": ["context_broker", "agent_runner", "workflow"],
+      "required_modules": ["context_broker", "agent_runner", "workflow", "summary", "integrity", "cli_entry"],
       "required_files": [
         "abyss_cli/context_pack.py",
         "abyss_cli/agent_runner.py",
         "abyss_cli/workflow.py",
+        "abyss_cli/summary.py",
+        "abyss_cli/integrity.py",
+        "abyss_cli/__main__.py",
         "rules/modules.yaml",
         "rules/context_manifest.yaml",
-        "rules/system_brief.yaml"
+        "rules/system_brief.yaml",
+        "rules/contracts/context_pack.v1.yaml",
+        "rules/contracts/context_request.v1.yaml"
       ],
       "required_rules": [
         "rules/modules.yaml",
         "rules/context_manifest.yaml",
-        "rules/system_brief.yaml"
+        "rules/system_brief.yaml",
+        "rules/contracts/context_pack.v1.yaml",
+        "rules/contracts/context_request.v1.yaml"
+      ],
+      "required_checks": ["python -m abyss_cli check"]
+    },
+
+    "external_collaboration": {
+      "description": "Building governed external model collaboration task packages using progressive disclosure before source code",
+      "required_modules": [],
+      "required_files": [
+        "ABYSS.md",
+        "ABYSS_CONSTITUTION.md",
+        "SYSTEM_MAP.md",
+        "rules/system_brief.yaml",
+        "rules/modules.yaml",
+        "rules/agents.yaml",
+        "rules/capabilities.yaml",
+        "rules/context_manifest.yaml",
+        "rules/contracts/external_work_feedback_card.v1.yaml",
+        "rules/contracts/context_request.v1.yaml",
+        "rules/contracts/blocked_result.v1.yaml",
+        "../abyss-data/user_data/projects/abyss-future-planning/Global Direction Brief.md",
+        "../abyss-data/user_data/projects/abyss-future-planning/Brain Agent v0.md",
+        "../abyss-data/user_data/projects/abyss-future-planning/External Developer Protocol.md"
+      ],
+      "required_rules": [
+        "rules/system_brief.yaml",
+        "rules/modules.yaml",
+        "rules/agents.yaml",
+        "rules/capabilities.yaml",
+        "rules/context_manifest.yaml",
+        "rules/contracts/external_work_feedback_card.v1.yaml",
+        "rules/contracts/context_request.v1.yaml",
+        "rules/contracts/blocked_result.v1.yaml"
       ],
       "required_checks": ["python -m abyss_cli check"]
     },
@@ -122,29 +238,62 @@
     },
 
     "summary_feature": {
-      "description": "Modifying system summary output or status rendering",
-      "required_modules": ["summary", "workflow", "integrity"],
+      "description": "Modifying system summary output, status rendering, workflow state-debt classification, no-op implementation outcome handling, or probe/robustness task grounding",
+      "required_modules": ["summary", "workflow", "integrity", "cli_entry", "agent_runner", "context_broker", "changeset"],
       "required_files": [
         "abyss_cli/summary.py",
         "abyss_cli/workflow.py",
-        "abyss_cli/integrity.py"
+        "abyss_cli/integrity.py",
+        "abyss_cli/__main__.py",
+        "abyss_cli/agent_runner.py",
+        "abyss_cli/context_pack.py",
+        "prompts/agents/implementation_agent.md",
+        "rules/modules.yaml",
+        "rules/context_manifest.yaml"
       ],
-      "required_rules": [],
+      "symbol_index_files": [
+        "abyss_cli/summary.py",
+        "abyss_cli/workflow.py",
+        "abyss_cli/agent_runner.py",
+        "abyss_cli/context_pack.py",
+        "abyss_cli/__main__.py"
+      ],
+      "required_rules": [
+        "rules/context_manifest.yaml"
+      ],
       "required_checks": ["python -m abyss_cli check"]
     }
   },
 
+
   "task_type_detection": {
     "description": "Heuristics for auto-detecting task type from proposal/request text",
     "keywords": {
-      "cli_feature": ["CLI", "command", "argparse", "subcommand", "routing"],
+      "workflow_smoke_test": ["workflow smoke", "governed workflow", "end-to-end smoke", "smoke test", "governance validation", "workflow validation", "smoke-test artifacts"],
+      "cli_feature": ["CLI", "command", "argparse", "subcommand", "routing", "cli help", "help text", "help output", "command output"],
       "workflow_feature": ["workflow", "state machine", "orchestration", "transition"],
       "workflow_bugfix": ["workflow bug", "workflow fix", "blocked", "retry"],
+      "changeset_validation_feature": ["changeset validation", "dry-run", "dry run", "import validation", "symbol validation", "missing symbol", "missing module", "missing exported symbols", "from-package imports", "validation messages"],
       "agent_feature": ["agent", "prompt", "harness", "implementation agent", "self-evolution agent"],
       "evolution_feature": ["evolution", "proposal", "request", "analysis"],
-      "context_broker_feature": ["context", "context pack", "module manifest", "progressive disclosure"],
+      "context_broker_feature": ["context broker", "context governance", "context sufficiency", "context request", "context pack", "module manifest", "task type manifest", "progressive disclosure"],
+      "external_collaboration": ["external model", "external developer", "external collaboration", "external platform", "外部模型", "外部协作", "外部开发", "task package", "developer protocol"],
       "governance_change": ["governance", "policy", "capability", "rule"],
-      "summary_feature": ["summary", "status", "display", "render"]
+      "summary_feature": ["summary", "status", "display", "render", "state debt", "status debt", "already_satisfied", "no-op", "noop", "satisfied-without-changes", "unresolved failure", "状态债", "robustness probe", "probe/smoke", "probe task", "tiny display", "recent workflow summary", "workflow/summary", "status display", "governance-adjacent", "probe/robustness", "robustness task", "smoke/robustness", "probe coverage"]
+
+    },
+    "priority": {
+      "workflow_smoke_test": 110,
+      "external_collaboration": 105,
+      "context_broker_feature": 100,
+      "changeset_validation_feature": 90,
+      "workflow_bugfix": 80,
+      "workflow_feature": 70,
+      "agent_feature": 60,
+      "governance_change": 50,
+      "cli_feature": 40,
+      "summary_feature": 30,
+      "evolution_feature": 20
     }
   },
 

@@ -1,0 +1,22 @@
+{
+  "schema": "abyss.contract.v1",
+  "contract_id": "abyss.blocked_result.v1",
+  "purpose": "Structured declaration that a task is blocked by governance, safety, feasibility, or missing authority.",
+  "authority": "candidate_material_only",
+  "required_fields": ["schema", "id", "reason", "blocked_by"],
+  "optional_fields": ["target_id", "evidence", "recommended_next_step", "owner_decision_needed"],
+  "fields": {
+    "schema": "Must equal abyss.blocked_result.v1",
+    "id": "Unique blocked result id",
+    "reason": "Concise blocker explanation",
+    "blocked_by": "One or more categories: governance, insufficient_context, infeasible, unsafe, missing_owner_approval, external_boundary"
+  },
+  "hard_boundaries": [
+    "Blocked result must not create approval.",
+    "Blocked result must not attempt workaround execution.",
+    "If Owner decision is needed, state it explicitly."
+  ],
+  "producer_agents": ["implementation", "brain", "self_evolution"],
+  "consumer_modules": ["agent_runner", "workflow", "summary"],
+  "disclosure_level": "L5_contracts"
+}

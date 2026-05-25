@@ -1,0 +1,17 @@
+{
+  "schema": "abyss.contract.v1",
+  "contract_id": "abyss.context_pack.v1",
+  "purpose": "Recorded evidence of context selected for an agent or external collaboration task under progressive disclosure.",
+  "authority": "context_evidence_only",
+  "required_fields": ["schema", "id", "agent_id", "task_type", "created_at", "files_included", "files_missing"],
+  "optional_fields": ["system_brief", "architecture_cognition", "modules_included", "rules_included", "context_budget", "symbol_index"],
+  "hard_boundaries": [
+    "Context Pack grants no execution, approval, or governance authority.",
+    "Missing files must be reported instead of silently ignored.",
+    "Runtime evidence should only be included for debug, audit, status, or state reconstruction."
+  ],
+  "producer_modules": ["context_broker"],
+  "consumer_modules": ["agent_runner", "prompt_builder", "llm_executor"],
+  "runtime_records": [".local/runtime/process/context_packs/"],
+  "disclosure_level": "L5_contracts"
+}

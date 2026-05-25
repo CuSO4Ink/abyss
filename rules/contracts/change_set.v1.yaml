@@ -1,0 +1,29 @@
+{
+  "schema": "abyss.contract.v1",
+  "contract_id": "abyss.change_set.v1",
+  "purpose": "Operation-based candidate file changes proposed by ImplementationAgent and only executable after validation, Harness review, and Owner approval.",
+  "authority": "candidate_material_only_until_owner_approval",
+  "required_fields": ["schema", "id", "summary", "operations"],
+  "optional_fields": ["target_id", "created_at", "rationale", "risk", "validation", "rollback", "metadata"],
+  "fields": {
+    "schema": "Must equal abyss.change_set.v1",
+    "id": "Unique ChangeSet id, usually chg_*",
+    "summary": "Short human-readable description of the proposed change",
+    "operations": "Ordered list of supported operations",
+    "validation": "Checks proposed or required for this ChangeSet",
+    "rollback": "Rollback notes or reverse strategy"
+  },
+  "supported_operations": ["fs.create_file", "fs.replace_exact", "fs.append_file", "check.command"],
+  "hard_boundaries": [
+    "A ChangeSet is not approval.",
+    "Execution requires deterministic dry-run success and explicit Owner approval.",
+    "replace_exact must match old_content exactly.",
+    "Only allowlisted repository roots may be modified.",
+    "check.command is validation metadata, not arbitrary shell execution permission."
+  ],
+  "validation": ["python -m abyss_cli changeset dry-run <id>", "python -m abyss_cli check"],
+  "producer_agents": ["implementation"],
+  "consumer_modules": ["changeset", "workflow", "harness_review", "owner"],
+  "runtime_records": [".local/runtime/process/changesets/"],
+  "disclosure_level": "L5_contracts"
+}

@@ -107,6 +107,55 @@
         "run_commands",
         "git_operation"
       ]
+    },
+    "brain": {
+      "enabled": false,
+      "experimental": true,
+      "description": "Read-only cognition, coordination, direction alignment, task decomposition, external task brief preparation, and result integration role. Brain Agent v0 has no execution, approval, mutation, scheduling, or governance authority.",
+      "provider": "cli",
+      "role": "brain_agent_v0_read_only_cognition",
+      "role_prompt": null,
+      "output_schema": ["abyss.context_request.v1", "abyss.blocked_result.v1", "abyss.external_work_feedback_card.v1", "human_readable_status_brief"],
+      "input_scope": [
+        "ABYSS.md",
+        "architecture_cognition",
+        "system_brief",
+        "system_map",
+        "module_capsules",
+        "contracts",
+        "summary",
+        "workflows_reports_when_needed",
+        "external_feedback_cards_when_needed"
+      ],
+      "allowed": [
+        "read",
+        "analyze",
+        "summarize",
+        "explain_current_state",
+        "judge_phase",
+        "propose_next_step",
+        "prepare_external_task_brief",
+        "compress_external_results_into_feedback_cards"
+      ],
+      "forbidden": [
+        "execute_action",
+        "approve_roadmap_item",
+        "reject_roadmap_item",
+        "approve_changeset",
+        "reject_changeset",
+        "apply_changeset",
+        "modify_files",
+        "modify_policy",
+        "modify_governance",
+        "modify_prompt",
+        "bypass_harness",
+        "replace_owner",
+        "schedule_work",
+        "run_commands",
+        "git_operation",
+        "treat_suggestions_as_approved_tasks",
+        "start_infinite_loop"
+      ]
     }
   }
 }

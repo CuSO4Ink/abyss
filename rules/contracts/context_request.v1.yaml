@@ -1,0 +1,24 @@
+{
+  "schema": "abyss.contract.v1",
+  "contract_id": "abyss.context_request.v1",
+  "purpose": "Structured request emitted when an agent cannot safely proceed because required context is missing.",
+  "authority": "candidate_material_only",
+  "required_fields": ["schema", "id", "reason", "missing_context"],
+  "optional_fields": ["target_id", "task_type", "requested_files", "requested_modules", "requested_rules", "why_needed", "blocking_level"],
+  "fields": {
+    "schema": "Must equal abyss.context_request.v1",
+    "id": "Unique context request id",
+    "reason": "Concise explanation of why existing context is insufficient",
+    "missing_context": "Human-readable missing evidence or contract/source area",
+    "requested_files": "Specific files requested, if known",
+    "requested_modules": "Module capsule names requested, if known"
+  },
+  "hard_boundaries": [
+    "A context request must not guess implementation details.",
+    "It must not approve, execute, or mutate files.",
+    "It should request the narrowest additional context sufficient for safe next action."
+  ],
+  "producer_agents": ["implementation", "brain"],
+  "consumer_modules": ["agent_runner", "context_broker", "workflow"],
+  "disclosure_level": "L5_contracts"
+}

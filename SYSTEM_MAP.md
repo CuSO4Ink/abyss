@@ -7,6 +7,8 @@ abyss status
 abyss intent new "<goal>"
 abyss intent list
 abyss prompt build latest --copy
+abyss prompt build-external "<task objective>" [--details "..."] [--copy]
+abyss external import-result <external_response.md> [--task-id <id>] [--source-platform <name>]
 abyss llm run <prompt-package|latest> --provider cli
 abyss result import <response.md> --intent latest
 abyss agent run harness --target latest
@@ -54,9 +56,11 @@ abyss data init|status|pull|push
 
 - `abyss_cli/__main__.py` — CLI routing and command handlers.
 - `abyss_cli/intent.py` — creates structured Intents.
-- `abyss_cli/prompt_builder.py` — builds Prompt Packages from intents and context.
+- `abyss_cli/prompt_builder.py` — builds Prompt Packages from intents and context, including governed external developer collaboration packages.
 - `abyss_cli/llm_executor.py` — optional LLM Executor; writes result files, then imports them.
 - `abyss_cli/agent_runner.py` — runs configured agents through Agent Prompt Packages and provider result files, including self-evolution analysis, implementation ChangeSet generation, and Harness reviews.
+- `abyss_cli/context_pack.py` — Context Broker; reads cognition/context manifests, injects `rules/architecture_cognition.yaml`, tracks context size budget, and records context pack metadata.
+- `abyss_cli/external_collab.py` — imports external model output as candidate feedback cards without creating proposals, approvals, executions, or workflow transitions.
 - `abyss_cli/harness_review.py` — parses HarnessAgent output into local harness review records for action proposals and ChangeSets.
 - `abyss_cli/result.py` — imports LLM output and extracts action proposals.
 - `abyss_cli/policy.py` — interprets `rules/policy.yaml`; no independent policy truth.
@@ -68,7 +72,7 @@ abyss data init|status|pull|push
 - `abyss_cli/workflow.py` — native autonomous workflow runner; advances approved roadmap work through implementation, dry-run, HarnessAgent review, owner approval, executor apply, check, and report without external assistant state-chaining.
 - `abyss_cli/owner.py` — Owner Inbox approval surface for user decisions, including automatic continuation after approval.
 - `abyss_cli/summary.py` — user-facing status overview for active workflows, pending approvals, failures, changesets, and optional integrity result.
-- `abyss_cli/integrity.py` — checks repository structure, runtime references, workflow records, and safety invariants.
+- `abyss_cli/integrity.py` — checks repository structure, runtime references, workflow records, safety invariants, cognition-layer synchronization, module capsule completeness, contract presence, and minimum-disclosure boundaries.
 
 ## Data flow
 
@@ -99,15 +103,29 @@ approved roadmap item
   -> execution record
   -> integrity check / audit event
   -> workflow report / summary
+
+external collaboration objective
+  -> prompt build-external
+  -> Context Broker external_collaboration context pack
+  -> architecture cognition + governance + module capsules + external protocol
+  -> external model candidate response
+  -> external import-result
+  -> candidate feedback card
+  -> human/Brain Agent review and governed intake path
 ```
+
+External collaboration packages and feedback cards are cognition-first and candidate-material-only. They do not grant execution, approval, scheduling, file mutation, proposal creation, workflow transitions, or governance authority.
 
 ## System directories
 
 - `abyss_cli/` — implementation code.
-- `rules/` — rule truth sources; especially `rules/policy.yaml`, `rules/llm_providers.yaml`, `rules/agents.yaml`, and `rules/governance.yaml`.
+- `rules/` — rule truth sources; especially `rules/policy.yaml`, `rules/llm_providers.yaml`, `rules/agents.yaml`, `rules/modules.yaml`, `rules/context_manifest.yaml`, `rules/architecture_cognition.yaml`, and `rules/governance.yaml`.
+- `rules/contracts/` — machine-readable contracts for structured records such as ChangeSets, context requests, blocked results, Harness reviews, evolution analyses, context packs, and external feedback cards. Contracts are L5 disclosure material and should be read before source code when record structure matters.
 - `prompts/` — system, mode, and agent prompt templates.
 - `artifacts/drafts/` — low-risk generated drafts.
-- `process/*/.gitkeep` — process directory skeleton only.
+- `process/*/.gitkeep` — process directory skeleton only; not the authoritative runtime process path.
+- `.local/runtime/process/` — authoritative local runtime process path for generated records.
+- `.local/knot_provider_workspace/` — provider/prompt-package scratch space; excluded from default context and only read when explicitly debugging provider or historical prompt-package behavior.
 - `audit/README.md` — audit directory skeleton documentation only.
 - `ABYSS_CONSTITUTION.md`, `README.md`, `SYSTEM_MAP.md`, `pyproject.toml` — system docs/config.
 - `abyss-data/user_data/SYSTEM_MAP.md` — Obsidian-visible projection of this map.

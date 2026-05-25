@@ -1,0 +1,17 @@
+{
+  "schema": "abyss.contract.v1",
+  "contract_id": "abyss.external_work_feedback_card.v1",
+  "purpose": "Candidate feedback card created from an external model platform response for later human or Brain Agent review.",
+  "authority": "candidate_material_only",
+  "required_fields": ["schema", "id", "source_platform", "stored_result_path", "candidate_material_only", "no_action_executed"],
+  "optional_fields": ["task_id", "sections_detected", "missing_expected_sections", "sections", "recommended_intake_path"],
+  "hard_boundaries": [
+    "Feedback card must not create a proposal automatically.",
+    "Feedback card must not approve, execute, mutate files, or change workflow state.",
+    "External platform output does not own Abyss memory, direction, governance, or authority."
+  ],
+  "producer_modules": ["external_collab"],
+  "consumer_roles": ["human_reader", "brain"],
+  "runtime_records": [".local/runtime/process/feedback_cards/", ".local/runtime/process/external_results/"],
+  "disclosure_level": "L5_contracts"
+}

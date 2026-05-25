@@ -2,6 +2,10 @@
 
 Harness-first personal AI orchestration workspace.
 
+For system cognition, global rules, Brain Agent direction, and progressive disclosure order, read `ABYSS.md` first.
+
+This README focuses on installation, commands, and operational usage.
+
 Abyss MVP is a local, CLI-first orchestration layer. It turns user intent into structured Prompt Packages, routes outputs through a deterministic Harness, and records an auditable trail before anything becomes an action.
 
 ## MVP scope
@@ -32,6 +36,14 @@ Abyss is guided by five system-level design principles:
 5. Extensibility first
 
 The canonical structured rules live in `rules/design_principles.yaml`; the highest-level commitments live in `ABYSS_CONSTITUTION.md`.
+
+## Minimum disclosure and contracts
+
+Abyss cognition starts from `ABYSS.md`, then moves through constitution, system brief, direction documents, `SYSTEM_MAP.md`, module capsules in `rules/modules.yaml`, and contracts in `rules/contracts/` before source code. Source files under `abyss_cli/` are implementation evidence, not the default entrypoint.
+
+`rules/modules.yaml` is the module capsule manifest. `rules/contracts/` contains machine-readable contracts for structured records such as `abyss.change_set.v1`, `abyss.context_request.v1`, `abyss.blocked_result.v1`, `abyss.harness_review.v1`, `abyss.evolution_analysis.v1`, `abyss.context_pack.v1`, and `abyss.external_work_feedback_card.v1`.
+
+`python -m abyss_cli check` validates key cognition-layer expectations: required entry files, contract presence, module capsule fields, context manifest references, Brain Agent v0 read-only boundaries, and runtime noise exclusions.
 
 ## Layered data architecture
 
@@ -123,6 +135,24 @@ python -m abyss_cli result import path\to\response.md --intent latest
 
 If the response contains action proposals, Abyss parses them into `process/actions/` and runs the Harness policy gate.
 
+## External model collaboration package
+
+For scoped external model/developer collaboration, build a governed cognition-first task package:
+
+```powershell
+python -m abyss_cli prompt build-external "<task objective>" --details "<constraints or acceptance criteria>"
+```
+
+This package uses the Context Broker and `rules/architecture_cognition.yaml` to include Abyss cognition, governance boundaries, module capsules, and external collaboration protocol before source code. External model output remains candidate material only; it cannot approve, execute, mutate files, or bypass workflow, Harness, Owner, or executor boundaries.
+
+After saving an external model response, import it as a candidate feedback card:
+
+```powershell
+python -m abyss_cli external import-result path\to\external_response.md --task-id <prompt-package-id> --source-platform <platform>
+```
+
+The feedback card is an intake artifact only. It does not create proposals, approve work, apply changes, or change workflow state.
+
 ## Autonomous workflow bootstrap
 
 Abyss can run an approved evolution proposal through the native self-iteration workflow without an external assistant manually chaining internal commands:
@@ -195,6 +225,8 @@ stdin:  complete Prompt Package text, UTF-8
 stdout: complete LLM response text, UTF-8
 stderr: diagnostics only; surfaced on failure
 exit:   0 means success; non-zero means provider failure
+model:  optional backend model name; when non-empty, Abyss appends [model_argument, model] to command
+model_argument: optional CLI flag for model selection; defaults to --model
 ```
 
 Standard HTTP JSON API provider interface:
@@ -217,6 +249,8 @@ Example local CLI provider config:
       "enabled": true,
       "interface": "stdin_prompt_package_stdout_response_v1",
       "command": ["your-provider-adapter"],
+      "model": "deepseek-v3.2",
+      "model_argument": "--model",
       "timeout_seconds": 300
     }
   }
