@@ -6,17 +6,20 @@ from pathlib import Path
 from . import __version__
 from .agent_runner import run_agent, run_harness_changeset_review, run_harness_review
 from .audit import append_event
+from .brain import render_brain_brief
 from .changeset import apply_changeset, dry_run_changeset, import_changeset, list_changesets, load_changeset, render_record, set_changeset_status
 from .data_sync import data_pull, data_push, data_status, init_data_repo
 from .direct_auth import authorize_direct_modification, direct_auth_status, init_direct_auth, list_direct_authorizations
+from .disclosure import audit_context_manifest, render_disclosure_audit
 from .evolution import approve_proposal, create_change_request, create_proposal_from_request, finalize_direct_modification_mode, governance_status, list_evolution_records, record_to_json, reject_proposal, run_evolution_smoke, show_evolution_record
+from .external_collab import create_external_feedback_card, render_feedback_card_summary
 from .fsm import fsm_tick, fsm_watch
 from .harness import render_harness_json, render_harness_markdown
 from .integrity import run_checks
 from .intent import INTENTS_DIR, create_intent
 from .llm_executor import run_llm
 from .owner import approve_owner_item, list_owner_items, reject_owner_item, render_owner_item
-from .prompt_builder import build_prompt
+from .prompt_builder import build_external_developer_prompt, build_prompt
 from .result import import_result
 from .review import REVIEWS_DIR, pending_reviews, set_review_status
 from .summary import render_summary
@@ -26,9 +29,9 @@ from .workflow import list_reports, list_workflows, load_report, render_json, re
 
 def cmd_status(_: argparse.Namespace) -> None:
     print(f"Abyss MVP {__version__}")
+    print("Governed AI orchestration system - CLI kernel")
     print(f"repo: {repo_root()}")
     print(run_git(["status", "--short", "--branch"], allow_fail=True))
-
 
 def cmd_intent_new(args: argparse.Namespace) -> None:
     record = create_intent(args.goal, mode=args.mode)
@@ -47,6 +50,13 @@ def cmd_prompt_build(args: argparse.Namespace) -> None:
     intent_path = resolve_record_arg(INTENTS_DIR, args.intent, "intent")
     path = build_prompt(intent_path, include_git_diff=args.git_diff, copy=args.copy)
     print(f"built: {path.relative_to(repo_root())}")
+    if args.copy:
+        print("copied to clipboard")
+
+
+def cmd_prompt_build_external(args: argparse.Namespace) -> None:
+    path = build_external_developer_prompt(args.objective, details=args.details or "", copy=args.copy)
+    print(f"built external developer package: {path.relative_to(repo_root())}")
     if args.copy:
         print("copied to clipboard")
 
@@ -245,7 +255,14 @@ def cmd_changeset_list(_: argparse.Namespace) -> None:
         print("no changesets")
         return
     for record in records:
-        print(f"{record.get('id')} [{record.get('status')}] roadmap={record.get('roadmap_id')} {record.get('summary', '')}")
+        line = f"{record.get('id')} [{record.get('status')}] roadmap={record.get('roadmap_id')} {record.get('summary', '')}"
+        if record.get('status') == 'invalid':
+            validation = record.get('validation')
+            if isinstance(validation, dict):
+                messages = validation.get('messages', [])
+                if messages and isinstance(messages, list) and messages[0] != 'OK':
+                    line += f" validation: {messages[0]}"
+        print(line)
 
 
 def cmd_changeset_show(args: argparse.Namespace) -> None:
@@ -295,13 +312,35 @@ def cmd_workflow_retry(args: argparse.Namespace) -> None:
     print(render_json(retry_workflow(args.workflow, from_stage=args.from_stage)))
 
 
-def cmd_workflow_list(_: argparse.Namespace) -> None:
+def cmd_workflow_list(args: argparse.Namespace) -> None:
     workflows = list_workflows()
     if not workflows:
         print("no workflows")
         return
+    status_filter = getattr(args, 'status', None)
     for workflow in workflows:
-        print(f"{workflow.get('id')} [{workflow.get('status')}] roadmap={workflow.get('roadmap_id')} proposal={workflow.get('proposal_id')} {workflow.get('summary', '')}")
+        status = workflow.get('status')
+        last_event = (workflow.get('history') or [{}])[-1]
+        details = last_event.get('details') or {}
+        displayed_status = status
+        if status == 'blocked' and last_event.get('event') == 'implementation_blocked' and details.get('category') == 'already_satisfied':
+            displayed_status = 'satisfied_without_changes'
+        if status_filter and displayed_status != status_filter:
+            continue
+        marker = ""
+        if displayed_status == "done" and workflow.get("changeset_id"):
+            marker = " [applied]"
+        # Build metadata suffix for completed workflows
+        metadata_parts = []
+        if displayed_status == "done":
+            changeset_id = workflow.get("changeset_id")
+            report_id = workflow.get("report_id")
+            if changeset_id:
+                metadata_parts.append(f"changeset={changeset_id}")
+            if report_id:
+                metadata_parts.append(f"report={report_id}")
+        metadata_suffix = " " + " ".join(metadata_parts) if metadata_parts else ""
+        print(f"{workflow.get('id')} [{displayed_status}]{marker} roadmap={workflow.get('roadmap_id')} proposal={workflow.get('proposal_id')} {workflow.get('summary', '')}{metadata_suffix}")
 
 
 def cmd_owner_inbox(args: argparse.Namespace) -> None:
@@ -335,8 +374,8 @@ def cmd_report_list(_: argparse.Namespace) -> None:
         print("no workflow reports")
         return
     for report in reports:
-        print(f"{report.get('id')} workflow={report.get('workflow_id')} roadmap={report.get('roadmap_id')} status={report.get('status')}")
-
+        changeset_id = report.get('changeset_id', '')
+        print(f"{report.get('id')} workflow={report.get('workflow_id')} roadmap={report.get('roadmap_id')} status={report.get('status')} changeset={changeset_id}")
 
 def cmd_report_show(args: argparse.Namespace) -> None:
     print(render_json(load_report(args.report)))
@@ -344,6 +383,19 @@ def cmd_report_show(args: argparse.Namespace) -> None:
 
 def cmd_summary(args: argparse.Namespace) -> None:
     print(render_summary(include_check=args.check))
+
+
+def cmd_brain_brief(args: argparse.Namespace) -> None:
+    print(render_brain_brief(as_json=args.json))
+
+
+def cmd_disclosure_audit(args: argparse.Namespace) -> None:
+    audit = audit_context_manifest()
+    if args.json:
+        print(render_json(audit))
+    else:
+        print(render_disclosure_audit(audit))
+    raise SystemExit(0 if audit.get("ok") else 1)
 
 
 def cmd_direct_auth_init(args: argparse.Namespace) -> None:
@@ -365,6 +417,11 @@ def cmd_direct_auth_list(args: argparse.Namespace) -> None:
 
 def cmd_direct_auth_status(_: argparse.Namespace) -> None:
     print(render_json(direct_auth_status()))
+
+
+def cmd_external_import_result(args: argparse.Namespace) -> None:
+    card = create_external_feedback_card(Path(args.path), task_id=args.task_id or "", source_platform=args.source_platform)
+    print(render_feedback_card_summary(card))
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -390,6 +447,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--git-diff", action="store_true", help="include git diff context")
     p.add_argument("--copy", action="store_true", help="copy prompt package to clipboard on Windows")
     p.set_defaults(func=cmd_prompt_build)
+    p = prompt_sub.add_parser("build-external", help="build a governed external model collaboration package")
+    p.add_argument("objective", help="external model task objective")
+    p.add_argument("--details", default="", help="additional task details or constraints")
+    p.add_argument("--copy", action="store_true", help="copy prompt package to clipboard on Windows")
+    p.set_defaults(func=cmd_prompt_build_external)
 
     p_result = sub.add_parser("result")
     result_sub = p_result.add_subparsers(required=True)
@@ -547,6 +609,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--from-stage", choices=["implementation", "changeset", "harness_review"], default="implementation")
     p.set_defaults(func=cmd_workflow_retry)
     p = workflow_sub.add_parser("list")
+    p.add_argument("--status", default=None, help="filter workflows by displayed status (e.g. done, failed, blocked, rejected, satisfied_without_changes, implementation_pending, waiting_owner_approval)")
     p.set_defaults(func=cmd_workflow_list)
 
     p_owner = sub.add_parser("owner")
@@ -592,6 +655,26 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_direct_auth_list)
     p = direct_auth_sub.add_parser("status")
     p.set_defaults(func=cmd_direct_auth_status)
+
+    p_external = sub.add_parser("external")
+    external_sub = p_external.add_subparsers(required=True)
+    p = external_sub.add_parser("import-result", help="import external model output as a candidate feedback card")
+    p.add_argument("path", help="path to external model response markdown/text")
+    p.add_argument("--task-id", default="", help="optional external task id or prompt package id")
+    p.add_argument("--source-platform", default="external_model", help="external model platform name")
+    p.set_defaults(func=cmd_external_import_result)
+
+    p_brain = sub.add_parser("brain")
+    brain_sub = p_brain.add_subparsers(required=True)
+    p = brain_sub.add_parser("brief", help="render a read-only Brain Agent v0 status brief")
+    p.add_argument("--json", action="store_true", help="render the brief as JSON")
+    p.set_defaults(func=cmd_brain_brief)
+
+    p_disclosure = sub.add_parser("disclosure")
+    disclosure_sub = p_disclosure.add_subparsers(required=True)
+    p = disclosure_sub.add_parser("audit", help="audit context_manifest disclosure levels without changing context pack behavior")
+    p.add_argument("--json", action="store_true", help="render the audit as JSON")
+    p.set_defaults(func=cmd_disclosure_audit)
 
     p = sub.add_parser("summary")
     p.add_argument("--check", action="store_true", help="include integrity check result")

@@ -8,6 +8,8 @@
       "stdin": "complete Prompt Package text encoded as UTF-8",
       "stdout": "complete LLM response text encoded as UTF-8",
       "stderr": "diagnostics only; surfaced on failure",
+      "model_switching": "Optional standard CLI model selection: when providers.<name>.model is non-empty, Abyss appends [model_argument, model] to the configured command before invoking it. model_argument defaults to --model. Provider adapters that support model switching should accept this argv convention.",
+      "retry": "Optional bounded retry configuration: timeout_seconds controls each attempt, max_attempts defaults to 1 and is capped at 3, retry_backoff_seconds applies a short linear backoff between timeout or empty-stdout failures. Non-zero exit codes and process start failures are not retried.",
       "side_effects": "Provider may call an LLM service, but must not modify Abyss files directly. Abyss is responsible for saving result files and importing action proposals."
     },
     "http_json_prompt_package_response_v1": {
@@ -39,7 +41,11 @@
       "interface": "stdin_prompt_package_stdout_response_v1",
       "description": "Standard CLI provider. The command reads the prompt package from stdin and writes the LLM response to stdout.",
       "command": [],
-      "timeout_seconds": 300
+      "model": "",
+      "model_argument": "--model",
+      "timeout_seconds": 300,
+      "max_attempts": 1,
+      "retry_backoff_seconds": 2
     },
     "api": {
       "enabled": false,

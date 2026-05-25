@@ -294,6 +294,22 @@ def create_proposal_from_request(request_value: str) -> dict[str, Any]:
     except Exception:
         pass  # Fall back to generic proposal if analysis loading fails
     
+    # If no analysis found, invoke self-evolution agent to generate one
+    if not analysis_summary and not minimal_slice:
+        try:
+            from .agent_runner import run_agent
+            agent_run, analysis_result = run_agent("self_evolution", target=request.get("id"))
+            if analysis_result and analysis_result.get("schema") == "abyss.evolution_analysis.v1":
+                analysis_summary = str(analysis_result.get("summary") or "")
+                minimal_slice = str(analysis_result.get("minimal_slice") or "")
+                risks = analysis_result.get("risks") if isinstance(analysis_result.get("risks"), list) else []
+                roadmap_status = str(analysis_result.get("roadmap_status") or "not_in_roadmap")
+                implementation_allowed_now = bool(analysis_result.get("implementation_allowed_now", False))
+                acceptance_checks = analysis_result.get("acceptance_checks") if isinstance(analysis_result.get("acceptance_checks"), list) else []
+        except Exception as e:
+            # If self-evolution agent fails, raise exception instead of silent fallback
+            raise SystemExit(f"Self-evolution analysis failed for request {request.get('id')}: {e}")
+    
     proposal = {
         "schema": "abyss.evolution_proposal.v1",
         "id": proposal_id,

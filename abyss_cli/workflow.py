@@ -16,9 +16,33 @@ from .utils import list_records, new_id, now_iso, read_record, relative_to_repo,
 WORKFLOWS_DIR = runtime_root() / "process" / "workflows"
 REPORTS_DIR = runtime_root() / "process" / "reports"
 LOCK_PATH = runtime_root() / "process" / "workflow.lock"
+CONTEXT_PACKS_DIR = runtime_root() / "process" / "context_packs"
+
 
 TERMINAL_STATES = {"done", "failed", "blocked", "rejected"}
 WAITING_STATES = {"waiting_owner_approval"}
+
+_STATE_DISPLAY_LABELS: dict[str, str] = {
+    "implementation_pending": "Pending Implementation",
+    "implementation_running": "Implementing",
+    "changeset_proposed": "ChangeSet Proposed",
+    "dry_run_passed": "Dry-Run Passed",
+    "harness_review_running": "Harness Reviewing",
+    "waiting_owner_approval": "Awaiting Owner",
+    "approved_for_execution": "Approved for Execution",
+    "executing": "Executing",
+    "checking": "Checking Integrity",
+    "done": "Done",
+    "failed": "Failed",
+    "blocked": "Blocked",
+    "rejected": "Rejected",
+}
+
+
+def state_display_label(status: str) -> str:
+    """Return a human-friendly display label for a workflow status."""
+    return _STATE_DISPLAY_LABELS.get(status, status)
+
 
 
 class WorkflowLock:
@@ -126,7 +150,27 @@ def _record_transition(workflow: dict[str, Any], status: str, event: str, detail
     return workflow
 
 
+def _context_pack_included_files(agent_run: dict[str, Any]) -> set[str]:
+    """Return files included in the Context Pack used by an agent run."""
+    context = agent_run.get("context") if isinstance(agent_run.get("context"), dict) else {}
+    files = context.get("files_included") if isinstance(context.get("files_included"), list) else []
+    included = {str(path) for path in files if path}
+    pack_id = context.get("context_pack_id")
+    if pack_id:
+        pack_path = CONTEXT_PACKS_DIR / f"{pack_id}.yaml"
+        if pack_path.exists():
+            try:
+                pack_record = read_record(pack_path)
+                for path in pack_record.get("files_included", []):
+                    if path:
+                        included.add(str(path))
+            except Exception:
+                pass
+    return included
+
+
 def _create_owner_changeset_item(workflow: dict[str, Any], changeset: dict[str, Any], review: dict[str, Any]) -> dict[str, Any]:
+
     from .owner import create_owner_item
 
     return create_owner_item(
@@ -194,12 +238,20 @@ def workflow_tick(*, provider: str | None = None, workflow_id: str | None = None
         if status == "implementation_pending":
             workflow["provider"] = provider_name
             workflow["attempts"]["implementation"] = int(workflow.get("attempts", {}).get("implementation", 0)) + 1
+            workflow["context_pack_id"] = None  # Track context pack usage for audit
             _record_transition(workflow, "implementation_running", "implementation_agent_started", {"provider": provider_name})
             try:
                 agent_run, result = run_agent("implementation", target=str(workflow.get("proposal_id")), provider=provider_name)
-            except Exception as exc:
-                workflow["last_error"] = str(exc)
-                return _record_transition(workflow, "failed", "implementation_agent_failed", {"error": str(exc)})
+            except (Exception, SystemExit) as exc:
+                error_msg = str(exc)
+                workflow["last_error"] = error_msg
+                # Detect transient provider errors and allow one retry
+                transient_markers = ["timed out", "timeout", "empty stdout", "empty filtered response", "empty response"]
+                is_transient = any(marker in error_msg.lower() for marker in transient_markers)
+                current_attempts = int(workflow.get("attempts", {}).get("implementation", 0))
+                if is_transient and current_attempts < 2:
+                    return _record_transition(workflow, "implementation_pending", "implementation_agent_transient_failure_retry", {"error": error_msg, "attempt": current_attempts, "transient": True})
+                return _record_transition(workflow, "failed", "implementation_agent_failed", {"error": error_msg})
             if not result:
                 return _record_transition(workflow, "failed", "implementation_agent_produced_no_output", {"agent_run_id": agent_run.get("id")})
 
@@ -210,8 +262,23 @@ def workflow_tick(*, provider: str | None = None, workflow_id: str | None = None
             if output_type == "context_request":
                 missing_files = [m.get("file") for m in result.get("missing", [])]
                 reason = result.get("reason", "Context insufficient")
+                included_files = _context_pack_included_files(agent_run)
+                requested_existing_files = [f for f in missing_files if f and f in included_files]
+                if requested_existing_files:
+                    workflow["last_error"] = "context_request_redundant: agent requested files already included in Context Pack"
+                    workflow["context_request_id"] = result.get("id")
+                    workflow["context_request_missing_files"] = missing_files
+                    return _record_transition(workflow, "failed", "implementation_agent_redundant_context_request", {
+                        "agent_run_id": agent_run.get("id"),
+                        "context_request_id": result.get("id"),
+                        "missing_files": missing_files,
+                        "files_already_included": requested_existing_files,
+                        "context_pack_id": agent_run.get("context", {}).get("context_pack_id") if isinstance(agent_run.get("context"), dict) else None,
+                        "reason": reason,
+                    })
                 workflow["last_error"] = f"context_request: {reason}"
                 workflow["context_request_id"] = result.get("id")
+                workflow["context_request_missing_files"] = missing_files
                 return _record_transition(workflow, "blocked", "implementation_context_insufficient", {
                     "agent_run_id": agent_run.get("id"),
                     "context_request_id": result.get("id"),
@@ -220,6 +287,7 @@ def workflow_tick(*, provider: str | None = None, workflow_id: str | None = None
                 })
 
             # Handle blocked_result output
+
             if output_type == "blocked_result":
                 blocked_reason = result.get("blocked_reason", "Task blocked")
                 category = result.get("category", "unknown")
@@ -254,7 +322,7 @@ def workflow_tick(*, provider: str | None = None, workflow_id: str | None = None
             _record_transition(workflow, "harness_review_running", "harness_review_started", {"changeset_id": changeset_id, "provider": provider_name})
             try:
                 agent_run, review = run_harness_changeset_review(changeset_id, provider=provider_name)
-            except Exception as exc:
+            except (Exception, SystemExit) as exc:
                 workflow["last_error"] = str(exc)
                 return _record_transition(workflow, "failed", "harness_review_failed", {"error": str(exc)})
             workflow["harness_agent_run_id"] = agent_run.get("id")
@@ -276,7 +344,7 @@ def workflow_tick(*, provider: str | None = None, workflow_id: str | None = None
             _record_transition(workflow, "executing", "executor_started", {"changeset_id": changeset_id})
             try:
                 execution = apply_changeset(changeset_id)
-            except Exception as exc:
+            except (Exception, SystemExit) as exc:
                 workflow["last_error"] = str(exc)
                 return _record_transition(workflow, "failed", "executor_failed", {"error": str(exc)})
             workflow["execution_id"] = execution.get("id")
@@ -337,11 +405,12 @@ def list_reports() -> list[dict[str, Any]]:
 
 def retry_workflow(value: str, *, from_stage: str = "implementation") -> dict[str, Any]:
     workflow = load_workflow(value)
-    if workflow.get("status") not in {"failed", "blocked", "implementation_running", "harness_review_running"}:
+    if workflow.get("status") not in {"failed", "blocked", "rejected", "implementation_running", "harness_review_running"}:
         raise SystemExit(f"Workflow is not retryable from status: {workflow.get('status')}")
     if from_stage == "implementation":
         workflow.setdefault("attempts", {})["implementation"] = 0
         workflow.pop("last_error", None)
+        workflow.pop("rejection_reason", None)
         return _record_transition(workflow, "implementation_pending", "owner_retry_implementation", {})
     if from_stage == "changeset":
         changeset_id = str(workflow.get("changeset_id") or "")

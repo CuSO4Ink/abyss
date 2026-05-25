@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .audit import append_event
+from .context_pack import build_context_pack, render_context_pack_for_prompt, render_context_pack_summary
 from .harness import render_harness_markdown
 from .utils import copy_to_clipboard, new_id, now_iso, read_record, repo_root, run_git, runtime_root
 
@@ -95,4 +96,103 @@ Never claim an action has been executed. Only propose actions.
     if copy:
         copy_to_clipboard(body)
     append_event("prompt_package.created", "Built prompt package", {"prompt_package_id": ppkg_id, "intent_id": intent["id"], "path": path.as_posix()})
+    return path
+
+
+def build_external_developer_prompt(objective: str, *, details: str = "", copy: bool = False) -> Path:
+    """Build a governed task package for an external model platform.
+
+    External platforms are temporary expert resources. The generated package is
+    candidate-material-only and cannot approve, execute, mutate files, or bypass
+    the Abyss governance path.
+    """
+    target_record = {
+        "schema": "abyss.external_developer_task.v1",
+        "objective": objective,
+        "details": details,
+        "candidate_material_only": True,
+        "no_action_executed": True,
+    }
+    context_pack = build_context_pack(
+        agent_id="external_developer",
+        target_record=target_record,
+        task_type="external_collaboration",
+    )
+    ppkg_id = new_id("ppkg_external_developer")
+    context_pack_summary = render_context_pack_summary(context_pack)
+    context_pack_rendered = render_context_pack_for_prompt(context_pack)
+    body = f"""# Abyss External Developer Prompt Package
+
+- prompt_package_id: {ppkg_id}
+- package_type: external_developer_task
+- created_at: {now_iso()}
+- executor: external_model_platform
+- context_pack_id: {context_pack.get("id")}
+- task_type: {context_pack.get("task_type")}
+- candidate_material_only: true
+- no_action_executed: true
+
+---
+
+## Task objective
+
+{objective}
+
+---
+
+## Additional details
+
+{details or '[none]'}
+
+---
+
+## Authority boundary
+
+The external model platform is a replaceable expert resource. Its output is candidate material only. It must not claim facts, approvals, execution, file mutation, state transition, scheduling, governance decisions, or ownership of Abyss memory/direction.
+
+Any meaningful system modification must still follow the governed path: proposal, approval, workflow, changeset, validation, Harness review, Owner approval, executor apply, and report.
+
+---
+
+## Context Pack Summary
+
+```text
+{context_pack_summary}
+```
+
+---
+
+{context_pack_rendered}
+
+---
+
+## Required output
+
+Return a concise response with these sections:
+
+1. Task understanding
+2. Modules touched
+3. Files touched
+4. Proposed changes
+5. Candidate ChangeSet / code approach, if applicable
+6. Validation
+7. Risk assessment
+8. Architecture alignment
+9. Open questions
+10. Whether Brain Agent / Owner decision is needed
+11. Recommended next step
+
+Do not claim execution. Do not output approvals. Do not bypass Harness, Owner, workflow, or executor boundaries.
+"""
+    PROMPT_DIR.mkdir(parents=True, exist_ok=True)
+    path = PROMPT_DIR / f"{ppkg_id}.md"
+    path.write_text(body, encoding="utf-8")
+    if copy:
+        copy_to_clipboard(body)
+    append_event("prompt_package.external_developer.created", "Built external developer prompt package", {
+        "prompt_package_id": ppkg_id,
+        "context_pack_id": context_pack.get("id"),
+        "task_type": context_pack.get("task_type"),
+        "path": path.as_posix(),
+    })
     return path

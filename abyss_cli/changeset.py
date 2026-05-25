@@ -29,6 +29,10 @@ ALLOWED_FS_ROOTS = (
     "SYSTEM_MAP.md",
 )
 
+ALLOWED_FS_PATHS = {
+    "rules/context_manifest.yaml",
+}
+
 BLOCKED_PATH_PREFIXES = (
     ".git/",
     ".local/",
@@ -50,6 +54,18 @@ ALLOWED_CHECK_COMMANDS = {
     "python -m abyss_cli check": ["python", "-m", "abyss_cli", "check"],
     "python -m compileall -q abyss_cli": ["python", "-m", "compileall", "-q", "abyss_cli"],
 }
+
+LOW_INFORMATION_DECORATIVE_SYMBOLS = {
+    "✓", "✔", "✅", "✗", "✘", "❌", "⚠", "⚠️", "⭐", "★", "→", "➡", "⬆", "⬇",
+}
+
+
+def _decorative_symbol_messages(text: str, op_id: str) -> list[str]:
+    messages: list[str] = []
+    for symbol in sorted(LOW_INFORMATION_DECORATIVE_SYMBOLS):
+        if symbol in text:
+            messages.append(f"LOW_INFORMATION_DECORATIVE_SYMBOL {op_id} {symbol!r}")
+    return messages
 
 
 def _record_path(changeset_id: str) -> Path:
@@ -77,6 +93,8 @@ def _is_allowed_fs_path(rel: str) -> bool:
     rel = _normalize_path(rel)
     if rel in BLOCKED_PATHS:
         return False
+    if rel in ALLOWED_FS_PATHS:
+        return True
     if any(rel.startswith(prefix) for prefix in BLOCKED_PATH_PREFIXES):
         return False
     for root in ALLOWED_FS_ROOTS:
@@ -116,8 +134,10 @@ def _validate_operation(operation: dict[str, Any], *, for_apply: bool = False) -
         path = _target_path(rel)
         data = _operation_input(operation)
         if kind == "fs.create_file":
+            content = str(data.get("content") if "content" in data else data.get("new_content") or "")
             if "content" not in data and "new_content" not in data:
                 messages.append(f"MISSING_CONTENT {op_id}")
+            messages.extend(_decorative_symbol_messages(content, op_id))
             if path.exists() and for_apply:
                 messages.append(f"TARGET_EXISTS {op_id} {rel}")
         elif kind == "fs.replace_exact":
@@ -127,6 +147,9 @@ def _validate_operation(operation: dict[str, Any], *, for_apply: bool = False) -
                 messages.append(f"MISSING_OLD_CONTENT {op_id}")
             if old_content == new_content:
                 messages.append(f"NOOP_REPLACE {op_id}")
+            if old_content and "\ufffd" in old_content:
+                messages.append(f"OLD_CONTENT_CONTAINS_REPLACEMENT_CHARS {op_id} (likely encoding corruption)")
+            messages.extend(_decorative_symbol_messages(new_content, op_id))
             if not path.exists():
                 messages.append(f"TARGET_MISSING {op_id} {rel}")
             elif for_apply:
@@ -135,8 +158,10 @@ def _validate_operation(operation: dict[str, Any], *, for_apply: bool = False) -
                 if count != 1:
                     messages.append(f"OLD_CONTENT_MATCH_COUNT {op_id} {rel} count={count}")
         elif kind == "fs.append_file":
+            content = str(data.get("content") or "")
             if "content" not in data:
                 messages.append(f"MISSING_CONTENT {op_id}")
+            messages.extend(_decorative_symbol_messages(content, op_id))
             if not path.exists() and for_apply:
                 messages.append(f"TARGET_MISSING {op_id} {rel}")
 

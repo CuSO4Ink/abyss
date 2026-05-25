@@ -4,6 +4,7 @@ import json
 import os
 import re
 import subprocess
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -95,6 +96,17 @@ def _intent_path_from_prompt(prompt_text: str) -> Path | None:
     return path if path.exists() else None
 
 
+def _positive_int(value: Any, default: int, *, minimum: int = 1, maximum: int | None = None) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = default
+    parsed = max(minimum, parsed)
+    if maximum is not None:
+        parsed = min(maximum, parsed)
+    return parsed
+
+
 def _cli_response(provider_config: dict[str, Any], prompt_text: str) -> str:
     interface = provider_config.get("interface", CLI_PROVIDER_INTERFACE)
     if interface != CLI_PROVIDER_INTERFACE:
@@ -106,28 +118,54 @@ def _cli_response(provider_config: dict[str, Any], prompt_text: str) -> str:
             "CLI provider is not configured. Set providers.cli.command in .local/llm_providers.json, "
             "for example: {\"providers\": {\"cli\": {\"command\": [\"your-llm-cli\", \"arg\"]}}}"
         )
-    timeout = int(provider_config.get("timeout_seconds", 120))
-    try:
-        proc = subprocess.run(
-            command,
-            input=prompt_text,
-            text=True,
-            capture_output=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise SystemExit(f"CLI provider timed out after {timeout} seconds") from exc
-    except OSError as exc:
-        raise SystemExit(f"CLI provider could not start: {exc}") from exc
-    if proc.returncode != 0:
-        detail = (proc.stderr or proc.stdout or "").strip()
-        raise SystemExit(detail or f"CLI provider failed with exit code {proc.returncode}")
-    output = proc.stdout.strip()
-    if not output:
-        raise SystemExit("CLI provider returned empty stdout")
-    return output + "\n"
+    command = list(command)
+    model = str(provider_config.get("model") or "").strip()
+    model_argument = str(provider_config.get("model_argument") or "--model").strip()
+    if model:
+        if not model_argument:
+            raise SystemExit("CLI provider model is configured but model_argument is empty")
+        command.extend([model_argument, model])
+
+    timeout = _positive_int(provider_config.get("timeout_seconds"), 120)
+    max_attempts = _positive_int(provider_config.get("max_attempts"), 2, maximum=3)
+    retry_backoff_seconds = _positive_int(provider_config.get("retry_backoff_seconds"), 3, minimum=0, maximum=30)
+    retryable_errors: list[str] = []
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            proc = subprocess.run(
+                command,
+                input=prompt_text,
+                text=True,
+                capture_output=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired:
+            message = f"CLI provider timed out after {timeout} seconds (attempt {attempt}/{max_attempts})"
+            retryable_errors.append(message)
+            append_event("llm.provider.retryable_failure", message, {"provider": "cli", "attempt": attempt, "max_attempts": max_attempts, "reason": "timeout", "timeout_seconds": timeout})
+        except OSError as exc:
+            raise SystemExit(f"CLI provider could not start: {exc}") from exc
+        else:
+            if proc.returncode != 0:
+                detail = (proc.stderr or proc.stdout or "").strip()
+                raise SystemExit(detail or f"CLI provider failed with exit code {proc.returncode}")
+            output = proc.stdout.strip()
+            if output:
+                if attempt > 1:
+                    append_event("llm.provider.retry_recovered", "CLI provider returned output after retry", {"provider": "cli", "attempt": attempt, "max_attempts": max_attempts, "prior_errors": retryable_errors})
+                return output + "\n"
+            message = f"CLI provider returned empty stdout (attempt {attempt}/{max_attempts})"
+            retryable_errors.append(message)
+            append_event("llm.provider.retryable_failure", message, {"provider": "cli", "attempt": attempt, "max_attempts": max_attempts, "reason": "empty_stdout", "stdout_length": 0, "stderr_preview": (proc.stderr or "")[:200]})
+
+        if attempt < max_attempts and retry_backoff_seconds > 0:
+            time.sleep(retry_backoff_seconds * attempt)
+
+    detail = "; ".join(retryable_errors[-max_attempts:]) or "unknown retryable provider failure"
+    raise SystemExit(f"CLI provider failed after {max_attempts} attempt(s): {detail}")
 
 
 def _json_path(data: Any, path: str) -> Any:
