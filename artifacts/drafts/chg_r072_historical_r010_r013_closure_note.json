@@ -1,0 +1,52 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r072_historical_r010_r013_closure_note",
+  "roadmap_id": "R072",
+  "summary": "Create a documentation-only closure note for historical R010 and R013 review inputs.",
+  "risk_level": "L2",
+  "status": "draft",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.create_file",
+      "capability": "fs.write",
+      "target": {"path": "artifacts/drafts/historical_r010_r013_closure_note.md"},
+      "input": {
+        "content": "# Historical R010 / R013 Closure Note\n\nRoadmap item: R072\nPurpose: reclassify two older ambiguity points as structural review inputs rather than active health failures.\n\n## Boundary statement\n\nThis note is documentation-only. It does not change source code, prompts, Harness behavior, workflow state, approval policy, provider behavior, or ROADMAP entries outside the governed R072 record.\n\n## Current health interpretation\n\nAt the R072 baseline, active health is determined by `summary.state_semantics.active_health_gates`:\n\n- `active_workflows`\n- `pending_owner_items`\n- `true_failures`\n- `true_blocked`\n\nR010 and R013 are not current active health failures unless a new workflow reproduces them into one of those active gates. They remain structural review inputs.\n\n## R010: Harness Review Recovery\n\nClassification: historical failed recovery sample / review input.\n\nCurrent interpretation:\n\n- R010 should not be treated as an active failure while `true_failures` and `true_blocked` remain zero.\n- Later work added stronger deterministic validation, Harness review evidence, supersede accounting, and corrected ChangeSet accounting.\n- The structural review should still ask whether Harness recovery has a current positive example and whether the old R010 record should be closed as superseded by later capabilities or retested with a narrow probe.\n\nRemaining review questions:\n\n1. What exact recovery case should count as a positive Harness Review Recovery example?\n2. Should recovery mean retrying Harness review, reconstructing a lost review record, or revalidating a corrected ChangeSet?\n3. Is the current supersede-by-corrected path enough, or does Harness need a separate recovery command?\n\n## R013: Agent Prompt normalization\n\nClassification: no-op / already-satisfied semantics sample / review input.\n\nCurrent interpretation:\n\n- R013 should not be treated as an active failure while `true_failures` and `true_blocked` remain zero.\n- Its value is as a semantics case: already_satisfied, blocked, no-op, and satisfied_without_changes must be represented consistently.\n- Later summary state semantics now distinguish active health gates from historical or expected buckets.\n\nRemaining review questions:\n\n1. Should already_satisfied be a terminal success, a blocked subtype, or a separate satisfied_without_changes outcome?\n2. Should prompt normalization be retested as a new narrow item, or considered superseded by later output protocol hardening?\n3. Which prompt changes require governance-core/meta handling versus ordinary source/prompt maintenance?\n\n## Reclassification criteria\n\nA historical item may remain a review input when all of these are true:\n\n1. It is not present in `active_workflows`.\n2. It does not create a pending Owner item.\n3. It is absent from `true_failures`.\n4. It is absent from `true_blocked`.\n5. Its evidence is preserved in workflow, ChangeSet, report, or artifact records.\n6. A future action can be expressed as a new explicit proposal rather than silently reopening the old item.\n\n## Recommended handling during structural review\n\n- Keep R010 and R013 visible in the review baseline.\n- Do not fix or retest them opportunistically during unrelated maintenance.\n- If either becomes relevant, create a new narrow proposal with clear acceptance criteria.\n"
+      },
+      "preconditions": ["target_absent"],
+      "rollback": {"strategy": "manual_revert_from_git_diff"}
+    },
+    {
+      "id": "check_001",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {"path": "system"},
+      "input": {"command": "python -m compileall -q abyss_cli"},
+      "preconditions": ["changes_applied_before_check"],
+      "rollback": {"strategy": "not_applicable"}
+    },
+    {
+      "id": "check_002",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {"path": "system"},
+      "input": {"command": "python -m abyss_cli check"},
+      "preconditions": ["changes_applied_before_check"],
+      "rollback": {"strategy": "not_applicable"}
+    },
+    {
+      "id": "check_003",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {"path": "system"},
+      "input": {"command": "python -m abyss_cli summary --check"},
+      "preconditions": ["changes_applied_before_check"],
+      "rollback": {"strategy": "not_applicable"}
+    }
+  ],
+  "generated_by": "corrected_implementation_path",
+  "created_at": "2026-05-26T18:56:00+08:00",
+  "updated_at": "2026-05-26T18:56:00+08:00",
+  "no_action_executed": true
+}

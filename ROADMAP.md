@@ -1767,6 +1767,30 @@ Acceptance check:
 - The proposal can be inspected independently of ROADMAP.md.
 - No external interface is used for anything other than standard LLM invocation.
 
+### R072. R072 historical R010 R013 closure note
+
+Source proposal: `evo_prop_20260526_185407_f4361d`.
+
+Purpose: R072 historical R010 R013 closure note
+
+Why it is needed: Source-adjacent documentation maintenance. Scope: create artifacts/drafts/historical_r010_r013_closure_note.md only. Goal: record that R010 Harness Review Recovery and R013 Agent Prompt normalization are historical samples for structural review rather than active health failures; summarize current reclassification criteria and remaining review questions. Non-goals: no source code changes, no prompt changes, no Harness behavior changes, no workflow state mutation, no ROADMAP manual edits. Acceptance: note exists, states whether each item is active failure vs historical review input, references current summary state semantics, compileall/check/summary pass.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
 ## Pending proposals
 
 None.
