@@ -43,6 +43,12 @@ __pycache__/
 *.pyc
 *.egg-info/
 
+# Python virtual environments
+.venv/
+venv/
+ENV/
+env/
+
 # OS/editor noise
 .DS_Store
 Thumbs.db

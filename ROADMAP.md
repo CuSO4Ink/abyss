@@ -1620,6 +1620,33 @@ Acceptance check:
 - The proposal can be inspected independently of ROADMAP.md.
 - No external interface is used for anything other than standard LLM invocation.
 
+### R066. Meta M006 repository path policy review packet
+
+Source proposal: `evo_prop_20260526_164116_60ffba`.
+
+Purpose: Meta M006 repository path policy review packet
+
+Why it is needed: request_type: meta_evolution_request; purpose: prepare a review packet for repository path policy maintenance before any implementation; scope: analyze whether shared repo path policy extraction is necessary, identify protected surfaces affected, define behavior-preservation constraints, risk assessment, rollback plan, validation plan, activation note, and delayed activation requirements; no source code modification; no implementation authorization; no self-approval; no same-cycle activation; output should support explicit Owner decision under currently accepted rules.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L3.
+
+Acceptance check:
+
+- Governance-core scope is explicitly classified before any implementation work.
+- The proposal cannot proceed through ordinary self-evolution as a self-approving closure.
+- Self Evolution and Brain Agent may analyze or prepare but cannot approve, apply, activate, or retroactively legitimize governance-core changes.
+- Risk assessment, rollback plan, validation plan, activation note, old-rule review, and explicit Owner approval are required before implementation.
+- Accepted governance-core changes activate only in a later workflow cycle, not in the cycle that approved them.
+- No governance-core change was applied, activated, or scheduled by this proposal record.
+
 ## Pending proposals
 
 None.
