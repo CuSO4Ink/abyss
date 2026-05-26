@@ -1,0 +1,295 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r051_corrected_shared_fenced_blocks_parser",
+  "roadmap_id": "R051",
+  "summary": "Extract shared fenced JSON parser for agent output blocks",
+  "risk_level": "L2",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.create_file",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/fenced_blocks.py"
+      },
+      "input": {
+        "content": "from __future__ import annotations\n\nimport json\nimport re\nfrom collections.abc import Sequence\nfrom typing import Any\n\nFENCE_RE = re.compile(r\"```\")\n\n\ndef _names(value: str | Sequence[str]) -> tuple[str, ...]:\n    if isinstance(value, str):\n        return (value,)\n    return tuple(str(item) for item in value)\n\n\ndef _start_re(block_names: str | Sequence[str]) -> re.Pattern[str]:\n    alternatives = \"|\".join(re.escape(name) for name in _names(block_names))\n    return re.compile(rf\"```(?:{alternatives})\\s*\", re.IGNORECASE)\n\n\ndef parse_json_object(raw_json: str, *, object_error: str = \"JSON block was not an object\") -> tuple[dict[str, Any] | None, str | None]:\n    try:\n        parsed = json.loads(raw_json)\n    except json.JSONDecodeError as exc:\n        repaired = re.sub(r\",\\s*([}\\]])\", r\"\\1\", raw_json)\n        try:\n            parsed = json.loads(repaired)\n        except json.JSONDecodeError:\n            return None, str(exc)\n    return (parsed, None) if isinstance(parsed, dict) else (None, object_error)\n\n\ndef extract_named_json_blocks(text: str, block_names: str | Sequence[str]) -> list[str]:\n    \"\"\"Extract JSON object text from named fenced blocks.\n\n    The scanner tries each possible closing fence until the enclosed text parses as\n    a JSON object. This tolerates literal triple-backticks inside JSON strings,\n    where a naive non-greedy regex would stop too early.\n    \"\"\"\n    blocks: list[str] = []\n    for start in _start_re(block_names).finditer(text):\n        content_start = start.end()\n        for fence in FENCE_RE.finditer(text, content_start):\n            raw_json = text[content_start:fence.start()].strip()\n            if not raw_json:\n                continue\n            parsed, _error = parse_json_object(raw_json)\n            if parsed is not None:\n                blocks.append(raw_json)\n                break\n    return blocks\n\n\ndef parse_named_json_block(text: str, block_names: str | Sequence[str], *, object_error: str = \"JSON block was not an object\") -> tuple[dict[str, Any] | None, str | None, bool]:\n    \"\"\"Parse the first JSON object from a named fenced block.\n\n    Returns (record, parse_error, saw_block). A missing block returns\n    (None, None, False); a present but unparseable block returns\n    (None, error, True).\n    \"\"\"\n    saw_block = False\n    for start in _start_re(block_names).finditer(text):\n        saw_block = True\n        content_start = start.end()\n        last_error: str | None = None\n        for fence in FENCE_RE.finditer(text, content_start):\n            raw_json = text[content_start:fence.start()].strip()\n            if not raw_json:\n                continue\n            parsed, error = parse_json_object(raw_json, object_error=object_error)\n            if parsed is not None:\n                return parsed, None, saw_block\n            last_error = error\n        if last_error:\n            return None, last_error, saw_block\n    return None, None, saw_block\n"
+      },
+      "preconditions": [
+        "target_absent"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_002",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/agent_runner.py"
+      },
+      "input": {
+        "old_content": "from .context_pack import build_context_pack, render_context_pack_for_prompt, render_context_pack_summary\nfrom .harness import render_harness_json\n",
+        "new_content": "from .context_pack import build_context_pack, render_context_pack_for_prompt, render_context_pack_summary\nfrom .fenced_blocks import parse_named_json_block\nfrom .harness import render_harness_json\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_003",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/agent_runner.py"
+      },
+      "input": {
+        "old_content": "def _parse_json_fenced_block(text: str, fence_name: str) -> dict[str, Any] | None:\n    \"\"\"Parse a JSON fenced block, tolerating nested ``` inside JSON strings.\"\"\"\n    start_re = re.compile(rf\"```{re.escape(fence_name)}\\s*\", re.IGNORECASE)\n    for start in start_re.finditer(text):\n        content_start = start.end()\n        for fence in re.finditer(r\"```\", text[content_start:]):\n            raw_json = text[content_start:content_start + fence.start()].strip()\n            if not raw_json:\n                continue\n            try:\n                parsed = json.loads(raw_json)\n            except json.JSONDecodeError:\n                repaired = re.sub(r\",\\s*([}\\]])\", r\"\\1\", raw_json)\n                try:\n                    parsed = json.loads(repaired)\n                except json.JSONDecodeError:\n                    continue\n            if isinstance(parsed, dict):\n                return parsed\n    return None\n",
+        "new_content": "def _parse_json_fenced_block(text: str, fence_name: str) -> dict[str, Any] | None:\n    \"\"\"Parse a JSON fenced block, tolerating nested ``` inside JSON strings.\"\"\"\n    parsed, _error, _saw_block = parse_named_json_block(text, fence_name)\n    return parsed\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_004",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/patch_compiler.py"
+      },
+      "input": {
+        "old_content": "import ast\nimport json\nimport re\n",
+        "new_content": "import ast\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_005",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/patch_compiler.py"
+      },
+      "input": {
+        "old_content": "from .changeset import ALLOWED_CHECK_COMMANDS, SUPPORTED_SCHEMA, validate_changeset\nfrom .utils import new_id, now_iso, read_record, relative_to_repo, repo_root, runtime_root, write_record\n",
+        "new_content": "from .changeset import ALLOWED_CHECK_COMMANDS, SUPPORTED_SCHEMA, validate_changeset\nfrom .fenced_blocks import extract_named_json_blocks, parse_json_object\nfrom .utils import new_id, now_iso, read_record, relative_to_repo, repo_root, runtime_root, write_record\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_006",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/patch_compiler.py"
+      },
+      "input": {
+        "old_content": "EDIT_PLAN_BLOCK_RE = re.compile(r\"```(?:abyss-edit-plan|abyss_edit_plan)\\s*(.*?)```\", re.DOTALL | re.IGNORECASE)\nEDIT_PLAN_BLOCK_START_RE = re.compile(r\"```(?:abyss-edit-plan|abyss_edit_plan)\\s*\", re.IGNORECASE)\nFENCE_RE = re.compile(r\"```\")\nCHANGESETS_DIR = runtime_root() / \"process\" / \"changesets\"\n",
+        "new_content": "CHANGESETS_DIR = runtime_root() / \"process\" / \"changesets\"\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_007",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/patch_compiler.py"
+      },
+      "input": {
+        "old_content": "def _parse_edit_plan_json(raw_json: str) -> tuple[dict[str, Any] | None, str | None]:\n    try:\n        plan = json.loads(raw_json)\n        return plan if isinstance(plan, dict) else None, \"edit plan block was not a JSON object\"\n    except json.JSONDecodeError as exc:\n        repaired = re.sub(r\",\\s*([}\\]])\", r\"\\1\", raw_json)\n        try:\n            plan = json.loads(repaired)\n            return plan if isinstance(plan, dict) else None, \"edit plan block was not a JSON object\"\n        except json.JSONDecodeError:\n            return None, str(exc)\n\n\ndef _extract_edit_plan_blocks(text: str) -> list[str]:\n    starts = list(EDIT_PLAN_BLOCK_START_RE.finditer(text))\n    if not starts:\n        return []\n    blocks: list[str] = []\n    for start in starts:\n        content_start = start.end()\n        for fence in FENCE_RE.finditer(text, content_start):\n            candidate = text[content_start:fence.start()].strip()\n            if not candidate:\n                continue\n            plan, _error = _parse_edit_plan_json(candidate)\n            if plan is not None:\n                blocks.append(candidate)\n                break\n    return blocks\n",
+        "new_content": "def _parse_edit_plan_json(raw_json: str) -> tuple[dict[str, Any] | None, str | None]:\n    return parse_json_object(raw_json, object_error=\"edit plan block was not a JSON object\")\n\n\ndef _extract_edit_plan_blocks(text: str) -> list[str]:\n    return extract_named_json_blocks(text, (\"abyss-edit-plan\", \"abyss_edit_plan\"))\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_008",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/patch_compiler.py"
+      },
+      "input": {
+        "old_content": "    legacy_matches = EDIT_PLAN_BLOCK_RE.findall(text)\n    if not legacy_matches:\n        return None\n    raw_json = legacy_matches[0].strip()\n    plan, error = _parse_edit_plan_json(raw_json)\n    if plan is not None:\n        return plan\n    return {\"schema\": \"abyss.edit_plan.v1\", \"_parse_error\": error, \"_raw_length\": len(raw_json), \"edits\": []}\n",
+        "new_content": "    return None\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_009",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/changeset.py"
+      },
+      "input": {
+        "old_content": "import json\nimport re\nimport subprocess\n",
+        "new_content": "import subprocess\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_010",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/changeset.py"
+      },
+      "input": {
+        "old_content": "from .audit import append_event\nfrom .utils import list_records, new_id, now_iso, read_record, relative_to_repo, repo_root, runtime_root, write_record\n",
+        "new_content": "from .audit import append_event\nfrom .fenced_blocks import parse_named_json_block\nfrom .utils import list_records, new_id, now_iso, read_record, relative_to_repo, repo_root, runtime_root, write_record\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_011",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/changeset.py"
+      },
+      "input": {
+        "old_content": "CHANGESET_BLOCK_RE = re.compile(r\"```(?:abyss-changeset|abyss-change-set)\\s*(.*?)```\", re.DOTALL | re.IGNORECASE)\nCHANGESET_BLOCK_START_RE = re.compile(r\"```(?:abyss-changeset|abyss-change-set)\\s*\", re.IGNORECASE)\nFENCE_RE = re.compile(r\"```\")\n\nCHANGESETS_DIR = runtime_root() / \"process\" / \"changesets\"\n",
+        "new_content": "CHANGESETS_DIR = runtime_root() / \"process\" / \"changesets\"\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_012",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/changeset.py"
+      },
+      "input": {
+        "old_content": "def _parse_changeset_block(text: str) -> tuple[dict[str, Any] | None, str | None, bool]:\n    saw_block = False\n    for start in CHANGESET_BLOCK_START_RE.finditer(text):\n        saw_block = True\n        content_start = start.end()\n        last_error: str | None = None\n        for fence in FENCE_RE.finditer(text, content_start):\n            raw_json = text[content_start:fence.start()].strip()\n            if not raw_json:\n                continue\n            try:\n                parsed = json.loads(raw_json)\n            except json.JSONDecodeError as exc:\n                last_error = str(exc)\n                repaired = re.sub(r\",\\s*([}\\]])\", r\"\\1\", raw_json)\n                try:\n                    parsed = json.loads(repaired)\n                except json.JSONDecodeError:\n                    continue\n            return parsed if isinstance(parsed, dict) else None, \"ChangeSet block was not a JSON object\", saw_block\n        if last_error:\n            return None, last_error, saw_block\n    matches = CHANGESET_BLOCK_RE.findall(text)\n    if not matches:\n        return None, None, saw_block\n    try:\n        parsed = json.loads(matches[0].strip())\n    except json.JSONDecodeError as exc:\n        return None, str(exc), True\n    return parsed if isinstance(parsed, dict) else None, \"ChangeSet block was not a JSON object\", True\n",
+        "new_content": "def _parse_changeset_block(text: str) -> tuple[dict[str, Any] | None, str | None, bool]:\n    return parse_named_json_block(text, (\"abyss-changeset\", \"abyss-change-set\"), object_error=\"ChangeSet block was not a JSON object\")\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "check_001",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m compileall -q abyss_cli"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_002",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_003",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli rules validate --json"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_004",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli summary --check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    }
+  ],
+  "created_at": "2026-05-26T09:51:35.324725+08:00",
+  "no_action_executed": true
+}

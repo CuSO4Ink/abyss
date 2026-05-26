@@ -605,8 +605,56 @@ def build_context_pack(
     request_rule_files = request_rule_context_files_for_request_type(request_type) if request_type else []
     required_prompts = context_spec.get("required_prompts", [])
 
+    def _safe_declared_target_path(raw_path: str) -> str | None:
+        """Return a safe repo-relative target path for explicit request targets.
+
+        Explicit target files may come from request/proposal records. Treat them
+        as untrusted input: only repo-relative paths under source/rule/doc roots
+        are eligible for context disclosure. Never allow absolute paths, parent
+        traversal, runtime/audit/user data, or missing files.
+        """
+        rel = raw_path.strip().strip("'\"").replace("\\", "/")
+        if not rel or rel.startswith("/") or Path(rel).is_absolute():
+            return None
+        if ".." in Path(rel).parts:
+            return None
+        blocked_prefixes = (".git/", ".local/", "audit/", "process/", "storage/", "user_data/")
+        if any(rel.startswith(prefix) for prefix in blocked_prefixes):
+            return None
+        allowed_prefixes = ("abyss_cli/", "rules/", "artifacts/drafts/")
+        allowed_paths = {"README.md", "SYSTEM_MAP.md", "EXTERNAL_MODEL_ONBOARDING.md"}
+        if rel not in allowed_paths and not any(rel.startswith(prefix) for prefix in allowed_prefixes):
+            return None
+        if not (repo_root() / rel).exists():
+            return None
+        return rel
+
+    def _extend_declared_targets(raw_value: Any, out: list[str]) -> None:
+        values: list[str] = []
+        if isinstance(raw_value, str):
+            values.append(raw_value)
+        elif isinstance(raw_value, list):
+            values.extend(str(item) for item in raw_value if item)
+        for value in values:
+            safe_path = _safe_declared_target_path(value)
+            if safe_path and safe_path not in out:
+                out.append(safe_path)
+
+    declared_target_files: list[str] = []
+    if isinstance(target_record, dict):
+        _extend_declared_targets(target_record.get("target_file"), declared_target_files)
+        _extend_declared_targets(target_record.get("target_module"), declared_target_files)
+        manifest = target_record.get("task_coverage_manifest") if isinstance(target_record.get("task_coverage_manifest"), dict) else {}
+        _extend_declared_targets(manifest.get("expected_files"), declared_target_files)
+        details_text = str(target_record.get("details") or "")
+        for part in details_text.split(";"):
+            key, sep, value = part.partition("=")
+            if sep and key.strip() in {"target_file", "target_module"}:
+                _extend_declared_targets(value.strip(), declared_target_files)
+
 
     # Get rule source files for this task type from Rule Source Registry
+
     rule_source_files: list[str] = []
     try:
         from .rule_registry import rule_sources_for_task_type
@@ -620,7 +668,7 @@ def build_context_pack(
     # Merge all required files (deduplicated, preserving order)
     all_files: list[str] = []
     seen: set[str] = set()
-    for f in required_files + module_files + required_rules + request_rule_files + rule_source_files + required_prompts:
+    for f in required_files + module_files + required_rules + request_rule_files + rule_source_files + required_prompts + declared_target_files:
         if f not in seen:
             seen.add(f)
             all_files.append(f)

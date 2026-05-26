@@ -1,0 +1,99 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r049_corrected_integrity_runtime_records_helper",
+  "roadmap_id": "R049",
+  "summary": "Extract runtime record integrity checks into a focused helper",
+  "risk_level": "L2",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/integrity.py"
+      },
+      "input": {
+        "old_content": "def _check_process_records(root: Path, messages: list[str]) -> bool:\n    ok = True\n    for directory in [root / \"process\" / \"intents\", root / \"process\" / \"actions\", root / \"process\" / \"reviews\"]:\n        for path in list_records(directory):\n            try:\n                record = read_record(path)\n                if \"id\" not in record or \"schema\" not in record:\n                    ok = False\n                    messages.append(f\"INVALID_RECORD_FIELDS {path.relative_to(root)}\")\n            except Exception as exc:\n                ok = False\n                messages.append(f\"INVALID_JSON_YAML {path.relative_to(root)} {exc}\")\n\n    return ok\n\n\ndef run_checks() -> tuple[bool, list[str]]:",
+        "new_content": "def _check_process_records(root: Path, messages: list[str]) -> bool:\n    ok = True\n    for directory in [root / \"process\" / \"intents\", root / \"process\" / \"actions\", root / \"process\" / \"reviews\"]:\n        for path in list_records(directory):\n            try:\n                record = read_record(path)\n                if \"id\" not in record or \"schema\" not in record:\n                    ok = False\n                    messages.append(f\"INVALID_RECORD_FIELDS {path.relative_to(root)}\")\n            except Exception as exc:\n                ok = False\n                messages.append(f\"INVALID_JSON_YAML {path.relative_to(root)} {exc}\")\n\n    return ok\n\n\ndef _check_runtime_records(root: Path, messages: list[str]) -> bool:\n    ok = True\n    runtime = runtime_root()\n    for directory in [\n        runtime / \"process\" / \"changesets\",\n        runtime / \"process\" / \"executions\",\n        runtime / \"process\" / \"workflows\",\n        runtime / \"process\" / \"owner_inbox\",\n        runtime / \"process\" / \"reports\",\n    ]:\n        for path in list_records(directory):\n            try:\n                record = read_record(path)\n                if \"id\" not in record or \"schema\" not in record:\n                    ok = False\n                    messages.append(f\"INVALID_RUNTIME_RECORD_FIELDS {path.relative_to(root)}\")\n            except Exception as exc:\n                ok = False\n                messages.append(f\"INVALID_RUNTIME_JSON_YAML {path.relative_to(root)} {exc}\")\n\n    changeset_ids = {read_record(p).get(\"id\") for p in list_records(runtime / \"process\" / \"changesets\", \"chg\")}\n    execution_ids = {read_record(p).get(\"id\") for p in list_records(runtime / \"process\" / \"executions\", \"exec\")}\n    workflow_ids = {read_record(p).get(\"id\") for p in list_records(runtime / \"process\" / \"workflows\", \"wf\")}\n    owner_ids = {read_record(p).get(\"id\") for p in list_records(runtime / \"process\" / \"owner_inbox\", \"owner\")}\n    for execution_path in list_records(runtime / \"process\" / \"executions\", \"exec\"):\n        execution = read_record(execution_path)\n        if execution.get(\"changeset_id\") not in changeset_ids:\n            ok = False\n            messages.append(f\"BROKEN_EXECUTION_REF {execution_path.relative_to(root)} -> {execution.get('changeset_id')}\")\n\n    for workflow_path in list_records(runtime / \"process\" / \"workflows\", \"wf\"):\n        workflow = read_record(workflow_path)\n        status = workflow.get(\"status\")\n        if status not in {\"implementation_pending\", \"implementation_running\", \"changeset_proposed\", \"dry_run_passed\", \"harness_review_running\", \"waiting_owner_approval\", \"approved_for_execution\", \"executing\", \"checking\", \"done\", \"failed\", \"blocked\", \"rejected\", \"superseded\"}:\n            ok = False\n            messages.append(f\"INVALID_WORKFLOW_STATUS {workflow_path.relative_to(root)} {status}\")\n        if workflow.get(\"changeset_id\") and workflow.get(\"changeset_id\") not in changeset_ids:\n            ok = False\n            messages.append(f\"BROKEN_WORKFLOW_CHANGESET_REF {workflow_path.relative_to(root)} -> {workflow.get('changeset_id')}\")\n        if workflow.get(\"owner_item_id\") and workflow.get(\"owner_item_id\") not in owner_ids:\n            ok = False\n            messages.append(f\"BROKEN_WORKFLOW_OWNER_REF {workflow_path.relative_to(root)} -> {workflow.get('owner_item_id')}\")\n        if workflow.get(\"execution_id\") and workflow.get(\"execution_id\") not in execution_ids:\n            ok = False\n            messages.append(f\"BROKEN_WORKFLOW_EXECUTION_REF {workflow_path.relative_to(root)} -> {workflow.get('execution_id')}\")\n\n    for owner_path in list_records(runtime / \"process\" / \"owner_inbox\", \"owner\"):\n        owner_item = read_record(owner_path)\n        if owner_item.get(\"workflow_id\") not in workflow_ids:\n            ok = False\n            messages.append(f\"BROKEN_OWNER_WORKFLOW_REF {owner_path.relative_to(root)} -> {owner_item.get('workflow_id')}\")\n        if owner_item.get(\"target_id\") and owner_item.get(\"target_id\") not in changeset_ids:\n            ok = False\n            messages.append(f\"BROKEN_OWNER_CHANGESET_REF {owner_path.relative_to(root)} -> {owner_item.get('target_id')}\")\n\n    return ok\n\n\ndef run_checks() -> tuple[bool, list[str]]:"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_002",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/integrity.py"
+      },
+      "input": {
+        "old_content": "    runtime = runtime_root()\n    for directory in [\n        runtime / \"process\" / \"changesets\",\n        runtime / \"process\" / \"executions\",\n        runtime / \"process\" / \"workflows\",\n        runtime / \"process\" / \"owner_inbox\",\n        runtime / \"process\" / \"reports\",\n    ]:\n        for path in list_records(directory):\n            try:\n                record = read_record(path)\n                if \"id\" not in record or \"schema\" not in record:\n                    ok = False\n                    messages.append(f\"INVALID_RUNTIME_RECORD_FIELDS {path.relative_to(root)}\")\n            except Exception as exc:\n                ok = False\n                messages.append(f\"INVALID_RUNTIME_JSON_YAML {path.relative_to(root)} {exc}\")\n\n    changeset_ids = {read_record(p).get(\"id\") for p in list_records(runtime / \"process\" / \"changesets\", \"chg\")}\n    execution_ids = {read_record(p).get(\"id\") for p in list_records(runtime / \"process\" / \"executions\", \"exec\")}\n    workflow_ids = {read_record(p).get(\"id\") for p in list_records(runtime / \"process\" / \"workflows\", \"wf\")}\n    owner_ids = {read_record(p).get(\"id\") for p in list_records(runtime / \"process\" / \"owner_inbox\", \"owner\")}\n    for execution_path in list_records(runtime / \"process\" / \"executions\", \"exec\"):\n        execution = read_record(execution_path)\n        if execution.get(\"changeset_id\") not in changeset_ids:\n            ok = False\n            messages.append(f\"BROKEN_EXECUTION_REF {execution_path.relative_to(root)} -> {execution.get('changeset_id')}\")\n\n    for workflow_path in list_records(runtime / \"process\" / \"workflows\", \"wf\"):\n        workflow = read_record(workflow_path)\n        status = workflow.get(\"status\")\n        if status not in {\"implementation_pending\", \"implementation_running\", \"changeset_proposed\", \"dry_run_passed\", \"harness_review_running\", \"waiting_owner_approval\", \"approved_for_execution\", \"executing\", \"checking\", \"done\", \"failed\", \"blocked\", \"rejected\", \"superseded\"}:\n            ok = False\n            messages.append(f\"INVALID_WORKFLOW_STATUS {workflow_path.relative_to(root)} {status}\")\n        if workflow.get(\"changeset_id\") and workflow.get(\"changeset_id\") not in changeset_ids:\n            ok = False\n            messages.append(f\"BROKEN_WORKFLOW_CHANGESET_REF {workflow_path.relative_to(root)} -> {workflow.get('changeset_id')}\")\n        if workflow.get(\"owner_item_id\") and workflow.get(\"owner_item_id\") not in owner_ids:\n            ok = False\n            messages.append(f\"BROKEN_WORKFLOW_OWNER_REF {workflow_path.relative_to(root)} -> {workflow.get('owner_item_id')}\")\n        if workflow.get(\"execution_id\") and workflow.get(\"execution_id\") not in execution_ids:\n            ok = False\n            messages.append(f\"BROKEN_WORKFLOW_EXECUTION_REF {workflow_path.relative_to(root)} -> {workflow.get('execution_id')}\")\n\n    for owner_path in list_records(runtime / \"process\" / \"owner_inbox\", \"owner\"):\n        owner_item = read_record(owner_path)\n        if owner_item.get(\"workflow_id\") not in workflow_ids:\n            ok = False\n            messages.append(f\"BROKEN_OWNER_WORKFLOW_REF {owner_path.relative_to(root)} -> {owner_item.get('workflow_id')}\")\n        if owner_item.get(\"target_id\") and owner_item.get(\"target_id\") not in changeset_ids:\n            ok = False\n            messages.append(f\"BROKEN_OWNER_CHANGESET_REF {owner_path.relative_to(root)} -> {owner_item.get('target_id')}\")\n\n    action_ids = {read_record(p).get(\"id\") for p in list_records(root / \"process\" / \"actions\")}",
+        "new_content": "    if not _check_runtime_records(root, messages):\n        ok = False\n\n    action_ids = {read_record(p).get(\"id\") for p in list_records(root / \"process\" / \"actions\")}"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "check_001",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m compileall -q abyss_cli"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_002",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_003",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli summary --check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    }
+  ],
+  "created_at": "2026-05-26T09:00:00+08:00",
+  "no_action_executed": true
+}

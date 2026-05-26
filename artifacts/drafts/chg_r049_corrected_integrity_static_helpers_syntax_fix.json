@@ -1,0 +1,82 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r049_corrected_integrity_static_helpers_syntax_fix",
+  "roadmap_id": "R049",
+  "summary": "Correct escaped backslash literal in integrity static helper refactor",
+  "risk_level": "L2",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/integrity.py"
+      },
+      "input": {
+        "old_content": "                            normalized = rel_str.replace(\"\\\", \"/\")",
+        "new_content": "                            normalized = rel_str.replace(\"\\\\\", \"/\")"
+      },
+      "preconditions": [
+        "old_content_was_present_in_failed_apply_state"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "check_001",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m compileall -q abyss_cli"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_002",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_003",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli summary --check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    }
+  ],
+  "created_at": "2026-05-26T09:08:00+08:00",
+  "no_action_executed": false,
+  "note": "This records the direct one-line recovery already applied after chg_r049_corrected_integrity_static_helpers produced a SyntaxError."
+}

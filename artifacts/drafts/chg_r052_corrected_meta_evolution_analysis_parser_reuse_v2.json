@@ -1,0 +1,154 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r052_corrected_meta_evolution_analysis_parser_reuse_v2",
+  "roadmap_id": "R052",
+  "summary": "Reuse shared fenced JSON parser in evolution_analysis.py while preserving legacy fallback semantics",
+  "risk_level": "L3",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/evolution_analysis.py"
+      },
+      "input": {
+        "old_content": "from .audit import append_event\nfrom .utils import new_id, now_iso, runtime_root, write_record\n",
+        "new_content": "from .audit import append_event\nfrom .fenced_blocks import extract_named_json_blocks\nfrom .utils import new_id, now_iso, runtime_root, write_record\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_002",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/evolution_analysis.py"
+      },
+      "input": {
+        "old_content": "EVOLUTION_ANALYSIS_BLOCK_START_RE = re.compile(r\"```abyss-evolution-analysis\\s*\", re.IGNORECASE)\n",
+        "new_content": ""
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_003",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/evolution_analysis.py"
+      },
+      "input": {
+        "old_content": "JSON_BLOCK_START_RE = re.compile(r\"```json\\s*\", re.IGNORECASE)\nFENCE_RE = re.compile(r\"```\")\n\n",
+        "new_content": "\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_004",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/evolution_analysis.py"
+      },
+      "input": {
+        "old_content": "def _extract_json_fenced_blocks(text: str, start_re: re.Pattern[str]) -> list[str]:\n    blocks: list[str] = []\n    for start in start_re.finditer(text):\n        content_start = start.end()\n        for fence in FENCE_RE.finditer(text, content_start):\n            block = text[content_start:fence.start()].strip()\n            if not block:\n                continue\n            try:\n                json.loads(block)\n            except json.JSONDecodeError:\n                repaired = re.sub(r\",\\s*([}\\]])\", r\"\\1\", block)\n                try:\n                    json.loads(repaired)\n                except json.JSONDecodeError:\n                    continue\n            blocks.append(block)\n            break\n    return blocks\n",
+        "new_content": "def _extract_json_fenced_blocks(text: str, block_names: str | tuple[str, ...]) -> list[str]:\n    return extract_named_json_blocks(text, block_names)\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_005",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/evolution_analysis.py"
+      },
+      "input": {
+        "old_content": "    matches = _extract_json_fenced_blocks(text, EVOLUTION_ANALYSIS_BLOCK_START_RE)\n",
+        "new_content": "    matches = _extract_json_fenced_blocks(text, \"abyss-evolution-analysis\")\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_006",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/evolution_analysis.py"
+      },
+      "input": {
+        "old_content": "    json_matches = _extract_json_fenced_blocks(text, JSON_BLOCK_START_RE) or JSON_BLOCK_RE.findall(text)\n",
+        "new_content": "    json_matches = _extract_json_fenced_blocks(text, \"json\") or JSON_BLOCK_RE.findall(text)\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "check_001",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m compileall -q abyss_cli"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_002",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    }
+  ],
+  "created_at": "2026-05-26T10:02:57.262396+08:00",
+  "no_action_executed": true
+}

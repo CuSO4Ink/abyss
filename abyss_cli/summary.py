@@ -9,6 +9,181 @@ from .owner import list_owner_items
 from .workflow import list_workflows, state_display_label
 
 
+IMPLEMENTATION_FAILURE_CATEGORIES = (
+    ("placeholder content is not allowed", "placeholder_content"),
+    ("ellipsis placeholder expression is not allowed", "placeholder_content"),
+    ("EDIT_PLAN_PARSE_ERROR", "edit_plan_parse_error"),
+    ("symbol not found", "symbol_resolution_failure"),
+    ("replace_symbol target is too large", "symbol_resolution_failure"),
+    ("anchor match count", "anchor_resolution_failure"),
+    ("OLD_CONTENT_MATCH_COUNT", "old_content_match_failure"),
+    ("old_content", "old_content_match_failure"),
+    ("context_request", "context_insufficient"),
+    ("provider returned empty", "provider_empty_or_timeout"),
+    ("timeout", "provider_empty_or_timeout"),
+    ("unsupported edit kind", "unsupported_edit_kind"),
+    ("missing new_content", "missing_new_content"),
+    ("MISSING_EDITS", "missing_edits"),
+    ("INVALID_EDIT_PLAN_SCHEMA", "invalid_edit_plan_schema"),
+    ("task_type", "task_type_misclassification"),
+    ("harness_review_violation", "harness_violation"),
+    ("harness review violation", "harness_violation"),
+)
+
+
+WORKFLOW_FAILURE_CATEGORIES = (
+    ("repeated_placeholder_format_feedback", "repeated_placeholder_output"),
+    ("implementation_repeated_placeholder_blocked", "repeated_placeholder_output"),
+    ("context_request", "context_insufficient"),
+    ("context insufficient", "context_insufficient"),
+    ("implementation_context_insufficient", "context_insufficient"),
+    ("implementation_agent_redundant_context_request", "context_insufficient"),
+    ("task_type", "task_type_misclassification"),
+    ("EDIT_PLAN_PARSE_ERROR", "edit_plan_parse_error"),
+    ("implementation_agent_invalid_output", "edit_plan_parse_error"),
+    ("symbol not found", "symbol_anchor_resolution_failure"),
+    ("replace_symbol target is too large", "symbol_anchor_resolution_failure"),
+    ("anchor match count", "symbol_anchor_resolution_failure"),
+    ("OLD_CONTENT_MATCH_COUNT", "old_content_match_failure"),
+    ("old_content", "old_content_match_failure"),
+    ("harness_review_violation", "harness_violation"),
+    ("provider returned empty", "provider_empty_or_timeout"),
+    ("timeout", "provider_empty_or_timeout"),
+    ("timed out", "provider_empty_or_timeout"),
+    ("empty stdout", "provider_empty_or_timeout"),
+    ("empty filtered response", "provider_empty_or_timeout"),
+    ("implementation_agent_transient_failure", "provider_empty_or_timeout"),
+    ("governance_constraint", "expected_governance_block"),
+    ("implementation_blocked", "expected_governance_block"),
+)
+
+
+def _validation_messages(changeset: dict[str, Any]) -> list[str]:
+    validation = changeset.get("validation") if isinstance(changeset.get("validation"), dict) else {}
+    messages = changeset.get("validation_errors") or changeset.get("errors") or validation.get("messages") or []
+    if not isinstance(messages, list):
+        return [str(messages)]
+    return [str(message) for message in messages]
+
+
+def _classify_implementation_failure(message: str) -> str:
+    for marker, category in IMPLEMENTATION_FAILURE_CATEGORIES:
+        if marker.lower() in message.lower():
+            return category
+    return "other_invalid_changeset"
+
+
+def _classify_workflow_failure(workflow: dict[str, Any]) -> list[str]:
+    """Classify a failed/blocked workflow into pipeline failure categories.
+
+    Returns a list of matched category strings from WORKFLOW_FAILURE_CATEGORIES.
+    """
+    texts: list[str] = []
+    last_error = str(workflow.get("last_error") or "")
+    if last_error:
+        texts.append(last_error)
+    history = workflow.get("history") or []
+    if history:
+        last_event = history[-1] if isinstance(history[-1], dict) else {}
+        event_name = str(last_event.get("event") or "")
+        texts.append(event_name)
+        details = last_event.get("details") or {}
+        if isinstance(details, dict):
+            texts.append(str(details.get("category") or ""))
+            texts.append(str(details.get("reason") or ""))
+            for msg in details.get("messages") or []:
+                texts.append(str(msg))
+    combined = " ".join(texts).lower()
+    categories: set[str] = set()
+    for marker, category in WORKFLOW_FAILURE_CATEGORIES:
+        if marker.lower() in combined:
+            categories.add(category)
+    return sorted(categories) if categories else ["other"]
+
+
+def _implementation_pipeline_diagnostics(changesets: list[dict[str, Any]], *, limit: int = 10) -> dict[str, Any]:
+    invalid_changesets = [
+        item for item in changesets
+        if item.get("status") == "invalid" or str(item.get("id", "")).startswith("chg_invalid")
+    ]
+    invalid_changesets = sorted(
+        invalid_changesets,
+        key=lambda item: item.get("updated_at") or item.get("created_at") or "",
+        reverse=True,
+    )
+
+    failure_counts: dict[str, int] = {}
+    recent: list[dict[str, Any]] = []
+    for item in invalid_changesets:
+        messages = _validation_messages(item)
+        categories = sorted({_classify_implementation_failure(message) for message in messages}) or ["unknown"]
+        for category in categories:
+            failure_counts[category] = failure_counts.get(category, 0) + 1
+        if len(recent) < limit:
+            recent.append({
+                "id": item.get("id"),
+                "roadmap_id": item.get("roadmap_id"),
+                "summary": item.get("summary"),
+                "categories": categories,
+                "validation_messages": messages,
+                "parse_diagnostics": item.get("parse_diagnostics"),
+                "agent_run_id": item.get("agent_run_id"),
+                "created_at": item.get("created_at"),
+                "updated_at": item.get("updated_at"),
+            })
+
+    return {
+        "invalid_changeset_failure_counts": failure_counts,
+        "recent_invalid_changesets": recent,
+    }
+
+def _workflow_failure_diagnostics(workflows: list[dict[str, Any]], *, limit: int = 10) -> dict[str, Any]:
+    """Classify recent failed/blocked workflows into pipeline failure categories.
+
+    Categories reported:
+    - context_insufficient
+    - task_type_misclassification
+    - edit_plan_parse_error
+    - symbol_anchor_resolution_failure
+    - old_content_match_failure
+    - harness_violation
+    - provider_empty_or_timeout
+    - expected_governance_block
+    - other
+    """
+    failed_workflows = [
+        wf for wf in workflows
+        if wf.get("status") in {"failed", "blocked", "rejected"}
+    ]
+    failed_workflows = sorted(
+        failed_workflows,
+        key=lambda item: item.get("updated_at") or item.get("created_at") or "",
+        reverse=True,
+    )
+
+    failure_counts: dict[str, int] = {}
+    recent: list[dict[str, Any]] = []
+    for wf in failed_workflows:
+        categories = _classify_workflow_failure(wf)
+        for category in categories:
+            failure_counts[category] = failure_counts.get(category, 0) + 1
+        if len(recent) < limit:
+            recent.append({
+                "id": wf.get("id"),
+                "roadmap_id": wf.get("roadmap_id"),
+                "status": wf.get("status"),
+                "categories": categories,
+                "last_error": (wf.get("last_error") or "")[:200],
+                "updated_at": wf.get("updated_at"),
+            })
+
+    return {
+        "workflow_failure_counts": failure_counts,
+        "recent_failed_workflows": recent,
+    }
+
+
+
 def _extract_last_event(workflow: dict[str, Any]) -> dict[str, Any] | None:
     """Extract the last meaningful event from workflow history for display."""
     history = workflow.get("history", [])
@@ -32,9 +207,13 @@ def _classify_workflow_outcome(workflow: dict[str, Any]) -> str:
 
     if status == "blocked":
         blocked_result_id = workflow.get("blocked_result_id")
+        last_error = workflow.get("last_error", "")
+        if "repeated_placeholder_format_feedback" in last_error:
+            return "context_insufficient"
+        if "context_request" in last_error:
+            return "context_insufficient"
         if blocked_result_id:
             # Check if this is an already_satisfied outcome
-            last_error = workflow.get("last_error", "")
             if "already_satisfied" in last_error:
                 return "satisfied_without_changes"
         # Check if this is a governance_constraint block
@@ -247,6 +426,8 @@ def build_summary(*, include_check: bool = False) -> dict[str, Any]:
             "applied": len([item for item in changesets if item.get("status") == "applied"]),
             "invalid": len([item for item in changesets if item.get("status") == "invalid"]),
         },
+        "implementation_pipeline_diagnostics": _implementation_pipeline_diagnostics(changesets),
+        "workflow_failure_diagnostics": _workflow_failure_diagnostics(workflows),
     }
     if include_check:
         ok, messages = run_checks()

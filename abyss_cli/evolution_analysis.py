@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .audit import append_event
+from .fenced_blocks import extract_named_json_blocks
 from .utils import new_id, now_iso, runtime_root, write_record
 
 EVOLUTION_ANALYSES_DIR = runtime_root() / "process" / "evolution_analyses"
@@ -40,17 +41,24 @@ def _fallback_analysis(*, target_id: str | None, agent_run_id: str | None, resul
     }
 
 
+def _extract_json_fenced_blocks(text: str, block_names: str | tuple[str, ...]) -> list[str]:
+    return extract_named_json_blocks(text, block_names)
+
+
 def _extract_analysis_block(text: str) -> tuple[str | None, list[str]]:
-    matches = EVOLUTION_ANALYSIS_BLOCK_RE.findall(text)
+    matches = _extract_json_fenced_blocks(text, "abyss-evolution-analysis")
     if matches:
         return matches[0], []
-    json_matches = JSON_BLOCK_RE.findall(text)
+    legacy_matches = EVOLUTION_ANALYSIS_BLOCK_RE.findall(text)
+    if legacy_matches:
+        return legacy_matches[0], []
+    json_matches = _extract_json_fenced_blocks(text, "json") or JSON_BLOCK_RE.findall(text)
     for block in json_matches:
         try:
             candidate = json.loads(block.strip())
         except json.JSONDecodeError:
             continue
-        if candidate.get("schema") == "abyss.evolution_analysis.v1":
+        if isinstance(candidate, dict) and candidate.get("schema") == "abyss.evolution_analysis.v1":
             return block, ["Used json fenced block fallback because abyss-evolution-analysis fence was missing."]
     return None, []
 

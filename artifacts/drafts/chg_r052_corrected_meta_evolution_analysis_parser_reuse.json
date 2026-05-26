@@ -1,0 +1,170 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r052_corrected_meta_evolution_analysis_parser_reuse",
+  "roadmap_id": "R052",
+  "summary": "Reuse shared fenced JSON parser in evolution_analysis.py",
+  "risk_level": "L3",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/evolution_analysis.py"
+      },
+      "input": {
+        "old_content": "import json\nimport re\nfrom pathlib import Path\nfrom typing import Any\n\nfrom .audit import append_event\nfrom .utils import new_id, now_iso, runtime_root, write_record\n",
+        "new_content": "import json\nfrom pathlib import Path\nfrom typing import Any\n\nfrom .audit import append_event\nfrom .fenced_blocks import extract_named_json_blocks\nfrom .utils import new_id, now_iso, runtime_root, write_record\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_002",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/evolution_analysis.py"
+      },
+      "input": {
+        "old_content": "EVOLUTION_ANALYSIS_BLOCK_RE = re.compile(r\"```abyss-evolution-analysis\\s*(.*?)```\", re.DOTALL | re.IGNORECASE)\nEVOLUTION_ANALYSIS_BLOCK_START_RE = re.compile(r\"```abyss-evolution-analysis\\s*\", re.IGNORECASE)\nJSON_BLOCK_RE = re.compile(r\"```json\\s*(.*?)```\", re.DOTALL | re.IGNORECASE)\nJSON_BLOCK_START_RE = re.compile(r\"```json\\s*\", re.IGNORECASE)\nFENCE_RE = re.compile(r\"```\")\n\n",
+        "new_content": ""
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_003",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/evolution_analysis.py"
+      },
+      "input": {
+        "old_content": "def _extract_json_fenced_blocks(text: str, start_re: re.Pattern[str]) -> list[str]:\n    blocks: list[str] = []\n    for start in start_re.finditer(text):\n        content_start = start.end()\n        for fence in FENCE_RE.finditer(text, content_start):\n            block = text[content_start:fence.start()].strip()\n            if not block:\n                continue\n            try:\n                json.loads(block)\n            except json.JSONDecodeError:\n                repaired = re.sub(r\",\\s*([}\\]])\", r\"\\1\", block)\n                try:\n                    json.loads(repaired)\n                except json.JSONDecodeError:\n                    continue\n            blocks.append(block)\n            break\n    return blocks\n",
+        "new_content": "def _extract_json_fenced_blocks(text: str, block_names: str | tuple[str, ...]) -> list[str]:\n    return extract_named_json_blocks(text, block_names)\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_004",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/evolution_analysis.py"
+      },
+      "input": {
+        "old_content": "    matches = _extract_json_fenced_blocks(text, EVOLUTION_ANALYSIS_BLOCK_START_RE)\n",
+        "new_content": "    matches = _extract_json_fenced_blocks(text, \"abyss-evolution-analysis\")\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_005",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/evolution_analysis.py"
+      },
+      "input": {
+        "old_content": "    legacy_matches = EVOLUTION_ANALYSIS_BLOCK_RE.findall(text)\n    if legacy_matches:\n        return legacy_matches[0], []\n    json_matches = _extract_json_fenced_blocks(text, JSON_BLOCK_START_RE) or JSON_BLOCK_RE.findall(text)\n",
+        "new_content": "    json_matches = _extract_json_fenced_blocks(text, \"json\")\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "check_001",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m compileall -q abyss_cli"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_002",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_003",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli rules validate --json"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_004",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli summary --check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    }
+  ],
+  "created_at": "2026-05-26T10:01:15.173023+08:00",
+  "no_action_executed": true
+}

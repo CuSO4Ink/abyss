@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 from .audit import append_event
 from .changeset import dry_run_changeset, import_changeset_from_agent_output, load_changeset, resolve_changeset, validate_changeset
 from .context_pack import build_context_pack, render_context_pack_for_prompt, render_context_pack_summary
+from .fenced_blocks import parse_named_json_block
 from .harness import render_harness_json
 from .harness_review import parse_harness_review
 from .llm_executor import LLM_RESULTS_DIR, _provider_response, load_provider_config
@@ -87,12 +89,14 @@ def _recent_implementation_evidence(limit: int = 8) -> dict[str, Any]:
         changesets = [read_record(path) for path in list_records(changesets_dir, "chg")]
         invalid = [cs for cs in changesets if cs.get("status") == "invalid" or str(cs.get("id", "")).startswith("chg_invalid")]
         for cs in sorted(invalid, key=lambda item: item.get("updated_at", item.get("created_at", "")), reverse=True)[:limit]:
+            validation = cs.get("validation") if isinstance(cs.get("validation"), dict) else {}
             evidence["invalid_changesets"].append({
                 "id": cs.get("id"),
                 "roadmap_id": cs.get("roadmap_id"),
                 "status": cs.get("status"),
                 "summary": cs.get("summary"),
-                "validation_errors": cs.get("validation_errors") or cs.get("errors"),
+                "validation_errors": cs.get("validation_errors") or cs.get("errors") or validation.get("messages"),
+                "parse_diagnostics": cs.get("parse_diagnostics"),
                 "created_at": cs.get("created_at"),
                 "updated_at": cs.get("updated_at"),
             })
@@ -111,8 +115,108 @@ def _recent_implementation_evidence(limit: int = 8) -> dict[str, Any]:
     return evidence
 
 
+def _placeholder_format_feedback_constraints(proposal_id: str) -> str:
+    """Render hard retry constraints from the latest placeholder format_feedback for this proposal."""
+    workflows_dir = runtime_root() / "process" / "workflows"
+    context_requests_dir = runtime_root() / "process" / "context_requests"
+    if not proposal_id or not workflows_dir.exists() or not context_requests_dir.exists():
+        return ""
+    workflows = [read_record(path) for path in list_records(workflows_dir, "wf")]
+    matches = [wf for wf in workflows if str(wf.get("proposal_id") or "") == proposal_id]
+    placeholder_markers = ("existing code", "placeholder", "omitted", "ellipsis", "TODO", "other code unchanged")
+    for workflow in sorted(matches, key=lambda item: item.get("updated_at", ""), reverse=True):
+        ctx_ids: list[str] = []
+        current_ctx_id = str(workflow.get("context_request_id") or "")
+        if current_ctx_id:
+            ctx_ids.append(current_ctx_id)
+        history = workflow.get("history") if isinstance(workflow.get("history"), list) else []
+        for event in reversed(history):
+            details = event.get("details") if isinstance(event, dict) else {}
+            if not isinstance(details, dict) or not details.get("context_request_id"):
+                continue
+            ctx_id = str(details.get("context_request_id"))
+            if ctx_id not in ctx_ids:
+                ctx_ids.append(ctx_id)
+        for ctx_id in ctx_ids:
+            ctx_path = context_requests_dir / f"{ctx_id}.yaml"
+            if not ctx_path.exists():
+                continue
+            ctx_req = read_record(ctx_path)
+            if ctx_req.get("request_kind") != "format_feedback":
+                continue
+            retry_guidance = str(ctx_req.get("retry_guidance") or "")
+            missing = ctx_req.get("missing") if isinstance(ctx_req.get("missing"), list) else []
+            reasons = [str(item.get("reason")) for item in missing if isinstance(item, dict) and item.get("reason")]
+            feedback_text = "\n".join([retry_guidance, *reasons])
+            if not any(marker.lower() in feedback_text.lower() for marker in placeholder_markers):
+                continue
+            source_changeset = str(ctx_req.get("source_changeset_id") or "unknown")
+            reason_lines = "\n".join(f"- {reason}" for reason in reasons[:6]) or "- placeholder format feedback was recorded"
+            return f"""## Mandatory corrective constraints from placeholder format_feedback
+
+
+The previous Implementation attempt for this same proposal produced placeholder content and was rejected by the deterministic Patch Compiler.
+This section is a hard corrective constraint, not passive evidence.
+
+- context_request_id: {ctx_id}
+- source_changeset_id: {source_changeset}
+- mandatory retry_guidance: {retry_guidance}
+
+Failed placeholder reasons:
+{reason_lines}
+
+You must produce a fresh, concrete `abyss-edit-plan` that does not copy any prior failed placeholder operation.
+Forbidden markers in `new_content`, `content`, anchors, or prose placeholders: `existing code`, `placeholder`, `omitted`, `ellipsis`, `TODO`, `other code unchanged`, `...`.
+If you cannot provide complete concrete replacement code from the Repository Files section, output `abyss-context-request` instead of an edit plan.
+
+---
+"""
+    return ""
+
+
+def _latest_context_request_files(proposal_id: str) -> list[str]:
+    """Return concrete files requested by recent context requests for this proposal.
+
+    The actual disclosure safety check remains in Context Broker's target-file
+    policy; this helper only carries forward recorded repo-file requests and
+    skips format_feedback placeholders such as ``unknown``.
+    """
+    workflows_dir = runtime_root() / "process" / "workflows"
+    if not proposal_id or not workflows_dir.exists():
+        return []
+
+    def _concrete_files(raw_files: Any) -> list[str]:
+        if not isinstance(raw_files, list):
+            return []
+        concrete: list[str] = []
+        for item in raw_files:
+            path = str(item or "").strip()
+            if not path or path == "unknown" or "/" not in path:
+                continue
+            if path not in concrete:
+                concrete.append(path)
+        return concrete
+
+    workflows = [read_record(path) for path in list_records(workflows_dir, "wf")]
+    matches = [wf for wf in workflows if str(wf.get("proposal_id") or "") == proposal_id]
+    for workflow in sorted(matches, key=lambda item: item.get("updated_at", ""), reverse=True):
+        current_files = _concrete_files(workflow.get("context_request_missing_files"))
+        if current_files:
+            return current_files
+        history = workflow.get("history") if isinstance(workflow.get("history"), list) else []
+        for event in reversed(history):
+            details = event.get("details") if isinstance(event, dict) else {}
+            if not isinstance(details, dict):
+                continue
+            files = _concrete_files(details.get("missing_files"))
+            if files:
+                return files
+    return []
+
+
 def _resolve_action_target(target: str) -> Path:
     return resolve_record_arg(ACTIONS_DIR, target, "act")
+
 
 
 
@@ -399,12 +503,26 @@ def _build_implementation_agent_prompt(spec: dict[str, Any], target: str) -> tup
     # Build Context Pack via Context Broker
     roadmap_id = str(target_record.get("roadmap_entry") or target_record.get("roadmap_id") or "")
     proposal_id = str(target_record.get("id") or "")
+    context_target_record = dict(target_record)
+    requested_context_files = _latest_context_request_files(proposal_id)
+    if requested_context_files:
+        existing_targets = context_target_record.get("target_file")
+        merged_targets: list[str] = []
+        if isinstance(existing_targets, str):
+            merged_targets.append(existing_targets)
+        elif isinstance(existing_targets, list):
+            merged_targets.extend(str(item) for item in existing_targets if item)
+        for path in requested_context_files:
+            if path not in merged_targets:
+                merged_targets.append(path)
+        context_target_record["target_file"] = merged_targets
     context_pack = build_context_pack(
         agent_id="implementation",
-        target_record=target_record,
+        target_record=context_target_record,
         roadmap_id=roadmap_id,
         proposal_id=proposal_id,
     )
+
     context_pack_rendered = render_context_pack_for_prompt(context_pack)
     context_pack_summary = render_context_pack_summary(context_pack)
 
@@ -412,6 +530,7 @@ def _build_implementation_agent_prompt(spec: dict[str, Any], target: str) -> tup
     roadmap_text = _safe_read(repo_root() / "ROADMAP.md", limit=6000)
     capabilities_text = _safe_read(repo_root() / "rules" / "capabilities.yaml", limit=6000)
     implementation_evidence = _recent_implementation_evidence()
+    placeholder_feedback_constraints = _placeholder_format_feedback_constraints(proposal_id)
 
     ppkg_id = new_id("ppkg_agent_implementation")
     body = f"""# Abyss Agent Prompt Package
@@ -486,11 +605,12 @@ This evidence is provided to prevent false `already_satisfied` conclusions. If r
 
 ---
 
-{context_pack_rendered}
+{placeholder_feedback_constraints}{context_pack_rendered}
 
 ---
 
 ## Required output
+
 
 
 Return exactly one fenced block: `abyss-edit-plan`, `abyss-changeset`, `abyss-context-request`, or `abyss-blocked-result`.
@@ -543,33 +663,152 @@ Do not produce `abyss-action` blocks. Do not approve, reject, apply, run command
     return prompt_path, target_path, target_id, context_metadata
 
 
+def _parse_json_fenced_block(text: str, fence_name: str) -> dict[str, Any] | None:
+    """Parse a JSON fenced block, tolerating nested ``` inside JSON strings."""
+    parsed, _error, _saw_block = parse_named_json_block(text, fence_name)
+    return parsed
+
+
 def _parse_context_request(text: str) -> dict[str, Any] | None:
     """Parse an abyss-context-request fenced block from agent output."""
-    import re
-    pattern = r"```abyss-context-request\s*\n(.*?)```"
-    match = re.search(pattern, text, re.DOTALL)
-    if not match:
-        return None
-    try:
-        return json.loads(match.group(1).strip())
-    except json.JSONDecodeError:
-        return None
+    return _parse_json_fenced_block(text, "abyss-context-request")
 
 
 def _parse_blocked_result(text: str) -> dict[str, Any] | None:
     """Parse an abyss-blocked-result fenced block from agent output."""
-    import re
-    pattern = r"```abyss-blocked-result\s*\n(.*?)```"
-    match = re.search(pattern, text, re.DOTALL)
-    if not match:
+    return _parse_json_fenced_block(text, "abyss-blocked-result")
+
+
+def _target_file_from_edit_plan_error(message: str) -> str:
+    for pattern in (
+        r"for\s+([^\s:]+\.py):",
+        r"symbol not found:\s+([^\s:]+\.py):",
+        r"anchor match count is \d+, expected 1:\s+([^\s]+)",
+    ):
+        match = re.search(pattern, message)
+        if match:
+            return match.group(1)
+    return ""
+
+
+def _context_request_from_invalid_edit_plan(compiled_changeset: dict[str, Any]) -> dict[str, Any] | None:
+    validation = compiled_changeset.get("validation") if isinstance(compiled_changeset.get("validation"), dict) else {}
+    messages = [str(message) for message in validation.get("messages") or []]
+    context_markers = (
+        "replace_symbol target is too large",
+        "anchor match count is",
+        "symbol not found:",
+    )
+    format_markers = (
+        "EDIT_PLAN_PARSE_ERROR",
+        "MISSING_EDITS_DUE_TO_PARSE_FAILURE",
+        "MISSING_EDITS_NO_EDITS_BLOCK",
+    )
+    placeholder_markers = (
+        "placeholder content is not allowed",
+        "ellipsis placeholder expression is not allowed",
+    )
+    context_recoverable = [message for message in messages if any(marker in message for marker in context_markers)]
+    format_recoverable = [message for message in messages if any(marker in message for marker in format_markers)]
+    placeholder_recoverable = [message for message in messages if any(marker in message for marker in placeholder_markers)]
+    recoverable = context_recoverable[:]
+    for message in format_recoverable + placeholder_recoverable:
+        if message not in recoverable:
+            recoverable.append(message)
+    if not recoverable:
         return None
-    try:
-        return json.loads(match.group(1).strip())
-    except json.JSONDecodeError:
-        return None
+
+    missing: list[dict[str, str]] = []
+    seen_files: set[str] = set()
+    for message in context_recoverable:
+        rel_path = _target_file_from_edit_plan_error(message)
+        if not rel_path or rel_path in seen_files:
+            continue
+        seen_files.add(rel_path)
+        if "replace_symbol target is too large" in message:
+            need = "use replace_anchor or append_after_anchor with a small unique anchor instead of replace_symbol for this large function"
+        elif "symbol not found" in message:
+            need = "verify the exact symbol name exists in this file; use a unique anchor from the target region instead"
+        elif "anchor match count is" in message:
+            need = "the specified anchor text does not uniquely match in this file; provide a different exact unique anchor from the target region"
+        else:
+            need = "a smaller unique anchor or nearby exact source context for a local edit"
+        missing.append({
+            "file": rel_path,
+            "need": need,
+            "reason": message,
+            "request_kind": "local_edit_context",
+            "retry_guidance": "Use replace_anchor or append_after_anchor with a small exact unique snippet visible in the provided context. If no safe anchor is visible, request local_edit_context instead of guessing.",
+        })
+    for message in format_recoverable:
+        missing.append({
+            "file": "unknown",
+            "need": "a syntactically valid abyss-edit-plan JSON block with a non-empty edits array",
+            "reason": message,
+            "request_kind": "format_feedback",
+            "retry_guidance": "Retry with a strictly valid abyss-edit-plan fenced JSON block. Include schema abyss.edit_plan.v1 and at least one edit; escape newlines and quotes inside JSON string values.",
+        })
+    for message in placeholder_recoverable:
+        missing.append({
+            "file": "unknown",
+            "need": "complete concrete code with no placeholder markers in content or new_content",
+            "reason": message,
+            "request_kind": "format_feedback",
+            "retry_guidance": "Replace placeholder markers such as existing code, placeholder, omitted, ellipsis, or TODO with complete concrete code. Do not use abbreviated code or prose placeholders inside new_content/content.",
+        })
+    if not missing:
+        missing.append({
+            "file": "unknown",
+            "need": "a smaller unique anchor or exact local source context for the failed edit-plan operation",
+            "reason": recoverable[0],
+            "request_kind": "local_edit_context",
+            "retry_guidance": "Use replace_anchor or append_after_anchor with a small unique snippet instead of replace_symbol.",
+        })
+
+    has_format_feedback = any(item.get("request_kind") == "format_feedback" for item in missing)
+    request_kind = "format_feedback" if has_format_feedback and not context_recoverable else "local_edit_context"
+    recovery_classification = "format_feedback" if has_format_feedback and not context_recoverable else "context_insufficient"
+    if recovery_classification == "format_feedback":
+        reason = "Implementation edit plan could not be compiled because the edit-plan output was malformed, empty, or contained placeholder content."
+        suggestion = "Regenerate the implementation as a valid abyss-edit-plan JSON block with complete concrete code and no placeholders."
+    else:
+        reason = "Implementation edit plan could not be safely compiled into a ChangeSet due to symbol/anchor resolution failure; more precise local context or a smaller unique anchor is required."
+        suggestion = "Regenerate the implementation using replace_anchor/append_after_anchor with a small exact unique anchor visible in the provided Repository Files, or request the exact local source region needed for the edit."
+
+    req_id = new_id("ctx_req")
+    record = {
+        "schema": "abyss.context_request.v1",
+        "id": req_id,
+        "output_type": "context_request",
+        "agent_id": "implementation",
+        "roadmap_id": compiled_changeset.get("roadmap_id"),
+        "proposal_id": "unknown",
+        "agent_run_id": compiled_changeset.get("agent_run_id"),
+        "result_path": compiled_changeset.get("result_path"),
+        "source_changeset_id": compiled_changeset.get("id"),
+        "missing": missing,
+        "request_kind": request_kind,
+        "recovery_classification": recovery_classification,
+        "reason": reason,
+        "suggestion": suggestion,
+        "retry_guidance": compiled_changeset.get("retry_guidance") or missing[0].get("retry_guidance"),
+        "created_at": now_iso(),
+    }
+    ctx_req_dir = runtime_root() / "process" / "context_requests"
+    ctx_req_dir.mkdir(parents=True, exist_ok=True)
+    write_record(ctx_req_dir / f"{req_id}.yaml", record)
+    append_event("agent.output.context_request_from_invalid_edit_plan", "Invalid edit plan converted to recoverable context request", {
+        "context_request_id": req_id,
+        "source_changeset_id": compiled_changeset.get("id"),
+        "recovery_classification": recovery_classification,
+        "request_kind": request_kind,
+        "messages": recoverable,
+    })
+    return record
 
 
 def _has_relevant_recent_implementation_failures(target_record: dict[str, Any]) -> bool:
+
     """Conservatively detect whether already_satisfied would contradict recent implementation evidence."""
     roadmap_id = str(target_record.get("roadmap_entry") or target_record.get("roadmap_id") or "")
     title = str(target_record.get("title") or target_record.get("purpose") or target_record.get("details") or "").lower()
@@ -681,6 +920,9 @@ def _parse_implementation_output(response_text: str, *, agent_run_id: str, resul
                 "parse_diagnostics": compiled_changeset.get("parse_diagnostics"),
                 "validation_messages": (compiled_changeset.get("validation") or {}).get("messages", []),
             })
+            context_request = _context_request_from_invalid_edit_plan(compiled_changeset)
+            if context_request:
+                return context_request
         return compiled_changeset
 
     # Fall back to legacy ChangeSet parsing for backward compatibility.

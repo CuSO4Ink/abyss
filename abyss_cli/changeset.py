@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-import json
-import re
 import subprocess
 from pathlib import Path
 from typing import Any
 
 from .audit import append_event
+from .fenced_blocks import parse_named_json_block
 from .utils import list_records, new_id, now_iso, read_record, relative_to_repo, repo_root, runtime_root, write_record
-
-CHANGESET_BLOCK_RE = re.compile(r"```(?:abyss-changeset|abyss-change-set)\s*(.*?)```", re.DOTALL | re.IGNORECASE)
 
 CHANGESETS_DIR = runtime_root() / "process" / "changesets"
 EXECUTIONS_DIR = runtime_root() / "process" / "executions"
@@ -225,14 +222,16 @@ def import_changeset(source_path: Path) -> dict[str, Any]:
     return _store_imported_changeset(record, source=relative_to_repo(source_path))
 
 
+def _parse_changeset_block(text: str) -> tuple[dict[str, Any] | None, str | None, bool]:
+    return parse_named_json_block(text, ("abyss-changeset", "abyss-change-set"), object_error="ChangeSet block was not a JSON object")
+
+
 def import_changeset_from_agent_output(text: str, *, agent_run_id: str | None, result_path: Path) -> dict[str, Any] | None:
-    matches = CHANGESET_BLOCK_RE.findall(text)
-    if not matches:
+    record, parse_error, saw_block = _parse_changeset_block(text)
+    if not saw_block:
         append_event("changeset.agent_output_missing", "ImplementationAgent output did not contain an abyss-changeset block", {"agent_run_id": agent_run_id, "result_path": result_path.as_posix()})
         return None
-    try:
-        record = json.loads(matches[0].strip())
-    except json.JSONDecodeError as exc:
+    if record is None and parse_error != "ChangeSet block was not a JSON object":
         fallback = {
             "schema": SUPPORTED_SCHEMA,
             "id": new_id("chg_invalid"),
@@ -240,7 +239,7 @@ def import_changeset_from_agent_output(text: str, *, agent_run_id: str | None, r
             "summary": "Invalid ImplementationAgent ChangeSet JSON output",
             "status": "invalid",
             "operations": [],
-            "parse_error": str(exc),
+            "parse_error": parse_error or "unknown parse error",
             "raw_result_path": result_path.as_posix(),
         }
         return _store_imported_changeset(fallback, source="implementation_agent_parse_error")

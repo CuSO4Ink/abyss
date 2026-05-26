@@ -1,0 +1,99 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r049_corrected_integrity_structure_helper",
+  "roadmap_id": "R049",
+  "summary": "Extract required structure integrity checks into a focused helper",
+  "risk_level": "L2",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/integrity.py"
+      },
+      "input": {
+        "old_content": "EXPECTED_SCHEMA_IDS = {\n    \"rules/schemas/change_set.v1.schema.json\": \"abyss.change_set.v1\",\n    \"rules/schemas/context_request.v1.schema.json\": \"abyss.context_request.v1\",\n    \"rules/schemas/blocked_result.v1.schema.json\": \"abyss.blocked_result.v1\",\n    \"rules/schemas/harness_review.v1.schema.json\": \"abyss.harness_review.v1\",\n    \"rules/schemas/evolution_analysis.v1.schema.json\": \"abyss.evolution_analysis.v1\",\n    \"rules/schemas/context_pack.v1.schema.json\": \"abyss.context_pack.v1\",\n    \"rules/schemas/external_work_feedback_card.v1.schema.json\": \"abyss.external_work_feedback_card.v1\",\n    \"rules/schemas/request_envelope.v1.schema.json\": \"abyss.request_envelope.v1\",\n}\n\n\ndef run_checks() -> tuple[bool, list[str]]:",
+        "new_content": "EXPECTED_SCHEMA_IDS = {\n    \"rules/schemas/change_set.v1.schema.json\": \"abyss.change_set.v1\",\n    \"rules/schemas/context_request.v1.schema.json\": \"abyss.context_request.v1\",\n    \"rules/schemas/blocked_result.v1.schema.json\": \"abyss.blocked_result.v1\",\n    \"rules/schemas/harness_review.v1.schema.json\": \"abyss.harness_review.v1\",\n    \"rules/schemas/evolution_analysis.v1.schema.json\": \"abyss.evolution_analysis.v1\",\n    \"rules/schemas/context_pack.v1.schema.json\": \"abyss.context_pack.v1\",\n    \"rules/schemas/external_work_feedback_card.v1.schema.json\": \"abyss.external_work_feedback_card.v1\",\n    \"rules/schemas/request_envelope.v1.schema.json\": \"abyss.request_envelope.v1\",\n}\n\n\ndef _check_required_structure(root: Path, messages: list[str]) -> bool:\n    ok = True\n    for rel in REQUIRED_DIRS:\n        if not (root / rel).exists():\n            ok = False\n            messages.append(f\"MISSING_DIR {rel}\")\n\n    for rel in REQUIRED_FILES:\n        if not (root / rel).exists():\n            ok = False\n            messages.append(f\"MISSING_FILE {rel}\")\n\n    return ok\n\n\ndef run_checks() -> tuple[bool, list[str]]:"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_002",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/integrity.py"
+      },
+      "input": {
+        "old_content": "    for rel in REQUIRED_DIRS:\n        if not (root / rel).exists():\n            ok = False\n            messages.append(f\"MISSING_DIR {rel}\")\n\n    for rel in REQUIRED_FILES:\n        if not (root / rel).exists():\n            ok = False\n            messages.append(f\"MISSING_FILE {rel}\")\n\n    for directory in [root / \"process\" / \"intents\", root / \"process\" / \"actions\", root / \"process\" / \"reviews\"]:",
+        "new_content": "    ok = _check_required_structure(root, messages)\n\n    for directory in [root / \"process\" / \"intents\", root / \"process\" / \"actions\", root / \"process\" / \"reviews\"]:"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "check_001",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m compileall -q abyss_cli"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_002",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_003",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli summary --check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    }
+  ],
+  "created_at": "2026-05-26T02:04:00+08:00",
+  "no_action_executed": true
+}

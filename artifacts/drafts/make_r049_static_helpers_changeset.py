@@ -1,202 +1,15 @@
 from __future__ import annotations
 
-import re
+import json
 from pathlib import Path
 
-from .disclosure import audit_context_manifest
-from .request_rules import validate_request_rules_config
-from .schema_validator import validate_schema_file
-from .utils import list_records, read_record, repo_root, runtime_root
+ROOT = Path(__file__).resolve().parents[2]
+INTEGRITY = ROOT / "abyss_cli" / "integrity.py"
+OUT = ROOT / "artifacts" / "drafts" / "chg_r049_corrected_integrity_static_helpers.json"
 
+text = INTEGRITY.read_text(encoding="utf-8")
 
-REQUIRED_DIRS = [
-    "rules",
-    "prompts/system",
-    "prompts/modes",
-    "process/intents",
-    "process/prompt_packages",
-    "process/actions",
-    "process/reviews",
-    "process/imports",
-    "audit",
-    "artifacts/drafts",
-    "abyss_cli",
-]
-
-REQUIRED_FILES = [
-    "ABYSS.md",
-    "ABYSS_CONSTITUTION.md",
-    "README.md",
-    "SYSTEM_MAP.md",
-    "rules/capabilities.yaml",
-    "rules/agents.yaml",
-    "rules/modules.yaml",
-    "rules/context_manifest.yaml",
-    "rules/architecture_cognition.yaml",
-    "rules/request_types.v1.yaml",
-    "rules/contracts/change_set.v1.yaml",
-    "rules/contracts/context_request.v1.yaml",
-    "rules/contracts/blocked_result.v1.yaml",
-    "rules/contracts/harness_review.v1.yaml",
-    "rules/contracts/evolution_analysis.v1.yaml",
-    "rules/contracts/context_pack.v1.yaml",
-    "rules/contracts/external_work_feedback_card.v1.yaml",
-    "rules/contracts/request_envelope.v1.yaml",
-    "rules/schemas/change_set.v1.schema.json",
-    "rules/schemas/context_request.v1.schema.json",
-    "rules/schemas/blocked_result.v1.schema.json",
-    "rules/schemas/harness_review.v1.schema.json",
-    "rules/schemas/evolution_analysis.v1.schema.json",
-    "rules/schemas/context_pack.v1.schema.json",
-    "rules/schemas/external_work_feedback_card.v1.schema.json",
-    "rules/schemas/request_envelope.v1.schema.json",
-]
-
-
-SENSITIVE_NAME_PARTS = [".env", "secret", "token", "credential", "id_rsa", "id_ed25519"]
-
-MODULE_CAPSULE_REQUIRED_FIELDS = [
-    "files",
-    "responsibility",
-    "inputs",
-    "outputs",
-    "permissions",
-    "dependencies",
-    "risk_level",
-    "validation",
-    "failure_modes",
-    "observability",
-    "runtime_records",
-    "allowed_callers",
-    "forbidden_actions",
-    "invariants",
-]
-
-EXPECTED_CONTRACT_IDS = {
-    "rules/contracts/change_set.v1.yaml": "abyss.change_set.v1",
-    "rules/contracts/context_request.v1.yaml": "abyss.context_request.v1",
-    "rules/contracts/blocked_result.v1.yaml": "abyss.blocked_result.v1",
-    "rules/contracts/harness_review.v1.yaml": "abyss.harness_review.v1",
-    "rules/contracts/evolution_analysis.v1.yaml": "abyss.evolution_analysis.v1",
-    "rules/contracts/context_pack.v1.yaml": "abyss.context_pack.v1",
-    "rules/contracts/external_work_feedback_card.v1.yaml": "abyss.external_work_feedback_card.v1",
-    "rules/contracts/request_envelope.v1.yaml": "abyss.request_envelope.v1",
-}
-
-EXPECTED_SCHEMA_IDS = {
-    "rules/schemas/change_set.v1.schema.json": "abyss.change_set.v1",
-    "rules/schemas/context_request.v1.schema.json": "abyss.context_request.v1",
-    "rules/schemas/blocked_result.v1.schema.json": "abyss.blocked_result.v1",
-    "rules/schemas/harness_review.v1.schema.json": "abyss.harness_review.v1",
-    "rules/schemas/evolution_analysis.v1.schema.json": "abyss.evolution_analysis.v1",
-    "rules/schemas/context_pack.v1.schema.json": "abyss.context_pack.v1",
-    "rules/schemas/external_work_feedback_card.v1.schema.json": "abyss.external_work_feedback_card.v1",
-    "rules/schemas/request_envelope.v1.schema.json": "abyss.request_envelope.v1",
-}
-
-
-def _check_required_structure(root: Path, messages: list[str]) -> bool:
-    ok = True
-    for rel in REQUIRED_DIRS:
-        if not (root / rel).exists():
-            ok = False
-            messages.append(f"MISSING_DIR {rel}")
-
-    for rel in REQUIRED_FILES:
-        if not (root / rel).exists():
-            ok = False
-            messages.append(f"MISSING_FILE {rel}")
-
-    return ok
-
-
-def _check_process_records(root: Path, messages: list[str]) -> bool:
-    ok = True
-    for directory in [root / "process" / "intents", root / "process" / "actions", root / "process" / "reviews"]:
-        for path in list_records(directory):
-            try:
-                record = read_record(path)
-                if "id" not in record or "schema" not in record:
-                    ok = False
-                    messages.append(f"INVALID_RECORD_FIELDS {path.relative_to(root)}")
-            except Exception as exc:
-                ok = False
-                messages.append(f"INVALID_JSON_YAML {path.relative_to(root)} {exc}")
-
-    return ok
-
-
-def _check_runtime_records(root: Path, messages: list[str]) -> bool:
-    ok = True
-    runtime = runtime_root()
-    for directory in [
-        runtime / "process" / "changesets",
-        runtime / "process" / "executions",
-        runtime / "process" / "workflows",
-        runtime / "process" / "owner_inbox",
-        runtime / "process" / "reports",
-    ]:
-        for path in list_records(directory):
-            try:
-                record = read_record(path)
-                if "id" not in record or "schema" not in record:
-                    ok = False
-                    messages.append(f"INVALID_RUNTIME_RECORD_FIELDS {path.relative_to(root)}")
-            except Exception as exc:
-                ok = False
-                messages.append(f"INVALID_RUNTIME_JSON_YAML {path.relative_to(root)} {exc}")
-
-    changeset_ids = {read_record(p).get("id") for p in list_records(runtime / "process" / "changesets", "chg")}
-    execution_ids = {read_record(p).get("id") for p in list_records(runtime / "process" / "executions", "exec")}
-    workflow_ids = {read_record(p).get("id") for p in list_records(runtime / "process" / "workflows", "wf")}
-    owner_ids = {read_record(p).get("id") for p in list_records(runtime / "process" / "owner_inbox", "owner")}
-    for execution_path in list_records(runtime / "process" / "executions", "exec"):
-        execution = read_record(execution_path)
-        if execution.get("changeset_id") not in changeset_ids:
-            ok = False
-            messages.append(f"BROKEN_EXECUTION_REF {execution_path.relative_to(root)} -> {execution.get('changeset_id')}")
-
-    for workflow_path in list_records(runtime / "process" / "workflows", "wf"):
-        workflow = read_record(workflow_path)
-        status = workflow.get("status")
-        if status not in {"implementation_pending", "implementation_running", "changeset_proposed", "dry_run_passed", "harness_review_running", "waiting_owner_approval", "approved_for_execution", "executing", "checking", "done", "failed", "blocked", "rejected", "superseded"}:
-            ok = False
-            messages.append(f"INVALID_WORKFLOW_STATUS {workflow_path.relative_to(root)} {status}")
-        if workflow.get("changeset_id") and workflow.get("changeset_id") not in changeset_ids:
-            ok = False
-            messages.append(f"BROKEN_WORKFLOW_CHANGESET_REF {workflow_path.relative_to(root)} -> {workflow.get('changeset_id')}")
-        if workflow.get("owner_item_id") and workflow.get("owner_item_id") not in owner_ids:
-            ok = False
-            messages.append(f"BROKEN_WORKFLOW_OWNER_REF {workflow_path.relative_to(root)} -> {workflow.get('owner_item_id')}")
-        if workflow.get("execution_id") and workflow.get("execution_id") not in execution_ids:
-            ok = False
-            messages.append(f"BROKEN_WORKFLOW_EXECUTION_REF {workflow_path.relative_to(root)} -> {workflow.get('execution_id')}")
-
-    for owner_path in list_records(runtime / "process" / "owner_inbox", "owner"):
-        owner_item = read_record(owner_path)
-        if owner_item.get("workflow_id") not in workflow_ids:
-            ok = False
-            messages.append(f"BROKEN_OWNER_WORKFLOW_REF {owner_path.relative_to(root)} -> {owner_item.get('workflow_id')}")
-        if owner_item.get("target_id") and owner_item.get("target_id") not in changeset_ids:
-            ok = False
-            messages.append(f"BROKEN_OWNER_CHANGESET_REF {owner_path.relative_to(root)} -> {owner_item.get('target_id')}")
-
-    return ok
-
-
-def _check_review_refs(root: Path, messages: list[str]) -> bool:
-    ok = True
-    action_ids = {read_record(p).get("id") for p in list_records(root / "process" / "actions")}
-    for review_path in list_records(root / "process" / "reviews"):
-        review = read_record(review_path)
-        if review.get("action_id") not in action_ids:
-            ok = False
-            messages.append(f"BROKEN_REVIEW_REF {review_path.relative_to(root)} -> {review.get('action_id')}")
-
-    return ok
-
-
-
+helpers = '''
 def _check_governance_and_capabilities(root: Path, messages: list[str]) -> bool:
     ok = True
     governance_path = root / "rules" / "governance.yaml"
@@ -517,22 +330,18 @@ def _check_sensitive_tracked_paths(root: Path, messages: list[str]) -> bool:
 
     return ok
 
-def run_checks() -> tuple[bool, list[str]]:
-    root = repo_root()
-    messages: list[str] = []
-    ok = True
+'''
 
-    ok = _check_required_structure(root, messages)
-    if not _check_process_records(root, messages):
-        ok = False
+marker = "def run_checks() -> tuple[bool, list[str]]:"
+old_marker = marker
+new_marker = helpers + marker
+if text.count(old_marker) != 1:
+    raise SystemExit(f"marker count mismatch: {text.count(old_marker)}")
 
-    if not _check_runtime_records(root, messages):
-        ok = False
-
-    if not _check_review_refs(root, messages):
-        ok = False
-
-    if not _check_governance_and_capabilities(root, messages):
+start = text.index('    governance_path = root / "rules" / "governance.yaml"')
+end = text.index('    if ok:\n        messages.append("OK")', start)
+old_tail = text[start:end]
+new_tail = '''    if not _check_governance_and_capabilities(root, messages):
         ok = False
 
     if not _check_cognition_surface(root, messages):
@@ -553,6 +362,66 @@ def run_checks() -> tuple[bool, list[str]]:
     if not _check_sensitive_tracked_paths(root, messages):
         ok = False
 
-    if ok:
-        messages.append("OK")
-    return ok, messages
+'''
+
+changeset = {
+    "schema": "abyss.change_set.v1",
+    "id": "chg_r049_corrected_integrity_static_helpers",
+    "roadmap_id": "R049",
+    "summary": "Extract static governance, contract, context, agent, roadmap, and sensitive path integrity checks into focused helpers",
+    "risk_level": "L2",
+    "status": "proposed",
+    "operations": [
+        {
+            "id": "op_001",
+            "kind": "fs.replace_exact",
+            "capability": "fs.write",
+            "target": {"path": "abyss_cli/integrity.py"},
+            "input": {"old_content": old_marker, "new_content": new_marker},
+            "preconditions": ["old_content_matches_once"],
+            "rollback": {"strategy": "manual_revert_from_git_diff"},
+        },
+        {
+            "id": "op_002",
+            "kind": "fs.replace_exact",
+            "capability": "fs.write",
+            "target": {"path": "abyss_cli/integrity.py"},
+            "input": {"old_content": old_tail, "new_content": new_tail},
+            "preconditions": ["old_content_matches_once"],
+            "rollback": {"strategy": "manual_revert_from_git_diff"},
+        },
+        {
+            "id": "check_001",
+            "kind": "check.command",
+            "capability": "process.check",
+            "target": {"path": "system"},
+            "input": {"command": "python -m compileall -q abyss_cli"},
+            "preconditions": ["changes_applied_before_check"],
+            "rollback": {"strategy": "not_applicable"},
+        },
+        {
+            "id": "check_002",
+            "kind": "check.command",
+            "capability": "process.check",
+            "target": {"path": "system"},
+            "input": {"command": "python -m abyss_cli check"},
+            "preconditions": ["changes_applied_before_check"],
+            "rollback": {"strategy": "not_applicable"},
+        },
+        {
+            "id": "check_003",
+            "kind": "check.command",
+            "capability": "process.check",
+            "target": {"path": "system"},
+            "input": {"command": "python -m abyss_cli summary --check"},
+            "preconditions": ["changes_applied_before_check"],
+            "rollback": {"strategy": "not_applicable"},
+        },
+    ],
+    "created_at": "2026-05-26T09:05:00+08:00",
+    "no_action_executed": True,
+}
+
+OUT.write_text(json.dumps(changeset, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+print(OUT)
+print(f"old_tail_chars={len(old_tail)} helper_chars={len(helpers)}")

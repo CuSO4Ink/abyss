@@ -1206,6 +1206,420 @@ Acceptance check:
 - Accepted governance-core changes activate only in a later workflow cycle, not in the cycle that approved them.
 - No governance-core change was applied, activated, or scheduled by this proposal record.
 
+### R049. M001 integrity check structure maintenance
+
+Source proposal: `evo_prop_20260526_014518_ccef53`.
+
+Purpose: M001 integrity check structure maintenance
+
+Why it is needed: request_type=maintenance_request; maintenance_kind=refactor; task_context=system summary health check maintenance; target_file=abyss_cli/integrity.py; allowed_modification=abyss_cli/integrity.py only; goal=extract focused helper functions from run_checks; preserve=public behavior, return value, message ordering, and command results; no_other_files_may_change=true; validation=python -m compileall -q abyss_cli; python -m abyss_cli check; python -m abyss_cli summary --check; rollback=revert this changeset if behavior differs
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R050. Unblock maintenance request target file context
+
+Source proposal: `evo_prop_20260526_014755_878525`.
+
+Purpose: Unblock maintenance request target file context
+
+Why it is needed: request_type=maintenance_request; maintenance_kind=stability_hardening; observed_block=R049 Implementation Agent requested missing abyss_cli/integrity.py; target=Context Broker request coverage for maintenance_request target_file/target_module; goal=Ensure maintenance requests disclose explicitly declared target file before implementation; scope=smallest governed fix to context coverage only; validation=retry R049 or equivalent M001 workflow, python -m abyss_cli check, python -m abyss_cli summary --check; non_goal=do not complete full structured task detection refactor
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R051. M004 shared parser utility for agent output blocks
+
+Source proposal: `evo_prop_20260526_094539_ae1b2b`.
+
+Purpose: M004 shared parser utility for agent output blocks
+
+Why it is needed: request_type=maintenance_request; maintenance_id=M-004; target_file=abyss_cli/fenced_blocks.py; callsite_files=abyss_cli/agent_runner.py,abyss_cli/patch_compiler.py,abyss_cli/changeset.py; objective=Create a small shared utility for parsing JSON from named fenced output blocks and wire these three call sites to it; scope=equivalent parser refactor only; non_goals=no status machine changes,no provider changes,no context pack changes,no policy changes,no broad formatting changes; acceptance=compileall passes,check passes,rules validate passes,summary check passes,embedded triple-backticks in JSON string values remain parseable
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R052. Meta M004 evolution analysis parser reuse
+
+Source proposal: `evo_prop_20260526_095954_dfe38d`.
+
+Purpose: Meta M004 evolution analysis parser reuse
+
+Why it is needed: request_type=governance_mutation; meta_evolution_request=true; maintenance_id=M-004-meta; target_file=abyss_cli/evolution_analysis.py; dependency_file=abyss_cli/fenced_blocks.py; objective=Reuse the already existing shared fenced JSON parser for abyss-evolution-analysis and json fallback block extraction in evolution_analysis.py; reason=remove duplicated fenced JSON scanning/repair logic from self-evolution analysis parsing while preserving existing behavior; scope=parser utility import plus local extraction helper simplification only; non_goals=no approval gate changes,no permission boundary changes,no workflow state changes,no context disclosure changes,no roadmap rules changes,no policy changes,no activation behavior changes; risk=L3 governance-core-adjacent because file parses self-evolution agent output; rollback=git diff/manual revert of evolution_analysis.py only; validation=compileall, abyss check, rules validate, summary --check, regression parse abyss-evolution-analysis with embedded triple backticks and json fallback; activation_note=behavior-equivalent parser refactor effective only after normal Owner approval and Executor apply under prior rules
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L3.
+
+Acceptance check:
+
+- Governance-core scope is explicitly classified before any implementation work.
+- The proposal cannot proceed through ordinary self-evolution as a self-approving closure.
+- Self Evolution and Brain Agent may analyze or prepare but cannot approve, apply, activate, or retroactively legitimize governance-core changes.
+- Risk assessment, rollback plan, validation plan, activation note, old-rule review, and explicit Owner approval are required before implementation.
+- Accepted governance-core changes activate only in a later workflow cycle, not in the cycle that approved them.
+- No governance-core change was applied, activated, or scheduled by this proposal record.
+
+### R053. Diagnose and reduce corrected ChangeSet dependency in Implementation pipeline
+
+Source proposal: `evo_prop_20260526_100807_55f571`.
+
+Purpose: Diagnose and reduce corrected ChangeSet dependency in Implementation pipeline
+
+Why it is needed: Focused maintenance request: diagnose why recent workflows increasingly require corrected ChangeSets instead of Implementation Agent generated executable ChangeSets. Scope: add or improve read-only/diagnostic instrumentation and minimal pipeline fixes for Context Broker -> Implementation Agent -> Patch Compiler failure classification. Must not continue unrelated source maintenance items M-004/M-002. Acceptance: system can report recent Implementation pipeline failure categories including context insufficiency, task_type misclassification, edit-plan JSON parse errors, symbol/anchor resolution failures, old_content match failures, Harness violations, provider empty/timeout, and expected governance blocks; any code change must be minimal and must preserve Harness/Owner/Executor gates.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R054. Reduce Implementation pipeline symbol-resolution invalid ChangeSets
+
+Source proposal: `evo_prop_20260526_104449_9247cd`.
+
+Purpose: Reduce Implementation pipeline symbol-resolution invalid ChangeSets
+
+Why it is needed: Scope: continue R053 corrected-ChangeSet dependency reduction only. Problem: recent diagnostics show symbol_resolution_failure remains the top invalid ChangeSet category, especially replace_symbol target too large and symbol/anchor resolution errors. Goal: make Patch Compiler/workflow return recoverable local_edit_context or precise retry guidance instead of terminal invalid ChangeSet when replace_symbol targets are too large, without broadening permissions or touching unrelated source-maintenance items. Acceptance: summary diagnostics still pass; compileall/check pass; a large replace_symbol failure can be classified as context_insufficient/recoverable rather than true failure where safe.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R055. Reduce edit-plan parse and missing-edits invalid ChangeSets
+
+Source proposal: `evo_prop_20260526_105510_cb24a9`.
+
+Purpose: Reduce edit-plan parse and missing-edits invalid ChangeSets
+
+Why it is needed: Scope: continue corrected-ChangeSet dependency reduction only. Problem: implementation_pipeline_diagnostics still shows edit_plan_parse_error=6 and missing_edits=6 historical failures. Goal: improve deterministic handling when Implementation Agent output cannot be parsed as abyss-edit-plan or contains no edits: preserve parse diagnostics, classify as recoverable context/format feedback where safe, and provide explicit retry guidance instead of opaque MISSING_EDITS. Out of scope: M-004/M-002, governance policy changes, prompt rewrites, broad refactors, or permission expansion. Acceptance: compileall/check/summary --check pass; invalid edit-plan records include useful diagnostics/retry guidance; normal valid edit-plan parsing remains unchanged.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R056. R056 improve invalid edit-plan retry feedback
+
+Source proposal: `evo_prop_20260526_125246_510b2d`.
+
+Purpose: R056 improve invalid edit-plan retry feedback
+
+Why it is needed: Maintenance request for Implementation pipeline diagnostics. Target: invalid edit-plan outputs where anchor text does not match or generated content contains placeholders. Improve parse diagnostics and retry guidance in patch_compiler.py and agent_runner.py so the next implementation attempt receives actionable feedback: choose an exact unique anchor visible in context, request local edit context if no safe anchor is visible, and replace placeholder text with complete concrete code. No broad refactor.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R057. R057 smoke verify invalid edit-plan feedback recovery
+
+Source proposal: `evo_prop_20260526_131023_f00670`.
+
+Purpose: R057 smoke verify invalid edit-plan feedback recovery
+
+Why it is needed: Probe/smoke request for the Implementation pipeline. Verify that after R056, recoverable invalid edit-plan feedback for placeholder content and anchor mismatch can be consumed by the next implementation attempt. Acceptance: run through the governed workflow path; if the first attempt emits placeholder content or a bad anchor, the invalid ChangeSet must carry recovery_classification and retry_guidance, a recoverable feedback/context request must be produced, and a later attempt must either produce a valid ChangeSet or block with a clearly classified non-placeholder reason. This is a diagnostic probe only; avoid broad refactor.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R058. R058 runtime probe: forced invalid-output retry recovery
+
+Source proposal: `evo_prop_20260526_131706_950818`.
+
+Purpose: R058 runtime probe: forced invalid-output retry recovery
+
+Why it is needed: Create a governed runtime probe that forces the workflow to exercise invalid ImplementationAgent output recovery, rather than merely inspecting existing fields. Acceptance: (1) the probe must create or invoke a controlled workflow path that intentionally produces at least one invalid edit-plan containing placeholder content or a bad anchor; (2) the invalid ChangeSet must be recorded with recovery_classification and retry_guidance; (3) the workflow must emit a recoverable feedback/context request or equivalent retry event tied to that invalid ChangeSet; (4) a subsequent workflow attempt must consume that feedback and either produce a valid ChangeSet/done path or block with a clearly classified non-placeholder reason; (5) reporting must show the exact workflow id, invalid changeset id, retry/context request id, and final status. This is a diagnostic probe/smoke item, not a broad refactor. Do not satisfy this request by static code inspection or by citing prior invalid changesets only.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R059. R059 make placeholder format_feedback actionable
+
+Source proposal: `evo_prop_20260526_133320_1c209f`.
+
+Purpose: R059 make placeholder format_feedback actionable
+
+Why it is needed: Narrowly improve Implementation Agent retry behavior after placeholder format_feedback. R058 proved that invalid ChangeSets and context_requests carry retry_guidance into the next Prompt Package, but the Agent still repeated placeholder output such as 'existing code'. Acceptance: (1) when recent context_request/retry evidence has request_kind=format_feedback and placeholder retry_guidance, the next Implementation prompt must present it as a hard corrective constraint, not passive evidence; (2) the prompt must explicitly require a fresh concrete edit-plan and forbid copying prior failed placeholder operations or using markers such as existing code, placeholder, omitted, ellipsis, TODO, other code unchanged; (3) include a focused runtime or compile-level regression check that demonstrates placeholder feedback is rendered in the corrective section of the prompt package; (4) do not change governance policy, external interfaces, owner approval rules, or broad prompt architecture; this is a bounded implementation-pipeline reliability fix.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R060. R060 deterministic repeated-placeholder handling
+
+Source proposal: `evo_prop_20260526_135427_d8376b`.
+
+Purpose: R060 deterministic repeated-placeholder handling
+
+Why it is needed: Narrow reliability fix for Implementation pipeline. R058/R059 proved placeholder format_feedback and mandatory corrective prompt rendering can be recorded and carried forward, but Implementation Agent may still repeat placeholder edit-plan output after receiving placeholder retry_guidance. Acceptance: (1) when a workflow emits a placeholder-related format_feedback context_request and later emits another placeholder-related format_feedback context_request for the same workflow, classify it deterministically as repeated placeholder output instead of a generic context-insufficient loop; (2) record the current context_request_id and prior placeholder context_request ids in workflow history; (3) summary diagnostics expose a repeated_placeholder_output category while keeping health checks clean; (4) no governance policy, external interface, owner approval, executor, or broad prompt architecture change.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R061. R061 source maintenance: add deterministic placeholder preflight in edit-plan handling
+
+Source proposal: `evo_prop_20260526_142327_6d6e66`.
+
+Purpose: R061 source maintenance: add deterministic placeholder preflight in edit-plan handling
+
+Why it is needed: Request type: source maintenance. Target files: abyss_cli/agent_runner.py and abyss_cli/patch_compiler.py only. Goal: add a deterministic preflight around edit-plan handling so placeholder-like edit operations are rejected with a clear reason before invalid ChangeSet import. Non-goals: do not modify prompts, rules, governance policy, context manifest, owner approval, harness permissions, workflow states, ROADMAP, or external-client behavior. Acceptance: python -m compileall abyss_cli passes; python -m abyss_cli check passes; python -m abyss_cli summary --check remains green; one minimal runtime probe or existing callable demonstrates placeholder edit-plan rejection before ChangeSet import; R060 repeated-placeholder behavior is preserved.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R062. R062 narrow: patch_compiler anchor failure diagnostics only
+
+Source proposal: `evo_prop_20260526_144826_4993a3`.
+
+Purpose: R062 narrow: patch_compiler anchor failure diagnostics only
+
+Why it is needed: request_type=maintenance_request; maintenance_kind=stability_hardening; target_file=abyss_cli/patch_compiler.py; allowed_modification=abyss_cli/patch_compiler.py only; observed_from=R061 second attempt anchor match count 0 and oversized replace_symbol patterns; objective=improve deterministic classification and retry diagnostics for anchor match count and replace_symbol target too large inside Patch Compiler invalid ChangeSet records; scope=small changes to existing error strings/recovery classification/parse_diagnostics only, preserving existing edit-plan compilation behavior; non_goals=no context_pack,no agent_runner,no prompts,no rules,no workflow,no governance policy,no new disclosure,no broad refactor,no permission expansion,no local context extraction; acceptance=python -m compileall -q abyss_cli,python -m abyss_cli check,python -m abyss_cli summary --check,probe bad replace_anchor returns recoverable context_insufficient with retry guidance naming exact unique anchor requirement,probe large replace_symbol remains recoverable with smaller-anchor guidance; risk=L2
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R063. R063 maintenance request coverage classification fix
+
+Source proposal: `evo_prop_20260526_151258_da552a`.
+
+Purpose: R063 maintenance request coverage classification fix
+
+Why it is needed: request_type=maintenance_request; target_file=abyss_cli/context_pack.py; allowed_modification=abyss_cli/context_pack.py only; objective=ensure maintenance_request target_file drives coverage classification before generic keyword matching so single-file maintenance proposals do not inherit unrelated summary or agent manifests; scope=classification and advisory coverage metadata only; non_goals=no workflow change,no agent change,no prompt change,no governance policy change,no executor change,no permission expansion; acceptance=single-file maintenance request for abyss_cli/integrity.py includes integrity.py as target coverage and does not list unrelated agent or summary files; standard health checks pass; risk=L2
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L3.
+
+Acceptance check:
+
+- Governance-core scope is explicitly classified before any implementation work.
+- The proposal cannot proceed through ordinary self-evolution as a self-approving closure.
+- Self Evolution and Brain Agent may analyze or prepare but cannot approve, apply, activate, or retroactively legitimize governance-core changes.
+- Risk assessment, rollback plan, validation plan, activation note, old-rule review, and explicit Owner approval are required before implementation.
+- Accepted governance-core changes activate only in a later workflow cycle, not in the cycle that approved them.
+- No governance-core change was applied, activated, or scheduled by this proposal record.
+
+### R064. R064 integrity.py helper extraction only
+
+Source proposal: `evo_prop_20260526_152546_a1df1a`.
+
+Purpose: R064 integrity.py helper extraction only
+
+Why it is needed: request_type=maintenance_request; target_file=abyss_cli/integrity.py; allowed_modification=abyss_cli/integrity.py only; objective=move one existing validation block from run_checks into a private helper in the same file; scope=behavior-preserving single-file refactor; non_goals=no behavior change,no schema change,no other files; acceptance=compileall abyss_cli,abyss check,abyss summary check,only integrity.py changed; risk=L2
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R065. R065 provider empty response diagnostics
+
+Source proposal: `evo_prop_20260526_152939_1a3086`.
+
+Purpose: R065 provider empty response diagnostics
+
+Why it is needed: request_type=maintenance_request; target_file=abyss_cli/llm_executor.py; allowed_modification=abyss_cli/llm_executor.py only; objective=improve provider empty stdout or empty response diagnostics so workflow failures expose provider name, interface, attempt count, and whether stdout was empty after filtering without changing provider behavior; scope=diagnostic-only single-file maintenance; non_goals=no provider config change,no model change,no retry policy change,no workflow state change,no prompts,no rules,no external interface expansion; acceptance=python -m compileall -q abyss_cli,python -m abyss_cli check,python -m abyss_cli summary --check,empty response errors remain failures but include clearer diagnostic text; risk=L2
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
 ## Pending proposals
 
 None.

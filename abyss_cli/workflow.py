@@ -170,6 +170,59 @@ def _context_pack_included_files(agent_run: dict[str, Any]) -> set[str]:
     return included
 
 
+def _is_placeholder_format_feedback_request(record: dict[str, Any]) -> bool:
+    """Return true when a context_request is placeholder-related format feedback."""
+    if record.get("request_kind") != "format_feedback":
+        return False
+    markers = (
+        "placeholder content is not allowed",
+        "ellipsis placeholder expression is not allowed",
+        "existing code",
+        "placeholder",
+        "omitted",
+        "TODO",
+    )
+    texts = [str(record.get("retry_guidance") or ""), str(record.get("reason") or ""), str(record.get("suggestion") or "")]
+    missing = record.get("missing") if isinstance(record.get("missing"), list) else []
+    for item in missing:
+        if not isinstance(item, dict):
+            continue
+        texts.extend(str(item.get(key) or "") for key in ("need", "reason", "retry_guidance"))
+    combined = "\n".join(texts).lower()
+    return any(marker.lower() in combined for marker in markers)
+
+
+def _prior_placeholder_format_feedback_ids(workflow: dict[str, Any], *, exclude_id: str = "") -> list[str]:
+    """Return prior placeholder format_feedback context request ids for this workflow."""
+    context_requests_dir = runtime_root() / "process" / "context_requests"
+    if not context_requests_dir.exists():
+        return []
+    candidate_ids: list[str] = []
+    current_id = str(workflow.get("context_request_id") or "")
+    if current_id and current_id != exclude_id:
+        candidate_ids.append(current_id)
+    history = workflow.get("history") if isinstance(workflow.get("history"), list) else []
+    for event in reversed(history):
+        details = event.get("details") if isinstance(event, dict) else {}
+        if not isinstance(details, dict) or not details.get("context_request_id"):
+            continue
+        ctx_id = str(details.get("context_request_id"))
+        if ctx_id and ctx_id != exclude_id and ctx_id not in candidate_ids:
+            candidate_ids.append(ctx_id)
+    matches: list[str] = []
+    for ctx_id in candidate_ids:
+        ctx_path = context_requests_dir / f"{ctx_id}.yaml"
+        if not ctx_path.exists():
+            continue
+        try:
+            ctx_req = read_record(ctx_path)
+        except Exception:
+            continue
+        if _is_placeholder_format_feedback_request(ctx_req):
+            matches.append(ctx_id)
+    return matches
+
+
 def _create_owner_changeset_item(workflow: dict[str, Any], changeset: dict[str, Any], review: dict[str, Any]) -> dict[str, Any]:
 
     from .owner import create_owner_item
@@ -261,11 +314,16 @@ def workflow_tick(*, provider: str | None = None, workflow_id: str | None = None
 
             # Handle context_request output
             if output_type == "context_request":
-                missing_files = [m.get("file") for m in result.get("missing", [])]
+                missing_items = result.get("missing", []) if isinstance(result.get("missing"), list) else []
+                missing_files = [m.get("file") for m in missing_items if isinstance(m, dict)]
                 reason = result.get("reason", "Context insufficient")
+                request_kind = str(result.get("request_kind") or "")
+                has_local_edit_request = request_kind == "local_edit_context" or any(
+                    isinstance(m, dict) and m.get("request_kind") == "local_edit_context" for m in missing_items
+                )
                 included_files = _context_pack_included_files(agent_run)
                 requested_existing_files = [f for f in missing_files if f and f in included_files]
-                if requested_existing_files:
+                if requested_existing_files and not has_local_edit_request:
                     workflow["last_error"] = "context_request_redundant: agent requested files already included in Context Pack"
                     workflow["context_request_id"] = result.get("id")
                     workflow["context_request_missing_files"] = missing_files
@@ -277,6 +335,21 @@ def workflow_tick(*, provider: str | None = None, workflow_id: str | None = None
                         "context_pack_id": agent_run.get("context", {}).get("context_pack_id") if isinstance(agent_run.get("context"), dict) else None,
                         "reason": reason,
                     })
+                ctx_id = str(result.get("id") or "")
+                if _is_placeholder_format_feedback_request(result):
+                    prior_placeholder_ctx_ids = _prior_placeholder_format_feedback_ids(workflow, exclude_id=ctx_id)
+                    if prior_placeholder_ctx_ids:
+                        workflow["last_error"] = "repeated_placeholder_format_feedback: Implementation Agent repeated placeholder edit-plan output after mandatory corrective feedback"
+                        workflow["context_request_id"] = result.get("id")
+                        workflow["context_request_missing_files"] = missing_files
+                        return _record_transition(workflow, "blocked", "implementation_repeated_placeholder_blocked", {
+                            "agent_run_id": agent_run.get("id"),
+                            "context_request_id": result.get("id"),
+                            "prior_context_request_ids": prior_placeholder_ctx_ids[:5],
+                            "missing_files": missing_files,
+                            "request_kind": "format_feedback",
+                            "reason": "Implementation Agent repeated placeholder output after placeholder format_feedback was already recorded for this workflow; stop automatic retry and require corrected implementation path.",
+                        })
                 workflow["last_error"] = f"context_request: {reason}"
                 workflow["context_request_id"] = result.get("id")
                 workflow["context_request_missing_files"] = missing_files
@@ -284,10 +357,13 @@ def workflow_tick(*, provider: str | None = None, workflow_id: str | None = None
                     "agent_run_id": agent_run.get("id"),
                     "context_request_id": result.get("id"),
                     "missing_files": missing_files,
+                    "request_kind": request_kind or ("local_edit_context" if has_local_edit_request else ""),
                     "reason": reason,
                 })
 
             # Handle blocked_result output
+
+
 
             if output_type == "blocked_result":
                 blocked_reason = result.get("blocked_reason", "Task blocked")
@@ -305,7 +381,31 @@ def workflow_tick(*, provider: str | None = None, workflow_id: str | None = None
             workflow["changeset_id"] = result.get("id")
             workflow["changeset_valid"] = result.get("validation", {}).get("ok")
             if not result.get("validation", {}).get("ok"):
-                workflow["last_error"] = "; ".join(result.get("validation", {}).get("messages", []))
+                validation_messages = [str(message) for message in result.get("validation", {}).get("messages", [])]
+                workflow["last_error"] = "; ".join(validation_messages)
+                format_error_markers = (
+                    "EDIT_PLAN_PARSE_ERROR",
+                    "MISSING_EDITS",
+                    "MISSING_OPERATIONS",
+                    "Invalid ImplementationAgent ChangeSet JSON output",
+                    "ChangeSet block was not a JSON object",
+                    "placeholder content is not allowed",
+                    "ellipsis placeholder expression is not allowed",
+                )
+                current_attempts = int(workflow.get("attempts", {}).get("implementation", 0))
+                has_format_error = any(any(marker in message for marker in format_error_markers) for message in validation_messages)
+                if current_attempts < 2 and has_format_error:
+                    return _record_transition(workflow, "implementation_pending", "implementation_agent_invalid_output_retry", {
+                        "changeset_id": result.get("id"),
+                        "messages": validation_messages,
+                        "attempt": current_attempts,
+                    })
+                if has_format_error:
+                    return _record_transition(workflow, "blocked", "implementation_agent_invalid_output_blocked", {
+                        "changeset_id": result.get("id"),
+                        "messages": validation_messages,
+                        "attempt": current_attempts,
+                    })
                 return _record_transition(workflow, "failed", "implementation_agent_produced_invalid_changeset", {"changeset_id": result.get("id")})
             return _record_transition(workflow, "changeset_proposed", "changeset_generated", {"changeset_id": result.get("id")})
 

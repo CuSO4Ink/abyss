@@ -1,0 +1,103 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r060_repeated_placeholder_handling",
+  "roadmap_id": "R060",
+  "summary": "Deterministically block repeated placeholder format_feedback and preserve concrete context-request files",
+  "risk_level": "L2",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.replace_exact",
+      "target": {
+        "path": "abyss_cli/workflow.py"
+      },
+      "input": {
+        "old_content": "def _context_pack_included_files(agent_run: dict[str, Any]) -> set[str]:\n    \"\"\"Return files included in the Context Pack used by an agent run.\"\"\"\n    context = agent_run.get(\"context\") if isinstance(agent_run.get(\"context\"), dict) else {}\n    files = context.get(\"files_included\") if isinstance(context.get(\"files_included\"), list) else []\n    included = {str(path) for path in files if path}\n    pack_id = context.get(\"context_pack_id\")\n    if pack_id:\n        pack_path = CONTEXT_PACKS_DIR / f\"{pack_id}.yaml\"\n        if pack_path.exists():\n            try:\n                pack_record = read_record(pack_path)\n                for path in pack_record.get(\"files_included\", []):\n                    if path:\n                        included.add(str(path))\n            except Exception:\n                pass\n    return included\n\n\ndef _create_owner_changeset_item(workflow: dict[str, Any], changeset: dict[str, Any], review: dict[str, Any]) -> dict[str, Any]:\n",
+        "new_content": "def _context_pack_included_files(agent_run: dict[str, Any]) -> set[str]:\n    \"\"\"Return files included in the Context Pack used by an agent run.\"\"\"\n    context = agent_run.get(\"context\") if isinstance(agent_run.get(\"context\"), dict) else {}\n    files = context.get(\"files_included\") if isinstance(context.get(\"files_included\"), list) else []\n    included = {str(path) for path in files if path}\n    pack_id = context.get(\"context_pack_id\")\n    if pack_id:\n        pack_path = CONTEXT_PACKS_DIR / f\"{pack_id}.yaml\"\n        if pack_path.exists():\n            try:\n                pack_record = read_record(pack_path)\n                for path in pack_record.get(\"files_included\", []):\n                    if path:\n                        included.add(str(path))\n            except Exception:\n                pass\n    return included\n\n\ndef _is_placeholder_format_feedback_request(record: dict[str, Any]) -> bool:\n    \"\"\"Return true when a context_request is placeholder-related format feedback.\"\"\"\n    if record.get(\"request_kind\") != \"format_feedback\":\n        return False\n    markers = (\n        \"placeholder content is not allowed\",\n        \"ellipsis placeholder expression is not allowed\",\n        \"existing code\",\n        \"placeholder\",\n        \"omitted\",\n        \"TODO\",\n    )\n    texts = [str(record.get(\"retry_guidance\") or \"\"), str(record.get(\"reason\") or \"\"), str(record.get(\"suggestion\") or \"\")]\n    missing = record.get(\"missing\") if isinstance(record.get(\"missing\"), list) else []\n    for item in missing:\n        if not isinstance(item, dict):\n            continue\n        texts.extend(str(item.get(key) or \"\") for key in (\"need\", \"reason\", \"retry_guidance\"))\n    combined = \"\\n\".join(texts).lower()\n    return any(marker.lower() in combined for marker in markers)\n\n\ndef _prior_placeholder_format_feedback_ids(workflow: dict[str, Any], *, exclude_id: str = \"\") -> list[str]:\n    \"\"\"Return prior placeholder format_feedback context request ids for this workflow.\"\"\"\n    context_requests_dir = runtime_root() / \"process\" / \"context_requests\"\n    if not context_requests_dir.exists():\n        return []\n    candidate_ids: list[str] = []\n    current_id = str(workflow.get(\"context_request_id\") or \"\")\n    if current_id and current_id != exclude_id:\n        candidate_ids.append(current_id)\n    history = workflow.get(\"history\") if isinstance(workflow.get(\"history\"), list) else []\n    for event in reversed(history):\n        details = event.get(\"details\") if isinstance(event, dict) else {}\n        if not isinstance(details, dict) or not details.get(\"context_request_id\"):\n            continue\n        ctx_id = str(details.get(\"context_request_id\"))\n        if ctx_id and ctx_id != exclude_id and ctx_id not in candidate_ids:\n            candidate_ids.append(ctx_id)\n    matches: list[str] = []\n    for ctx_id in candidate_ids:\n        ctx_path = context_requests_dir / f\"{ctx_id}.yaml\"\n        if not ctx_path.exists():\n            continue\n        try:\n            ctx_req = read_record(ctx_path)\n        except Exception:\n            continue\n        if _is_placeholder_format_feedback_request(ctx_req):\n            matches.append(ctx_id)\n    return matches\n\n\ndef _create_owner_changeset_item(workflow: dict[str, Any], changeset: dict[str, Any], review: dict[str, Any]) -> dict[str, Any]:\n"
+      }
+    },
+    {
+      "id": "op_002",
+      "kind": "fs.replace_exact",
+      "target": {
+        "path": "abyss_cli/workflow.py"
+      },
+      "input": {
+        "old_content": "                workflow[\"last_error\"] = f\"context_request: {reason}\"\n                workflow[\"context_request_id\"] = result.get(\"id\")\n                workflow[\"context_request_missing_files\"] = missing_files\n                return _record_transition(workflow, \"blocked\", \"implementation_context_insufficient\", {\n                    \"agent_run_id\": agent_run.get(\"id\"),\n                    \"context_request_id\": result.get(\"id\"),\n                    \"missing_files\": missing_files,\n                    \"request_kind\": request_kind or (\"local_edit_context\" if has_local_edit_request else \"\"),\n                    \"reason\": reason,\n                })\n\n            # Handle blocked_result output\n",
+        "new_content": "                ctx_id = str(result.get(\"id\") or \"\")\n                if _is_placeholder_format_feedback_request(result):\n                    prior_placeholder_ctx_ids = _prior_placeholder_format_feedback_ids(workflow, exclude_id=ctx_id)\n                    if prior_placeholder_ctx_ids:\n                        workflow[\"last_error\"] = \"repeated_placeholder_format_feedback: Implementation Agent repeated placeholder edit-plan output after mandatory corrective feedback\"\n                        workflow[\"context_request_id\"] = result.get(\"id\")\n                        workflow[\"context_request_missing_files\"] = missing_files\n                        return _record_transition(workflow, \"blocked\", \"implementation_repeated_placeholder_blocked\", {\n                            \"agent_run_id\": agent_run.get(\"id\"),\n                            \"context_request_id\": result.get(\"id\"),\n                            \"prior_context_request_ids\": prior_placeholder_ctx_ids[:5],\n                            \"missing_files\": missing_files,\n                            \"request_kind\": \"format_feedback\",\n                            \"reason\": \"Implementation Agent repeated placeholder output after placeholder format_feedback was already recorded for this workflow; stop automatic retry and require corrected implementation path.\",\n                        })\n                workflow[\"last_error\"] = f\"context_request: {reason}\"\n                workflow[\"context_request_id\"] = result.get(\"id\")\n                workflow[\"context_request_missing_files\"] = missing_files\n                return _record_transition(workflow, \"blocked\", \"implementation_context_insufficient\", {\n                    \"agent_run_id\": agent_run.get(\"id\"),\n                    \"context_request_id\": result.get(\"id\"),\n                    \"missing_files\": missing_files,\n                    \"request_kind\": request_kind or (\"local_edit_context\" if has_local_edit_request else \"\"),\n                    \"reason\": reason,\n                })\n\n            # Handle blocked_result output\n"
+      }
+    },
+    {
+      "id": "op_003",
+      "kind": "fs.replace_exact",
+      "target": {
+        "path": "abyss_cli/summary.py"
+      },
+      "input": {
+        "old_content": "WORKFLOW_FAILURE_CATEGORIES = (\n    (\"context_request\", \"context_insufficient\"),\n    (\"context insufficient\", \"context_insufficient\"),\n    (\"implementation_context_insufficient\", \"context_insufficient\"),\n    (\"implementation_agent_redundant_context_request\", \"context_insufficient\"),\n    (\"task_type\", \"task_type_misclassification\"),\n",
+        "new_content": "WORKFLOW_FAILURE_CATEGORIES = (\n    (\"repeated_placeholder_format_feedback\", \"repeated_placeholder_output\"),\n    (\"implementation_repeated_placeholder_blocked\", \"repeated_placeholder_output\"),\n    (\"context_request\", \"context_insufficient\"),\n    (\"context insufficient\", \"context_insufficient\"),\n    (\"implementation_context_insufficient\", \"context_insufficient\"),\n    (\"implementation_agent_redundant_context_request\", \"context_insufficient\"),\n    (\"task_type\", \"task_type_misclassification\"),\n"
+      }
+    },
+    {
+      "id": "op_004",
+      "kind": "fs.replace_exact",
+      "target": {
+        "path": "abyss_cli/summary.py"
+      },
+      "input": {
+        "old_content": "    if status == \"blocked\":\n        blocked_result_id = workflow.get(\"blocked_result_id\")\n        last_error = workflow.get(\"last_error\", \"\")\n        if \"context_request\" in last_error:\n            return \"context_insufficient\"\n        if blocked_result_id:\n",
+        "new_content": "    if status == \"blocked\":\n        blocked_result_id = workflow.get(\"blocked_result_id\")\n        last_error = workflow.get(\"last_error\", \"\")\n        if \"repeated_placeholder_format_feedback\" in last_error:\n            return \"context_insufficient\"\n        if \"context_request\" in last_error:\n            return \"context_insufficient\"\n        if blocked_result_id:\n"
+      }
+    },
+    {
+      "id": "op_005",
+      "kind": "fs.replace_exact",
+      "target": {
+        "path": "abyss_cli/context_pack.py"
+      },
+      "input": {
+        "old_content": "    declared_target_files: list[str] = []\n    if isinstance(target_record, dict):\n        _extend_declared_targets(target_record.get(\"target_file\"), declared_target_files)\n        _extend_declared_targets(target_record.get(\"target_module\"), declared_target_files)\n        details_text = str(target_record.get(\"details\") or \"\")\n        for part in details_text.split(\";\"):\n            key, sep, value = part.partition(\"=\")\n            if sep and key.strip() in {\"target_file\", \"target_module\"}:\n                _extend_declared_targets(value.strip(), declared_target_files)\n\n\n    # Get rule source files for this task type from Rule Source Registry\n",
+        "new_content": "    declared_target_files: list[str] = []\n    if isinstance(target_record, dict):\n        _extend_declared_targets(target_record.get(\"target_file\"), declared_target_files)\n        _extend_declared_targets(target_record.get(\"target_module\"), declared_target_files)\n        manifest = target_record.get(\"task_coverage_manifest\") if isinstance(target_record.get(\"task_coverage_manifest\"), dict) else {}\n        _extend_declared_targets(manifest.get(\"expected_files\"), declared_target_files)\n        details_text = str(target_record.get(\"details\") or \"\")\n        for part in details_text.split(\";\"):\n            key, sep, value = part.partition(\"=\")\n            if sep and key.strip() in {\"target_file\", \"target_module\"}:\n                _extend_declared_targets(value.strip(), declared_target_files)\n\n\n    # Get rule source files for this task type from Rule Source Registry\n"
+      }
+    },
+    {
+      "id": "op_006",
+      "kind": "fs.replace_exact",
+      "target": {
+        "path": "abyss_cli/agent_runner.py"
+      },
+      "input": {
+        "old_content": "def _latest_context_request_files(proposal_id: str) -> list[str]:\n    \"\"\"Return files requested by the latest context request for this proposal.\n\n    The actual disclosure safety check remains in Context Broker's target-file\n    policy; this helper only carries forward the workflow's recorded request.\n    \"\"\"\n    workflows_dir = runtime_root() / \"process\" / \"workflows\"\n    if not proposal_id or not workflows_dir.exists():\n        return []\n    workflows = [read_record(path) for path in list_records(workflows_dir, \"wf\")]\n    matches = [wf for wf in workflows if str(wf.get(\"proposal_id\") or \"\") == proposal_id]\n    for workflow in sorted(matches, key=lambda item: item.get(\"updated_at\", \"\"), reverse=True):\n        history = workflow.get(\"history\") if isinstance(workflow.get(\"history\"), list) else []\n        last_event = history[-1] if history else {}\n        details = last_event.get(\"details\") if isinstance(last_event, dict) else {}\n        if not isinstance(details, dict):\n            continue\n        files = workflow.get(\"context_request_missing_files\") or details.get(\"missing_files\") or []\n        if not isinstance(files, list):\n            continue\n        return [str(path) for path in files if path]\n    return []\n\n\ndef _resolve_action_target(target: str) -> Path:\n",
+        "new_content": "def _latest_context_request_files(proposal_id: str) -> list[str]:\n    \"\"\"Return concrete files requested by recent context requests for this proposal.\n\n    The actual disclosure safety check remains in Context Broker's target-file\n    policy; this helper only carries forward recorded repo-file requests and\n    skips format_feedback placeholders such as ``unknown``.\n    \"\"\"\n    workflows_dir = runtime_root() / \"process\" / \"workflows\"\n    if not proposal_id or not workflows_dir.exists():\n        return []\n\n    def _concrete_files(raw_files: Any) -> list[str]:\n        if not isinstance(raw_files, list):\n            return []\n        concrete: list[str] = []\n        for item in raw_files:\n            path = str(item or \"\").strip()\n            if not path or path == \"unknown\" or \"/\" not in path:\n                continue\n            if path not in concrete:\n                concrete.append(path)\n        return concrete\n\n    workflows = [read_record(path) for path in list_records(workflows_dir, \"wf\")]\n    matches = [wf for wf in workflows if str(wf.get(\"proposal_id\") or \"\") == proposal_id]\n    for workflow in sorted(matches, key=lambda item: item.get(\"updated_at\", \"\"), reverse=True):\n        current_files = _concrete_files(workflow.get(\"context_request_missing_files\"))\n        if current_files:\n            return current_files\n        history = workflow.get(\"history\") if isinstance(workflow.get(\"history\"), list) else []\n        for event in reversed(history):\n            details = event.get(\"details\") if isinstance(event, dict) else {}\n            if not isinstance(details, dict):\n                continue\n            files = _concrete_files(details.get(\"missing_files\"))\n            if files:\n                return files\n    return []\n\n\ndef _resolve_action_target(target: str) -> Path:\n"
+      }
+    },
+    {
+      "id": "op_007",
+      "kind": "check.command",
+      "input": {
+        "command": "python -m compileall -q abyss_cli"
+      }
+    },
+    {
+      "id": "op_008",
+      "kind": "check.command",
+      "input": {
+        "command": "python -m abyss_cli check"
+      }
+    },
+    {
+      "id": "op_009",
+      "kind": "check.command",
+      "input": {
+        "command": "python -m abyss_cli summary --check"
+      }
+    }
+  ],
+  "created_at": "2026-05-26T14:09:46+08:00",
+  "updated_at": "2026-05-26T14:09:46+08:00",
+  "metadata": {
+    "corrects_workflow_id": "wf_20260526_135904_03e5e5",
+    "corrects_block_event": "implementation_repeated_placeholder_blocked"
+  }
+}

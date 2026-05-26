@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import socket
 import subprocess
 import time
 import urllib.error
@@ -143,9 +144,9 @@ def _cli_response(provider_config: dict[str, Any], prompt_text: str) -> str:
                 timeout=timeout,
             )
         except subprocess.TimeoutExpired:
-            message = f"CLI provider timed out after {timeout} seconds (attempt {attempt}/{max_attempts})"
+            message = f"CLI provider timed out after {timeout} seconds (provider=cli, interface={interface}, attempt {attempt}/{max_attempts})"
             retryable_errors.append(message)
-            append_event("llm.provider.retryable_failure", message, {"provider": "cli", "attempt": attempt, "max_attempts": max_attempts, "reason": "timeout", "timeout_seconds": timeout})
+            append_event("llm.provider.retryable_failure", message, {"provider": "cli", "interface": interface, "attempt": attempt, "max_attempts": max_attempts, "reason": "timeout", "timeout_seconds": timeout})
         except OSError as exc:
             raise SystemExit(f"CLI provider could not start: {exc}") from exc
         else:
@@ -157,15 +158,15 @@ def _cli_response(provider_config: dict[str, Any], prompt_text: str) -> str:
                 if attempt > 1:
                     append_event("llm.provider.retry_recovered", "CLI provider returned output after retry", {"provider": "cli", "attempt": attempt, "max_attempts": max_attempts, "prior_errors": retryable_errors})
                 return output + "\n"
-            message = f"CLI provider returned empty stdout (attempt {attempt}/{max_attempts})"
+            message = f"CLI provider returned empty stdout (provider=cli, interface={interface}, attempt {attempt}/{max_attempts}, stdout_empty_before_filtering=True)"
             retryable_errors.append(message)
-            append_event("llm.provider.retryable_failure", message, {"provider": "cli", "attempt": attempt, "max_attempts": max_attempts, "reason": "empty_stdout", "stdout_length": 0, "stderr_preview": (proc.stderr or "")[:200]})
+            append_event("llm.provider.retryable_failure", message, {"provider": "cli", "interface": interface, "attempt": attempt, "max_attempts": max_attempts, "reason": "empty_stdout", "stdout_length": 0, "stdout_empty_before_filtering": True, "stderr_preview": (proc.stderr or "")[:200]})
 
         if attempt < max_attempts and retry_backoff_seconds > 0:
             time.sleep(retry_backoff_seconds * attempt)
 
     detail = "; ".join(retryable_errors[-max_attempts:]) or "unknown retryable provider failure"
-    raise SystemExit(f"CLI provider failed after {max_attempts} attempt(s): {detail}")
+    raise SystemExit(f"CLI provider failed after {max_attempts} attempt(s) (provider=cli, interface={interface}): {detail}")
 
 
 def _json_path(data: Any, path: str) -> Any:
@@ -187,7 +188,10 @@ def _api_response(provider_config: dict[str, Any], prompt_path: Path, prompt_tex
     if not url:
         raise SystemExit("API provider is not configured. Set providers.<name>.url in .local/llm_providers.json")
 
-    timeout = int(provider_config.get("timeout_seconds", 120))
+    timeout = _positive_int(provider_config.get("timeout_seconds"), 120)
+    max_attempts = _positive_int(provider_config.get("max_attempts"), 2, maximum=3)
+    retry_backoff_seconds = _positive_int(provider_config.get("retry_backoff_seconds"), 3, minimum=0, maximum=30)
+    retryable_errors: list[str] = []
     headers = {"Content-Type": "application/json", "Accept": "application/json"}
     configured_headers = provider_config.get("headers", {})
     if isinstance(configured_headers, dict):
@@ -208,26 +212,48 @@ def _api_response(provider_config: dict[str, Any], prompt_path: Path, prompt_tex
             "provider_interface": API_PROVIDER_INTERFACE,
         },
     }
-    request = urllib.request.Request(url, data=json.dumps(body, ensure_ascii=False).encode("utf-8"), headers=headers, method="POST")
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            response_text = response.read().decode("utf-8", errors="replace")
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace") if exc.fp else ""
-        raise SystemExit(f"API provider HTTP {exc.code}: {detail or exc.reason}") from exc
-    except urllib.error.URLError as exc:
-        raise SystemExit(f"API provider request failed: {exc.reason}") from exc
-
-    try:
-        payload = json.loads(response_text)
-    except json.JSONDecodeError as exc:
-        raise SystemExit(f"API provider returned non-JSON response: {response_text[:500]}") from exc
-
+    request_body = json.dumps(body, ensure_ascii=False).encode("utf-8")
     response_path = str(provider_config.get("response_json_path") or "response")
-    output = _json_path(payload, response_path)
-    if not isinstance(output, str) or not output.strip():
-        raise SystemExit(f"API provider JSON field is empty or not a string: {response_path}")
-    return output.strip() + "\n"
+
+    for attempt in range(1, max_attempts + 1):
+        request = urllib.request.Request(url, data=request_body, headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                response_text = response.read().decode("utf-8", errors="replace")
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace") if exc.fp else ""
+            if exc.code == 429 or 500 <= exc.code <= 599:
+                message = f"API provider HTTP {exc.code}: {detail or exc.reason} (attempt {attempt}/{max_attempts})"
+                retryable_errors.append(message)
+                append_event("llm.provider.retryable_failure", message, {"provider": "api", "attempt": attempt, "max_attempts": max_attempts, "reason": "http_retryable", "http_status": exc.code})
+            else:
+                raise SystemExit(f"API provider HTTP {exc.code}: {detail or exc.reason}") from exc
+        except (urllib.error.URLError, TimeoutError, socket.timeout) as exc:
+            reason = getattr(exc, "reason", exc)
+            message = f"API provider request failed: {reason} (attempt {attempt}/{max_attempts})"
+            retryable_errors.append(message)
+            append_event("llm.provider.retryable_failure", message, {"provider": "api", "attempt": attempt, "max_attempts": max_attempts, "reason": str(reason), "timeout_seconds": timeout})
+        else:
+            try:
+                payload = json.loads(response_text)
+            except json.JSONDecodeError as exc:
+                raise SystemExit(f"API provider returned non-JSON response: {response_text[:500]}") from exc
+
+            output = _json_path(payload, response_path)
+            if isinstance(output, str) and output.strip():
+                if attempt > 1:
+                    append_event("llm.provider.retry_recovered", "API provider returned output after retry", {"provider": "api", "attempt": attempt, "max_attempts": max_attempts, "prior_errors": retryable_errors})
+                return output.strip() + "\n"
+            stdout_empty_after_filtering = isinstance(output, str) and not output.strip()
+            message = f"API provider JSON response field is empty or not a string: {response_path} (provider=api, interface={interface}, attempt {attempt}/{max_attempts}, stdout_empty_after_filtering={stdout_empty_after_filtering})"
+            retryable_errors.append(message)
+            append_event("llm.provider.retryable_failure", message, {"provider": "api", "interface": interface, "attempt": attempt, "max_attempts": max_attempts, "reason": "empty_response_field", "response_json_path": response_path, "stdout_empty_after_filtering": stdout_empty_after_filtering})
+
+        if attempt < max_attempts and retry_backoff_seconds > 0:
+            time.sleep(retry_backoff_seconds * attempt)
+
+    detail = "; ".join(retryable_errors[-max_attempts:]) or "unknown retryable provider failure"
+    raise SystemExit(f"API provider failed after {max_attempts} attempt(s) (provider=api, interface={interface}): {detail}")
 
 
 def _provider_response(provider: str, provider_config: dict[str, Any], prompt_path: Path, prompt_text: str) -> str:

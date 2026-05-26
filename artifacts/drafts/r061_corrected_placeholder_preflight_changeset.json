@@ -1,0 +1,102 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r061_corrected_placeholder_preflight",
+  "roadmap_id": "R061",
+  "summary": "Add deterministic placeholder preflight before edit-plan operation compilation",
+  "risk_level": "L2",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001_add_preflight_function",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/patch_compiler.py"
+      },
+      "input": {
+        "old_content": "def _reject_placeholder_content(edit_id: str, content: str) -> None:\n    lowered = content.lower()\n    for marker in PLACEHOLDER_MARKERS:\n        if marker.lower() in lowered:\n            raise ValueError(f\"{edit_id}: placeholder content is not allowed: {marker}\")\n    try:\n        tree = ast.parse(content)\n    except SyntaxError:\n        return\n    for node in ast.walk(tree):\n        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant) and node.value.value is Ellipsis:\n            raise ValueError(f\"{edit_id}: ellipsis placeholder expression is not allowed\")\n\n\ndef _operation_from_edit(edit: dict[str, Any]) -> dict[str, Any]:",
+        "new_content": "def _reject_placeholder_content(edit_id: str, content: str) -> None:\n    lowered = content.lower()\n    for marker in PLACEHOLDER_MARKERS:\n        if marker.lower() in lowered:\n            raise ValueError(f\"{edit_id}: placeholder content is not allowed: {marker}\")\n    try:\n        tree = ast.parse(content)\n    except SyntaxError:\n        return\n    for node in ast.walk(tree):\n        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant) and node.value.value is Ellipsis:\n            raise ValueError(f\"{edit_id}: ellipsis placeholder expression is not allowed\")\n\n\ndef preflight_reject_placeholder_edits(edits: list[dict[str, Any]]) -> list[str]:\n    \"\"\"Return deterministic placeholder rejection messages for raw edit-plan edits.\n\n    This preflight runs before anchor/symbol resolution and ChangeSet operation\n    compilation, so placeholder-like edit content is classified as format feedback\n    instead of being mixed with later context-resolution errors.\n    \"\"\"\n    messages: list[str] = []\n    for index, edit in enumerate(edits, start=1):\n        if not isinstance(edit, dict):\n            continue\n        edit_id = str(edit.get(\"id\") or f\"op_{index:03d}\")\n        for field_name in (\"new_content\", \"content\"):\n            if field_name not in edit:\n                continue\n            try:\n                _reject_placeholder_content(edit_id, str(edit.get(field_name) or \"\"))\n            except ValueError as exc:\n                messages.append(str(exc))\n    return messages\n\n\ndef _operation_from_edit(edit: dict[str, Any]) -> dict[str, Any]:"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_002_run_preflight_before_compile",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/patch_compiler.py"
+      },
+      "input": {
+        "old_content": "    operations: list[dict[str, Any]] = []\n\n    if isinstance(edits, list):\n        for edit in edits:\n            if not isinstance(edit, dict):\n                errors.append(\"INVALID_EDIT_TYPE\")\n                continue\n            try:\n                operations.append(_operation_from_edit(edit))\n            except Exception as exc:\n                errors.append(str(exc))\n\n    operations.extend(_check_operations(plan.get(\"checks\")))",
+        "new_content": "    operations: list[dict[str, Any]] = []\n\n    if isinstance(edits, list):\n        placeholder_errors = preflight_reject_placeholder_edits(edits)\n        if placeholder_errors:\n            errors.extend(placeholder_errors)\n        else:\n            for edit in edits:\n                if not isinstance(edit, dict):\n                    errors.append(\"INVALID_EDIT_TYPE\")\n                    continue\n                try:\n                    operations.append(_operation_from_edit(edit))\n                except Exception as exc:\n                    errors.append(str(exc))\n\n    operations.extend(_check_operations(plan.get(\"checks\")))"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "check_001_compileall",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m compileall -q abyss_cli"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_002_abyss_check",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_003_summary_check",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli summary --check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    }
+  ],
+  "generated_by": "corrected_implementation_path",
+  "source_workflow_id": "wf_20260526_143447_48cde6",
+  "created_at": "2026-05-26T14:42:00+08:00",
+  "updated_at": "2026-05-26T14:42:00+08:00",
+  "no_action_executed": true
+}

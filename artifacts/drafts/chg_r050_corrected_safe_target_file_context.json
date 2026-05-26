@@ -1,0 +1,99 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r050_corrected_safe_target_file_context",
+  "roadmap_id": "R050",
+  "summary": "Safely include explicit maintenance target files in Context Pack",
+  "risk_level": "L2",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/context_pack.py"
+      },
+      "input": {
+        "old_content": "    required_prompts = context_spec.get(\"required_prompts\", [])\n\n\n    # Get rule source files for this task type from Rule Source Registry\n    rule_source_files: list[str] = []",
+        "new_content": "    required_prompts = context_spec.get(\"required_prompts\", [])\n\n    def _safe_declared_target_path(raw_path: str) -> str | None:\n        \"\"\"Return a safe repo-relative target path for explicit request targets.\n\n        Explicit target files may come from request/proposal records. Treat them\n        as untrusted input: only repo-relative paths under source/rule/doc roots\n        are eligible for context disclosure. Never allow absolute paths, parent\n        traversal, runtime/audit/user data, or missing files.\n        \"\"\"\n        rel = raw_path.strip().strip(\"'\\\"\").replace(\"\\\\\", \"/\")\n        if not rel or rel.startswith(\"/\") or Path(rel).is_absolute():\n            return None\n        if \"..\" in Path(rel).parts:\n            return None\n        blocked_prefixes = (\".git/\", \".local/\", \"audit/\", \"process/\", \"storage/\", \"user_data/\")\n        if any(rel.startswith(prefix) for prefix in blocked_prefixes):\n            return None\n        allowed_prefixes = (\"abyss_cli/\", \"rules/\", \"artifacts/drafts/\")\n        allowed_paths = {\"README.md\", \"SYSTEM_MAP.md\", \"EXTERNAL_MODEL_ONBOARDING.md\"}\n        if rel not in allowed_paths and not any(rel.startswith(prefix) for prefix in allowed_prefixes):\n            return None\n        if not (repo_root() / rel).exists():\n            return None\n        return rel\n\n    def _extend_declared_targets(raw_value: Any, out: list[str]) -> None:\n        values: list[str] = []\n        if isinstance(raw_value, str):\n            values.append(raw_value)\n        elif isinstance(raw_value, list):\n            values.extend(str(item) for item in raw_value if item)\n        for value in values:\n            safe_path = _safe_declared_target_path(value)\n            if safe_path and safe_path not in out:\n                out.append(safe_path)\n\n    declared_target_files: list[str] = []\n    if isinstance(target_record, dict):\n        _extend_declared_targets(target_record.get(\"target_file\"), declared_target_files)\n        _extend_declared_targets(target_record.get(\"target_module\"), declared_target_files)\n        details_text = str(target_record.get(\"details\") or \"\")\n        for part in details_text.split(\";\"):\n            key, sep, value = part.partition(\"=\")\n            if sep and key.strip() in {\"target_file\", \"target_module\"}:\n                _extend_declared_targets(value.strip(), declared_target_files)\n\n\n    # Get rule source files for this task type from Rule Source Registry\n    rule_source_files: list[str] = []"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_002",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/context_pack.py"
+      },
+      "input": {
+        "old_content": "    for f in required_files + module_files + required_rules + request_rule_files + rule_source_files + required_prompts:",
+        "new_content": "    for f in required_files + module_files + required_rules + request_rule_files + rule_source_files + required_prompts + declared_target_files:"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "check_001",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m compileall -q abyss_cli"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_002",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_003",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli summary --check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    }
+  ],
+  "created_at": "2026-05-26T01:58:00+08:00",
+  "no_action_executed": true
+}

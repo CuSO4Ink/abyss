@@ -20,6 +20,30 @@ SMOKE_DIR = EVOLUTION_DIR / "smoke_tests"
 GOVERNANCE_PATH = repo_root() / "rules" / "governance.yaml"
 ROADMAP_PATH = repo_root() / "ROADMAP.md"
 
+def _detail_value(details: str, key: str) -> str:
+    """Return a semicolon-delimited details value by key, if present."""
+    for part in details.split(";"):
+        name, sep, value = part.partition("=")
+        if sep and name.strip() == key:
+            return value.strip()
+    return ""
+
+
+def _safe_manifest_target_file(value: str) -> str:
+    """Return a safe repo-relative target file for coverage metadata."""
+    rel = value.strip().replace("\\", "/")
+    if not rel or rel.startswith("/") or re.match(r"^[A-Za-z]:", rel):
+        return ""
+    if ".." in Path(rel).parts:
+        return ""
+    blocked_prefixes = (".git/", ".local/", "audit/", "process/", "storage/", "user_data/")
+    if any(rel.startswith(prefix) for prefix in blocked_prefixes):
+        return ""
+    if not (repo_root() / rel).exists():
+        return ""
+    return rel
+
+
 def _infer_task_coverage_manifest(request: dict[str, Any]) -> dict[str, Any] | None:
     """Infer a conservative task_coverage_manifest from request text.
 
@@ -35,6 +59,16 @@ def _infer_task_coverage_manifest(request: dict[str, Any]) -> dict[str, Any] | N
     combined_text = f"{summary} {details}"
     if not combined_text.strip():
         return None
+
+    request_type = _detail_value(details, "request_type")
+    target_file = _safe_manifest_target_file(_detail_value(details, "target_file"))
+    if request_type == "maintenance_request" and target_file:
+        return {
+            "expected_files": [target_file],
+            "expected_domains": [Path(target_file).stem],
+            "inferred_task_type": "maintenance_request",
+            "inference_method": "maintenance_request_target_file",
+        }
 
     task_type = detect_task_type(combined_text)
     if task_type == "unknown":
@@ -58,6 +92,7 @@ def _infer_task_coverage_manifest(request: dict[str, Any]) -> dict[str, Any] | N
         "inferred_task_type": task_type,
         "inference_method": "keyword_match_against_context_manifest",
     }
+
 
 
 
