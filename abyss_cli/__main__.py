@@ -15,6 +15,7 @@ from .evolution import approve_proposal, create_change_request, create_proposal_
 from .external_collab import create_external_feedback_card, render_feedback_card_summary
 from .fsm import fsm_tick, fsm_watch
 from .harness import render_harness_json, render_harness_markdown
+from .health import render_provider_health_json
 from .integrity import run_checks
 from .intent import INTENTS_DIR, create_intent
 from .llm_executor import run_llm
@@ -85,6 +86,12 @@ def cmd_result_import(args: argparse.Namespace) -> None:
     print(f"imported result; action proposals found: {len(proposals)}")
     for proposal in proposals:
         print(f"- {proposal['id']} {proposal['policy']['risk']} {proposal['policy']['decision']} {proposal.get('capability')} {proposal.get('path')}")
+
+
+def cmd_health_provider(args: argparse.Namespace) -> None:
+    if not args.json:
+        raise SystemExit("health provider requires --json flag")
+    print(render_provider_health_json(args.provider))
 
 
 def cmd_llm_run(args: argparse.Namespace) -> None:
@@ -624,6 +631,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("path")
     p.add_argument("--intent", default=None, help="intent id, filename, prefix, or latest")
     p.set_defaults(func=cmd_result_import)
+
+    p_health = sub.add_parser("health")
+    health_sub = p_health.add_subparsers(required=True)
+    p = health_sub.add_parser("provider", help="call the configured real provider and report read-only health JSON")
+    p.add_argument("--provider", default="cli", help="provider name configured in rules/llm_providers.yaml or .local/llm_providers.json")
+    p.add_argument("--json", action="store_true", help="output as JSON (required)")
+    p.set_defaults(func=cmd_health_provider)
 
     p_llm = sub.add_parser("llm")
     llm_sub = p_llm.add_subparsers(required=True)

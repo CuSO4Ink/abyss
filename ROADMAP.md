@@ -1743,6 +1743,30 @@ Acceptance check:
 - The proposal can be inspected independently of ROADMAP.md.
 - No external interface is used for anything other than standard LLM invocation.
 
+### R071. R071 provider health check command
+
+Source proposal: `evo_prop_20260526_185031_3dd1ac`.
+
+Purpose: R071 provider health check command
+
+Why it is needed: Source feature. Scope: add abyss_cli/health.py and minimal CLI wiring in abyss_cli/__main__.py only. Goal: provide a governed read-only provider health check command that invokes the configured real provider with a tiny prompt and reports JSON status, elapsed_ms, provider, interface, response_empty, response_preview, and error if any. Suggested CLI: python -m abyss_cli health provider --provider cli --json. Non-goals: no fake provider, no agent health matrix, no scheduling, no config mutation, no workflow state mutation, no action import, no ROADMAP manual edits. Acceptance: command calls the real configured provider path, writes no result files, imports no actions, returns JSON, compileall/check/summary pass.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
 ## Pending proposals
 
 None.

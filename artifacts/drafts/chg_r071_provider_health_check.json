@@ -1,0 +1,88 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r071_provider_health_check",
+  "roadmap_id": "R071",
+  "summary": "Add a read-only provider health check command that calls the configured real provider and reports structured JSON.",
+  "risk_level": "L2",
+  "status": "draft",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.create_file",
+      "capability": "fs.write",
+      "target": {"path": "abyss_cli/health.py"},
+      "input": {
+        "content": "\"\"\"Read-only health checks for Abyss providers.\n\nHealth checks are observational: they call configured providers and report\nstructured status without importing actions, writing result files, or mutating\nworkflow state.\n\"\"\"\nfrom __future__ import annotations\n\nimport json\nimport time\nfrom pathlib import Path\nfrom typing import Any\n\nfrom .llm_executor import CLI_PROVIDER_INTERFACE, _provider_response, load_provider_config\n\n\ndef check_provider_health(provider: str = \"cli\") -> dict[str, Any]:\n    \"\"\"Call the configured real provider with a tiny prompt and return JSON-safe status.\"\"\"\n    started = time.perf_counter()\n    config = load_provider_config()\n    providers = config.get(\"providers\", {}) if isinstance(config.get(\"providers\"), dict) else {}\n    provider_config = providers.get(provider)\n    interface = CLI_PROVIDER_INTERFACE\n    if isinstance(provider_config, dict):\n        interface = str(provider_config.get(\"interface\") or CLI_PROVIDER_INTERFACE)\n\n    result: dict[str, Any] = {\n        \"schema\": \"abyss.provider_health.v1\",\n        \"provider\": provider,\n        \"interface\": interface,\n        \"ok\": False,\n        \"elapsed_ms\": 0,\n        \"response_empty\": True,\n        \"response_preview\": \"\",\n        \"error\": \"\",\n        \"no_action_executed\": True,\n    }\n\n    if not isinstance(provider_config, dict) or not provider_config.get(\"enabled\", False):\n        result[\"error\"] = f\"LLM provider is not enabled or configured: {provider}\"\n        result[\"elapsed_ms\"] = int((time.perf_counter() - started) * 1000)\n        return result\n\n    prompt = \"Return exactly: ABYSS_PROVIDER_HEALTH_OK\"\n    try:\n        response = _provider_response(provider, provider_config, Path(\"provider_health_probe.md\"), prompt)\n    except SystemExit as exc:\n        result[\"error\"] = str(exc)\n    except Exception as exc:  # defensive health check boundary\n        result[\"error\"] = f\"{type(exc).__name__}: {exc}\"\n    else:\n        stripped = response.strip()\n        result[\"response_empty\"] = not bool(stripped)\n        result[\"response_preview\"] = stripped[:200]\n        result[\"ok\"] = bool(stripped)\n    finally:\n        result[\"elapsed_ms\"] = int((time.perf_counter() - started) * 1000)\n\n    return result\n\n\ndef render_provider_health_json(provider: str = \"cli\") -> str:\n    \"\"\"Render provider health as formatted JSON.\"\"\"\n    return json.dumps(check_provider_health(provider), ensure_ascii=False, indent=2)\n"
+      },
+      "preconditions": ["target_absent"],
+      "rollback": {"strategy": "manual_revert_from_git_diff"}
+    },
+    {
+      "id": "op_002",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {"path": "abyss_cli/__main__.py"},
+      "input": {
+        "old_content": "from .harness import render_harness_json, render_harness_markdown\nfrom .integrity import run_checks",
+        "new_content": "from .harness import render_harness_json, render_harness_markdown\nfrom .health import render_provider_health_json\nfrom .integrity import run_checks"
+      },
+      "preconditions": ["old_content_matches_once"],
+      "rollback": {"strategy": "manual_revert_from_git_diff"}
+    },
+    {
+      "id": "op_003",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {"path": "abyss_cli/__main__.py"},
+      "input": {
+        "old_content": "def cmd_llm_run(args: argparse.Namespace) -> None:\n    result_path, proposals = run_llm(args.prompt_package, args.provider)\n    print(f\"result saved: {result_path.relative_to(repo_root())}\")\n    print(f\"imported result; action proposals found: {len(proposals)}\")\n    for proposal in proposals:\n        print(f\"- {proposal['id']} {proposal['policy']['risk']} {proposal['policy']['decision']} {proposal.get('capability')} {proposal.get('path')}\")\n    print(\"actions were proposed/imported only; no action was executed\")",
+        "new_content": "def cmd_health_provider(args: argparse.Namespace) -> None:\n    if not args.json:\n        raise SystemExit(\"health provider requires --json flag\")\n    print(render_provider_health_json(args.provider))\n\n\ndef cmd_llm_run(args: argparse.Namespace) -> None:\n    result_path, proposals = run_llm(args.prompt_package, args.provider)\n    print(f\"result saved: {result_path.relative_to(repo_root())}\")\n    print(f\"imported result; action proposals found: {len(proposals)}\")\n    for proposal in proposals:\n        print(f\"- {proposal['id']} {proposal['policy']['risk']} {proposal['policy']['decision']} {proposal.get('capability')} {proposal.get('path')}\")\n    print(\"actions were proposed/imported only; no action was executed\")"
+      },
+      "preconditions": ["old_content_matches_once"],
+      "rollback": {"strategy": "manual_revert_from_git_diff"}
+    },
+    {
+      "id": "op_004",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {"path": "abyss_cli/__main__.py"},
+      "input": {
+        "old_content": "    p_llm = sub.add_parser(\"llm\")",
+        "new_content": "    p_health = sub.add_parser(\"health\")\n    health_sub = p_health.add_subparsers(required=True)\n    p = health_sub.add_parser(\"provider\", help=\"call the configured real provider and report read-only health JSON\")\n    p.add_argument(\"--provider\", default=\"cli\", help=\"provider name configured in rules/llm_providers.yaml or .local/llm_providers.json\")\n    p.add_argument(\"--json\", action=\"store_true\", help=\"output as JSON (required)\")\n    p.set_defaults(func=cmd_health_provider)\n\n    p_llm = sub.add_parser(\"llm\")"
+      },
+      "preconditions": ["old_content_matches_once"],
+      "rollback": {"strategy": "manual_revert_from_git_diff"}
+    },
+    {
+      "id": "check_001",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {"path": "system"},
+      "input": {"command": "python -m compileall -q abyss_cli"},
+      "preconditions": ["changes_applied_before_check"],
+      "rollback": {"strategy": "not_applicable"}
+    },
+    {
+      "id": "check_002",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {"path": "system"},
+      "input": {"command": "python -m abyss_cli check"},
+      "preconditions": ["changes_applied_before_check"],
+      "rollback": {"strategy": "not_applicable"}
+    },
+    {
+      "id": "check_003",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {"path": "system"},
+      "input": {"command": "python -m abyss_cli summary --check"},
+      "preconditions": ["changes_applied_before_check"],
+      "rollback": {"strategy": "not_applicable"}
+    }
+  ],
+  "generated_by": "corrected_implementation_path",
+  "created_at": "2026-05-26T18:54:00+08:00",
+  "updated_at": "2026-05-26T18:54:00+08:00",
+  "no_action_executed": true
+}
