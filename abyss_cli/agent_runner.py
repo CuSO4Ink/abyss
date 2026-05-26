@@ -940,6 +940,42 @@ def _parse_implementation_output(response_text: str, *, agent_run_id: str, resul
             "response_length": len(response_text),
             "response_preview": response_text[:300],
         })
+        # Persist a structured format_feedback context_request for the unrecognized output
+        ctx_req_dir = runtime_root() / "process" / "context_requests"
+        ctx_req_dir.mkdir(parents=True, exist_ok=True)
+        req_id = new_id("ctx_req")
+        feedback_record = {
+            "schema": "abyss.context_request.v1",
+            "id": req_id,
+            "output_type": "context_request",
+            "agent_id": "implementation",
+            "agent_run_id": agent_run_id,
+            "result_path": str(result_path),
+            "request_kind": "format_feedback",
+            "recovery_classification": "format_feedback",
+            "response_length": len(response_text),
+            "response_preview": response_text[:200],
+            "missing": [
+                {
+                    "file": "unknown",
+                    "need": "a valid fenced output block in one of the supported schemas",
+                    "reason": "non-empty model response did not match any supported Implementation output format (abyss-edit-plan, abyss-changeset, abyss-context-request, abyss-blocked-result)",
+                }
+            ],
+            "reason": "Non-empty model response could not be parsed as any supported Implementation output schema.",
+            "suggestion": "Retry with exactly one supported fenced output block: abyss-edit-plan, abyss-changeset, abyss-context-request, or abyss-blocked-result.",
+            "retry_guidance": "Return exactly one fenced block of type abyss-edit-plan, abyss-changeset, abyss-context-request, or abyss-blocked-result containing valid JSON for the corresponding schema.",
+            "created_at": now_iso(),
+        }
+        write_record(ctx_req_dir / f"{req_id}.yaml", feedback_record)
+        append_event("agent.output.format_feedback_from_unrecognized", "Unrecognized non-empty response converted to format_feedback context_request", {
+            "agent_run_id": agent_run_id,
+            "context_request_id": req_id,
+            "response_length": len(response_text),
+            "request_kind": "format_feedback",
+            "recovery_classification": "format_feedback",
+        })
+        return feedback_record
     return changeset
 
 

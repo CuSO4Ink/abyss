@@ -1647,6 +1647,30 @@ Acceptance check:
 - Accepted governance-core changes activate only in a later workflow cycle, not in the cycle that approved them.
 - No governance-core change was applied, activated, or scheduled by this proposal record.
 
+### R067. R067 agent_runner unrecognized text output feedback
+
+Source proposal: `evo_prop_20260526_171407_547d35`.
+
+Purpose: R067 agent_runner unrecognized text output feedback
+
+Why it is needed: Source maintenance. Scope: abyss_cli/agent_runner.py only. Problem: when a non-empty model response cannot be parsed as any supported Implementation output, the current path records agent.output.unrecognized and returns no parsed result. Goal: persist a structured abyss.context_request.v1 record with request_kind=format_feedback and recovery_classification=format_feedback for this non-empty unrecognized response, including agent_run_id, result_path, response_length, a short response_preview, and retry_guidance that asks for one supported fenced output schema. Empty responses must keep the existing empty-response path unchanged. Acceptance: non-empty unrecognized text returns a context_request record; empty text still returns None through the existing empty-response handling; compileall/check/summary pass.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
 ## Pending proposals
 
 None.
