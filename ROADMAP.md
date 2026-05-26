@@ -1839,6 +1839,33 @@ Acceptance check:
 - The proposal can be inspected independently of ROADMAP.md.
 - No external interface is used for anything other than standard LLM invocation.
 
+### R075. R075 Context Broker task type rule table extraction
+
+Source proposal: `evo_prop_20260526_190205_fe8ee3`.
+
+Purpose: R075 Context Broker task type rule table extraction
+
+Why it is needed: Source maintenance. Scope: abyss_cli/context_pack.py only if sufficient. Goal: reduce hard-coded keyword cascade fragility by extracting the task type keyword matching table into a structured constant inside the same module, preserving existing task type outputs and order. Non-goals: no disclosure policy changes, no allowed path changes, no forbidden path changes, no new context files, no rules/schema changes, no meta-governance behavior change, no broad rewrite. Acceptance: detect_task_type behavior is preserved for existing task categories; task matching order is represented as data rather than scattered conditional text; compileall/check/summary pass; a simple smoke command or inspection confirms common categories still map.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L3.
+
+Acceptance check:
+
+- Governance-core scope is explicitly classified before any implementation work.
+- The proposal cannot proceed through ordinary self-evolution as a self-approving closure.
+- Self Evolution and Brain Agent may analyze or prepare but cannot approve, apply, activate, or retroactively legitimize governance-core changes.
+- Risk assessment, rollback plan, validation plan, activation note, old-rule review, and explicit Owner approval are required before implementation.
+- Accepted governance-core changes activate only in a later workflow cycle, not in the cycle that approved them.
+- No governance-core change was applied, activated, or scheduled by this proposal record.
+
 ## Pending proposals
 
 None.

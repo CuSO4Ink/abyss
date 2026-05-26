@@ -164,15 +164,212 @@ def load_architecture_cognition() -> dict[str, Any]:
     }
 
 
+TASK_TYPE_RULES: list[dict[str, Any]] = [
+    {
+        "task_type": "governance_core_mutation",
+        "keywords": [
+            "meta self-evolution",
+            "meta-governance",
+            "meta governance",
+            "governance-core",
+            "governance core",
+            "governance mutation",
+            "governance_mutation",
+            "meta_evolution_request",
+            "delayed activation",
+            "old-rule review",
+            "old rule review",
+            "self evolution may evolve itself",
+            "approval gate",
+            "permission boundary",
+            "context disclosure policy",
+            "memory policy",
+            "git authority",
+            "external ai authority",
+            "sovereign kernel",
+        ],
+    },
+    {
+        "task_type": "brain_onboarding_readiness",
+        "keywords": [
+            "brain brief next candidate",
+            "brain brief next candidates",
+            "disclosure_plan",
+            "disclosure plan schema",
+            "external_model_onboarding",
+            "external model onboarding",
+            "canonical direction",
+            "global direction internalization",
+        ],
+    },
+    {
+        "task_type": "agent_feature",
+        "keywords": [
+            "cli provider",
+            "llm provider",
+            "provider timeout",
+            "provider timed out",
+            "timeout or empty-response",
+            "empty-response",
+            "empty response",
+            "empty stdout",
+            "_provider_response",
+            "llm_executor",
+        ],
+    },
+    {
+        "task_type": "summary_feature",
+        "keywords": [
+            "workflow list display",
+            "workflow status presentation",
+            "workflow CLI display",
+            "cmd_workflow_list",
+        ],
+        "blocked_by_keywords": [
+            "expand context broker coverage",
+            "context broker logic",
+            "update context broker",
+        ],
+    },
+    {
+        "task_type": "context_broker_feature",
+        "keywords": [
+            "context broker",
+            "context governance",
+            "context sufficiency",
+            "context request",
+            "context pack",
+            "module manifest",
+            "task type manifest",
+            "progressive disclosure",
+        ],
+        "blocked_by_keywords": [
+            "do not continue changing context broker",
+            "preserve context broker behavior",
+            "unless a concrete regression is proven",
+        ],
+    },
+    {
+        "task_type": "cli_feature",
+        "keywords": [
+            "cli help",
+            "help text",
+            "help output",
+            "argparse",
+            "subcommand",
+            "command routing",
+            "command output",
+        ],
+    },
+    {
+        "task_type": "summary_feature",
+        "keywords": [
+            "robustness probe",
+            "probe/smoke",
+            "probe task",
+            "probe p",
+            "tiny display",
+            "display change",
+            "recent workflow summary",
+            "workflow/summary",
+            "status display",
+            "governance-adjacent",
+            "governance adjacent",
+            "probe/robustness",
+            "robustness task",
+            "smoke/robustness",
+            "probe coverage",
+        ],
+    },
+    {
+        "task_type": "changeset_validation_feature",
+        "keywords": [
+            "implementation agent",
+            "changeset生成稳定性",
+            "changeset generation stability",
+            "old_content",
+            "noop_replace",
+            "missing_operations",
+            "invalid changeset",
+            "implementation_agent_produced_invalid_changeset",
+        ],
+    },
+    {
+        "task_type": "summary_feature",
+        "keywords": [
+            "recent_completed_workflows",
+            "summary output",
+            "summary rendering",
+            "summary field",
+            "summary state",
+            "summary status",
+            "state debt",
+            "status debt",
+            "already_satisfied",
+            "no-op",
+            "noop",
+            "satisfied-without-changes",
+            "unresolved failure",
+            "状态债",
+            "workflow list display",
+            "workflow status presentation",
+            "workflow CLI display",
+        ],
+    },
+    {
+        "task_type": "cli_feature",
+        "keywords": [
+            "report list",
+            "cmd_report_list",
+            "workflow list",
+            "cmd_workflow_list",
+            "cli display",
+            "command output",
+        ],
+    },
+    {
+        "task_type": "evolution_feature",
+        "keywords": [
+            "evolution propose",
+            "create_proposal_from_request",
+            "self-evolution analysis",
+            "evolution analysis",
+            "empty deterministic wrapping",
+            "analysis-empty proposal",
+        ],
+    },
+    {
+        "task_type": "agent_feature",
+        "keywords": [
+            "agent prompt",
+            "agent提示",
+            "prompts/agents",
+            "prompt clarity",
+        ],
+    },
+]
+
+
+def _task_type_rule_matches(rule: dict[str, Any], text_lower: str) -> bool:
+    """Return whether a table-driven task-type rule matches request text."""
+    keywords = rule.get("keywords", [])
+    if not any(str(term).lower() in text_lower for term in keywords):
+        return False
+    blocked_keywords = rule.get("blocked_by_keywords", [])
+    if any(str(term).lower() in text_lower for term in blocked_keywords):
+        return False
+    return True
+
+
 def detect_task_type(text: str) -> str:
     """Detect task type from proposal/request text using keyword heuristics.
 
     Specific context/task keywords must win over broad governance words such as
     "evolution".  The score therefore combines match count, keyword length, and
     an optional manifest priority map.
-    
-    Enhanced for progressive disclosure: prioritize context-related keywords
-    and ensure context_broker_feature detection accuracy.
+
+    The early high-specificity routing rules are intentionally ordered data:
+    preserving table order preserves the prior conditional evaluation order.
     """
     manifest = load_context_manifest()
     detection = manifest.get("task_type_detection", {})
@@ -182,238 +379,9 @@ def detect_task_type(text: str) -> str:
     text_lower = text.lower()
     scores: dict[str, tuple[int, int, int]] = {}
 
-    governance_core_terms = [
-        "meta self-evolution",
-        "meta-governance",
-        "meta governance",
-        "governance-core",
-        "governance core",
-        "governance mutation",
-        "governance_mutation",
-        "meta_evolution_request",
-        "delayed activation",
-        "old-rule review",
-        "old rule review",
-        "self evolution may evolve itself",
-        "approval gate",
-        "permission boundary",
-        "context disclosure policy",
-        "memory policy",
-        "git authority",
-        "external ai authority",
-        "sovereign kernel",
-    ]
-    if any(term in text_lower for term in governance_core_terms):
-        return "governance_core_mutation"
-
-    # Brain brief / disclosure-plan / external onboarding readiness tasks need
-
-    # the Brain and Disclosure surfaces in addition to external-collaboration
-    # contracts. Detect these before broad context-broker or agent terms so the
-    # Implementation Agent receives the exact files it must update.
-    brain_onboarding_terms = [
-        "brain brief next candidate",
-        "brain brief next candidates",
-        "disclosure_plan",
-        "disclosure plan schema",
-        "external_model_onboarding",
-        "external model onboarding",
-        "canonical direction",
-        "global direction internalization",
-    ]
-    if any(term in text_lower for term in brain_onboarding_terms):
-        return "brain_onboarding_readiness"
-
-    # Provider reliability tasks need llm_executor.py. Detect them before Context
-    # Broker terms because stabilization proposals may mention "do not continue
-    # changing Context Broker coverage" as a boundary rather than as the target.
-    provider_reliability_terms = [
-        "cli provider",
-        "llm provider",
-        "provider timeout",
-        "provider timed out",
-        "timeout or empty-response",
-        "empty-response",
-        "empty response",
-        "empty stdout",
-        "_provider_response",
-        "llm_executor",
-    ]
-    if any(term in text_lower for term in provider_reliability_terms):
-        return "agent_feature"
-
-    # Workflow list display tasks need workflow.py and __main__.py grounding.
-    # Detect these before context_broker_terms because proposals about fixing
-    # context coverage for workflow display mention "context broker" as context
-    # rather than as the implementation target.
-    workflow_display_terms = [
-        "workflow list display",
-        "workflow status presentation",
-        "workflow CLI display",
-        "cmd_workflow_list",
-    ]
-    workflow_display_matches = [term for term in workflow_display_terms if term in text_lower]
-    if workflow_display_matches:
-        # Check if the proposal is actually about fixing context broker coverage
-        # FOR workflow display (R020-type), vs actually changing workflow display (R019-type).
-        # If context broker is the implementation target, let context_broker detection win.
-        context_is_target = any(term in text_lower for term in [
-            "expand context broker coverage",
-            "context broker logic",
-            "update context broker",
-        ])
-        if not context_is_target:
-            return "summary_feature"
-
-    # Enhanced detection: check for context broker specific terms first, unless the
-    # context-broker mention is explicitly a non-goal/boundary for another task.
-    context_broker_terms = ["context broker", "context governance", "context sufficiency", 
-                           "context request", "context pack", "module manifest", 
-                           "task type manifest", "progressive disclosure"]
-    context_broker_non_goal_terms = [
-        "do not continue changing context broker",
-        "preserve context broker behavior",
-        "unless a concrete regression is proven",
-    ]
-    context_broker_matches = [term for term in context_broker_terms if term in text_lower]
-    context_broker_is_non_goal = any(term in text_lower for term in context_broker_non_goal_terms)
-    if context_broker_matches and not context_broker_is_non_goal:
-        return "context_broker_feature"
-
-    # CLI help/text tasks must be detected before broad summary/probe words such as
-    # "display" or "already_satisfied" so Implementation receives __main__.py.
-    cli_help_terms = [
-        "cli help",
-        "help text",
-        "help output",
-        "argparse",
-        "subcommand",
-        "command routing",
-        "command output",
-    ]
-    if any(term in text_lower for term in cli_help_terms):
-        return "cli_feature"
-
-    # Robustness probes are intentionally worded like real requests, so route the
-    # common display/status/governance-adjacent probe forms to summary/workflow
-    # grounding instead of generic evolution/governance context.
-    # Also detect proposals whose *purpose* is to fix context coverage for probes,
-    # unless the context_broker_feature detector already matched above.
-    probe_summary_terms = [
-        "robustness probe",
-        "probe/smoke",
-        "probe task",
-        "probe p",
-        "tiny display",
-        "display change",
-        "recent workflow summary",
-        "workflow/summary",
-        "status display",
-        "governance-adjacent",
-        "governance adjacent",
-        "probe/robustness",
-        "robustness task",
-        "smoke/robustness",
-        "probe coverage",
-    ]
-    if any(term in text_lower for term in probe_summary_terms):
-        return "summary_feature"
-
-    # Implementation Agent / ChangeSet stability tasks can mention workflow list,
-    # summary, status, or already_satisfied in their failure evidence. The concrete
-    # target is still ChangeSet generation/validation, so detect these terms before
-    # summary/status rendering terms to avoid under-grounding agent_runner.py and
-    # changeset.py fixes.
-    implementation_stability_terms = [
-        "implementation agent",
-        "changeset生成稳定性",
-        "changeset generation stability",
-        "old_content",
-        "noop_replace",
-        "missing_operations",
-        "invalid changeset",
-        "implementation_agent_produced_invalid_changeset",
-    ]
-    if any(term in text_lower for term in implementation_stability_terms):
-        return "changeset_validation_feature"
-
-    # Summary/status rendering tasks appear inside evolution proposal records, which
-
-    # naturally contain broad governance words like "evolution", "proposal", and
-    # "request". Detect concrete summary/state-debt terms before evolution-analysis
-    # terms so records containing the generic self_evolution_analysis field still
-    # receive summary.py/workflow.py grounding context when the actual task is about
-    # summary or no-op workflow semantics. Do not treat "summary --check" alone as a
-    # summary feature: it is a common acceptance check used by many unrelated tasks.
-    summary_terms = [
-        "recent_completed_workflows",
-        "summary output",
-        "summary rendering",
-        "summary field",
-        "summary state",
-        "summary status",
-        "state debt",
-        "status debt",
-        "already_satisfied",
-        "no-op",
-        "noop",
-        "satisfied-without-changes",
-        "unresolved failure",
-        "状态债",
-        "workflow list display",
-        "workflow status presentation",
-        "workflow CLI display",
-    ]
-    summary_matches = [term for term in summary_terms if term in text_lower]
-    if summary_matches:
-        return "summary_feature"
-
-    # CLI/report display tasks often appear inside evolution proposal records, which
-    # naturally contain broad words like "evolution", "proposal", and "request".
-    # Detect concrete command/report/list terms before evolution-analysis terms so
-    # Implementation receives abyss_cli/__main__.py instead of evolution.py only.
-    cli_display_terms = [
-        "report list",
-        "cmd_report_list",
-        "workflow list",
-        "cmd_workflow_list",
-        "cli display",
-        "command output",
-    ]
-    cli_display_matches = [term for term in cli_display_terms if term in text_lower]
-    if cli_display_matches:
-        return "cli_feature"
-
-    # Evolution-propose tasks may mention the self-evolution Agent, but their
-    # concrete target is the evolution request/proposal chain. Detect these terms
-    # before generic agent/prompt scoring so the Context Pack includes
-    # abyss_cli/evolution.py and evolution_analysis.py. Avoid treating the generic
-    # proposal field name self_evolution_analysis as sufficient by itself.
-    evolution_propose_terms = [
-        "evolution propose",
-        "create_proposal_from_request",
-        "self-evolution analysis",
-        "evolution analysis",
-        "empty deterministic wrapping",
-        "analysis-empty proposal",
-    ]
-    evolution_propose_matches = [term for term in evolution_propose_terms if term in text_lower]
-    if evolution_propose_matches:
-        return "evolution_feature"
-
-    # Agent prompt tasks often appear inside evolution proposal records, which
-    # naturally contain broad governance words like "evolution", "proposal", and
-    # "request". Detect concrete prompt-file terms before generic scoring so
-    # prompt-edit tasks receive the actual prompt files in the Context Pack.
-    agent_prompt_terms = [
-        "agent prompt",
-        "agent提示",
-        "prompts/agents",
-        "prompt clarity",
-    ]
-    agent_prompt_matches = [term for term in agent_prompt_terms if term in text_lower]
-    if agent_prompt_matches:
-        return "agent_feature"
+    for rule in TASK_TYPE_RULES:
+        if _task_type_rule_matches(rule, text_lower):
+            return str(rule["task_type"])
 
     for task_type, keywords in keywords_map.items():
         matched = [kw for kw in keywords if kw.lower() in text_lower]
@@ -428,7 +396,6 @@ def detect_task_type(text: str) -> str:
         return "unknown"
 
     return max(scores, key=lambda k: scores[k])
-
 
 def _resolve_context_spec(task_type: str) -> dict[str, Any]:
     """Resolve the context specification for a given task type.
