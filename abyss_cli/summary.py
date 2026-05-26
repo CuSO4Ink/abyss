@@ -292,9 +292,37 @@ def build_summary(*, include_check: bool = False) -> dict[str, Any]:
         "recent_completed_workflows": len(recent_completed),
     }
 
+    state_semantics: dict[str, Any] = {
+        "active_health_gates": [
+            "active_workflows",
+            "pending_owner_items",
+            "true_failures",
+            "true_blocked",
+        ],
+        "historical_or_expected_buckets": [
+            "expected_governance_blocks",
+            "superseded_failures",
+            "superseded_by_corrected_changeset",
+            "satisfied_without_changes",
+            "context_insufficient",
+            "owner_rejected",
+        ],
+        "review_input_buckets": [
+            "invalid_changesets",
+            "implementation_pipeline_diagnostics",
+            "workflow_failure_diagnostics",
+        ],
+        "notes": {
+            "active_health_gates": "Non-zero values here require current operator attention before continuing normal work.",
+            "historical_or_expected_buckets": "These buckets may describe legitimate terminal outcomes, expected governance blocks, or resolved historical failures rather than active health failures.",
+            "review_input_buckets": "These buckets preserve historical evidence for structural review and stability work.",
+        },
+    }
+
     summary: dict[str, Any] = {
         "schema": "abyss.summary.v1",
         "operations_health_counts": operations_health_counts,
+        "state_semantics": state_semantics,
         "active_workflows": [
             {
                 "id": item.get("id"),

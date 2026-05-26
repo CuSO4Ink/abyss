@@ -1695,6 +1695,30 @@ Acceptance check:
 - The proposal can be inspected independently of ROADMAP.md.
 - No external interface is used for anything other than standard LLM invocation.
 
+### R069. R069 summary state semantics glossary
+
+Source proposal: `evo_prop_20260526_184515_3044ef`.
+
+Purpose: R069 summary state semantics glossary
+
+Why it is needed: Source maintenance. Scope: abyss_cli/summary.py only. Problem: summary already separates active_workflows, true_failures, true_blocked, satisfied_without_changes, context_insufficient, expected_governance_blocks, owner_rejected, superseded_failures, superseded_by_corrected_changeset, and invalid_changesets, but the machine-readable output does not carry a compact glossary that explains which buckets are active health gates and which are historical or expected review inputs. Goal: add a small state_semantics object to build_summary output that defines active_health_gates, historical_or_expected_buckets, and review_input_buckets without changing existing counts or workflow classification behavior. Non-goals: no new CLI command, no Insight implementation, no workflow state transition changes, no runtime state edits. Acceptance: summary --check includes state_semantics; existing operations_health_counts values remain unchanged; compileall/check/summary pass.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
 ## Pending proposals
 
 None.

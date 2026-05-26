@@ -1,0 +1,83 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r069_summary_state_semantics",
+  "roadmap_id": "R069",
+  "summary": "Add a compact state_semantics glossary to summary output without changing workflow classification or counts.",
+  "risk_level": "L2",
+  "status": "draft",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/summary.py"
+      },
+      "input": {
+        "old_content": "    }\n\n    summary: dict[str, Any] = {\n        \"schema\": \"abyss.summary.v1\",\n        \"operations_health_counts\": operations_health_counts,\n        \"active_workflows\": [",
+        "new_content": "    }\n\n    state_semantics: dict[str, Any] = {\n        \"active_health_gates\": [\n            \"active_workflows\",\n            \"pending_owner_items\",\n            \"true_failures\",\n            \"true_blocked\",\n        ],\n        \"historical_or_expected_buckets\": [\n            \"expected_governance_blocks\",\n            \"superseded_failures\",\n            \"superseded_by_corrected_changeset\",\n            \"satisfied_without_changes\",\n            \"context_insufficient\",\n            \"owner_rejected\",\n        ],\n        \"review_input_buckets\": [\n            \"invalid_changesets\",\n            \"implementation_pipeline_diagnostics\",\n            \"workflow_failure_diagnostics\",\n        ],\n        \"notes\": {\n            \"active_health_gates\": \"Non-zero values here require current operator attention before continuing normal work.\",\n            \"historical_or_expected_buckets\": \"These buckets may describe legitimate terminal outcomes, expected governance blocks, or resolved historical failures rather than active health failures.\",\n            \"review_input_buckets\": \"These buckets preserve historical evidence for structural review and stability work.\",\n        },\n    }\n\n    summary: dict[str, Any] = {\n        \"schema\": \"abyss.summary.v1\",\n        \"operations_health_counts\": operations_health_counts,\n        \"state_semantics\": state_semantics,\n        \"active_workflows\": ["
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "check_001",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m compileall -q abyss_cli"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_002",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_003",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli summary --check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    }
+  ],
+  "generated_by": "corrected_implementation_path",
+  "created_at": "2026-05-26T18:48:00+08:00",
+  "updated_at": "2026-05-26T18:48:00+08:00",
+  "no_action_executed": true
+}
