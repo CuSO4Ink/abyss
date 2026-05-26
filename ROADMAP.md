@@ -1791,6 +1791,54 @@ Acceptance check:
 - The proposal can be inspected independently of ROADMAP.md.
 - No external interface is used for anything other than standard LLM invocation.
 
+### R073. R073 safe local git checkpoint command
+
+Source proposal: `evo_prop_20260526_185618_042b35`.
+
+Purpose: R073 safe local git checkpoint command
+
+Why it is needed: Source feature. Scope: add abyss_cli/git_checkpoint.py and minimal CLI wiring in abyss_cli/__main__.py only. Goal: provide a safe local checkpoint helper that runs git status, git diff --stat, compileall, abyss check, and optionally creates a local commit with an explicit message. Non-goals: no push, no pull, no force push, no branch deletion, no remote operations, no rewrite history, no automatic scheduling, no bypass of checks. Suggested CLI: python -m abyss_cli checkpoint status --json and python -m abyss_cli checkpoint commit -m MESSAGE. Acceptance: status is read-only JSON; commit refuses dirty health checks, stages current working tree only when explicitly invoked, makes local commit only, compileall/check/summary pass.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R074. R073A read-only git checkpoint status
+
+Source proposal: `evo_prop_20260526_185939_dc1179`.
+
+Purpose: R073A read-only git checkpoint status
+
+Why it is needed: Source feature. Scope: add abyss_cli/git_checkpoint.py and minimal CLI wiring in abyss_cli/__main__.py only. Goal: provide read-only local git checkpoint status as JSON using git status --porcelain, git diff --stat, and git diff --staged --stat. Non-goals: no commit command, no git add, no push, no pull, no fetch, no remote operations, no history rewrite, no staging, no config mutation, no scheduling. Suggested CLI: python -m abyss_cli checkpoint status --json. Acceptance: command is read-only, emits valid JSON, exposes clean/files_modified/files_added/files_deleted/files_untracked/diff_stat/diff_staged_stat, compileall/check/summary pass.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
 ## Pending proposals
 
 None.

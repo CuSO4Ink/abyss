@@ -31,6 +31,7 @@ from .review import REVIEWS_DIR, pending_reviews, set_review_status
 from .insight import render_insight_snapshot_json
 from .summary import render_summary
 from .utils import latest_record, read_record, repo_root, resolve_record_arg, run_git
+from .git_checkpoint import render_checkpoint_status_json
 from .workflow import list_reports, list_workflows, load_report, render_json, retry_workflow, start_workflow, workflow_run_until_wait, workflow_tick, workflow_watch
 
 
@@ -592,6 +593,12 @@ def cmd_rules_validate(args: argparse.Namespace) -> None:
     result = validate_rule_sources()
     raise SystemExit(0 if result.get("ok") else 1)
 
+def cmd_checkpoint_status(args: argparse.Namespace) -> None:
+    if not args.json:
+        raise SystemExit("checkpoint status requires --json flag")
+    print(render_checkpoint_status_json())
+
+
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -904,6 +911,12 @@ def build_parser() -> argparse.ArgumentParser:
     p = request_sub.add_parser("governance-surfaces", help="list protected governance-core surfaces")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_request_governance_surfaces)
+    p_checkpoint = sub.add_parser("checkpoint")
+    checkpoint_sub = p_checkpoint.add_subparsers(required=True)
+    p = checkpoint_sub.add_parser("status", help="read-only git checkpoint status as JSON")
+    p.add_argument("--json", action="store_true", help="output as JSON (required)")
+    p.set_defaults(func=cmd_checkpoint_status)
+
     p_rules = sub.add_parser("rules", help="work with the Rule Source Registry")
     rules_sub = p_rules.add_subparsers(required=True)
     p = rules_sub.add_parser("list", help="list declared rule sources")
