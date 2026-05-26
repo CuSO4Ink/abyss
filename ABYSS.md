@@ -205,3 +205,26 @@ recommended next step
 ```
 
 Abyss remains responsible for governance, audit, state transitions, approval, and execution.
+
+## 10. Minimal Anti-Entropy Kernel
+
+Abyss should resist AI-driven system entropy with the lightest effective control surface. Anti-entropy mechanisms must remain lighter than the entropy they prevent.
+
+Core rules:
+
+1. Generation is not acceptance. Any AI-generated code, document, rule, memory, workflow, or architecture change is candidate material until accepted through the appropriate validation and governance path.
+2. Use risk-based governance. Low-risk work should stay lightweight; high-risk work must escalate. Do not turn every discussion, draft, or small edit into a heavy governance workflow.
+3. Use change budgets for AI-driven modifications. Before implementation, constrain allowed paths, forbidden paths, maximum scope, schema changes, governance changes, Memory writes, Git operations, and external side effects when relevant.
+4. Treat protected surfaces as governance-core. Changes touching Self Evolution, Harness, Owner approval, permission boundaries, Memory policy, context disclosure, Git authority, external AI authority, request lifecycle rules, `ABYSS.md`-level rules, or constitution-level rules require explicit Owner review and meta-governance.
+5. Prefer tests before absorption. Important fixes and stability-sensitive changes should be validated by the smallest relevant test suite. Repeatable or high-risk incidents should become regression tests.
+6. Prefer lightweight controls first. Use a checklist before creating a module, a test case before creating a framework, a planning document before runtime policy, and Owner judgment before automation.
+
+Operational stance:
+
+```text
+low-risk work -> lightweight handling
+engineering changes -> change budget + relevant stability tests
+governance-core changes -> meta-governance + explicit Owner review + delayed activation
+```
+
+This section is intentionally compact. Detailed rationale and future implementation paths belong in planning documents and external test scaffolds, not directly in this entrypoint file.
