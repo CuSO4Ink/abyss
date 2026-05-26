@@ -1866,6 +1866,54 @@ Acceptance check:
 - Accepted governance-core changes activate only in a later workflow cycle, not in the cycle that approved them.
 - No governance-core change was applied, activated, or scheduled by this proposal record.
 
+### R076. R076 provider implementation-load reliability baseline
+
+Source proposal: `evo_prop_20260526_194114_dd8f97`.
+
+Purpose: R076 provider implementation-load reliability baseline
+
+Why it is needed: Reliability maintenance before adding API model providers. Problem: provider health can pass short prompts while Implementation Agent workflow prompts still produce repeated filtered-empty responses. Goal: add a read-only implementation-load reliability baseline so Abyss can distinguish short_prompt_ok from implementation_prompt_empty/filtered_empty/timeout without silently switching models. Scope preference: provider health or insight/summary reporting files only; no provider credential changes, no automatic model switching, no network config changes, no governance policy changes. Acceptance: expose recent provider empty-response trend from runtime records; record/print a provider_degraded style diagnostic when repeated empty responses are observed under implementation-load context; preserve existing short health check behavior; validation compileall/check/summary passes.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R077. R077 provider reliability workflow empty-response counting
+
+Source proposal: `evo_prop_20260526_194632_a025a7`.
+
+Purpose: R077 provider reliability workflow empty-response counting
+
+Why it is needed: Reliability maintenance follow-up to R076. Problem: the new provider_reliability baseline reports zero implementation-load empty responses because it only checks agent result file size and misses workflow history errors such as 'knot-cli response field was empty after filtering'. Goal: include recent workflow history/runtime records when counting implementation-load empty_or_filtered events, so the baseline reflects observed provider empty-response failures from workflow runs. Scope: abyss_cli/provider_reliability.py only if sufficient; no API provider integration, no model switching, no credentials, no network config, no governance policy changes. Acceptance: provider reliability report counts recent workflow empty-response events under implementation_load; provider_degraded can become true when thresholds are met; existing insight integration remains read-only; compileall/check/summary pass.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
 ## Pending proposals
 
 None.

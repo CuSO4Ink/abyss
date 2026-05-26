@@ -25,6 +25,10 @@ def build_insight_snapshot() -> dict[str, Any]:
     true_failures = workflow_outcomes.get("true_failures", [])
     true_blocked = workflow_outcomes.get("true_blocked", [])
 
+    # Provider reliability baseline
+    from .provider_reliability import compute_reliability_baseline
+    provider_reliability = compute_reliability_baseline()
+
     # Historical review inputs
     invalid_changesets_section = summary.get("implementation_pipeline_diagnostics", {})
     workflow_failure_section = summary.get("workflow_failure_diagnostics", {})
@@ -76,6 +80,13 @@ def build_insight_snapshot() -> dict[str, Any]:
         ],
         "historical_review_inputs": historical_review_inputs,
         "recommended_next_safe_action": recommended,
+    }
+
+    # Include provider reliability baseline
+    snapshot["provider_reliability"] = {
+        "prompt_size_classes": provider_reliability.get("prompt_size_classes", {}),
+        "provider_degraded": provider_reliability.get("provider_degraded", False),
+        "diagnostic_message": provider_reliability.get("diagnostic_message", ""),
     }
 
     # Include integrity if available
