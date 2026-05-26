@@ -27,6 +27,7 @@ from .rule_registry import list_rule_sources, render_rule_sources_json, render_v
 
 from .result import import_result
 from .review import REVIEWS_DIR, pending_reviews, set_review_status
+from .insight import render_insight_snapshot_json
 from .summary import render_summary
 from .utils import latest_record, read_record, repo_root, resolve_record_arg, run_git
 from .workflow import list_reports, list_workflows, load_report, render_json, retry_workflow, start_workflow, workflow_run_until_wait, workflow_tick, workflow_watch
@@ -396,6 +397,12 @@ def cmd_report_list(_: argparse.Namespace) -> None:
 
 def cmd_report_show(args: argparse.Namespace) -> None:
     print(render_json(load_report(args.report)))
+
+
+def cmd_insight_snapshot(args: argparse.Namespace) -> None:
+    if not args.json:
+        raise SystemExit("insight snapshot requires --json flag")
+    print(render_insight_snapshot_json())
 
 
 def cmd_summary(args: argparse.Namespace) -> None:
@@ -826,6 +833,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--task-id", default="", help="optional external task id or prompt package id")
     p.add_argument("--source-platform", default="external_model", help="external model platform name")
     p.set_defaults(func=cmd_external_import_result)
+
+    p_insight = sub.add_parser("insight")
+    insight_sub = p_insight.add_subparsers(required=True)
+    p = insight_sub.add_parser("snapshot", help="emit a read-only insight snapshot as JSON")
+    p.add_argument("--json", action="store_true", help="output as JSON (required)")
+    p.set_defaults(func=cmd_insight_snapshot)
 
     p_brain = sub.add_parser("brain")
     brain_sub = p_brain.add_subparsers(required=True)

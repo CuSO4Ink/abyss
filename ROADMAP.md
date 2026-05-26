@@ -1719,6 +1719,30 @@ Acceptance check:
 - The proposal can be inspected independently of ROADMAP.md.
 - No external interface is used for anything other than standard LLM invocation.
 
+### R070. R070 Insight v0 read-only snapshot
+
+Source proposal: `evo_prop_20260526_184750_9c796d`.
+
+Purpose: R070 Insight v0 read-only snapshot
+
+Why it is needed: Source feature. Scope: add abyss_cli/insight.py and minimal CLI wiring in abyss_cli/__main__.py only. Goal: provide a read-only insight snapshot command that wraps existing summary data into a compact abyss.insight_snapshot.v1 JSON view for operator review. The command should not approve, execute, mutate files, call LLMs, change workflow states, edit ROADMAP, or perform Git operations. Suggested CLI: python -m abyss_cli insight snapshot --json. Snapshot fields: schema, generated_at, health from operations_health_counts, state_semantics from summary, active_workflows, pending_owner_items, true_failures, true_blocked, historical_review_inputs including invalid_changesets and diagnostics keys, and recommended_next_safe_action. Non-goals: no Brain behavior, no Memory, no provider calls, no scheduling, no state transition changes. Acceptance: command exists, emits valid JSON, uses existing build_summary include_check option, compileall/check/summary pass.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
 ## Pending proposals
 
 None.
