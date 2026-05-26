@@ -1,0 +1,82 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r068_structural_review_baseline",
+  "roadmap_id": "R068",
+  "summary": "Create a structural review baseline packet that classifies historical debt and freezes the next review boundary without source behavior changes.",
+  "risk_level": "L2",
+  "status": "draft",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.create_file",
+      "capability": "fs.write",
+      "target": {
+        "path": "artifacts/drafts/structural_review_baseline.md"
+      },
+      "input": {
+        "content": "# Abyss Structural Review Baseline\n\nRoadmap item: R068\nPurpose: establish a pre-freeze review baseline before continuing toward state semantics, Insight v0, health checks, Git checkpointing, and Context Broker generalization.\n\n## 1. Boundary statement\n\nThis packet is review-preparation material only. It does not change source behavior, rules, prompts, runtime state, governance policy, approval policy, context disclosure, executor permissions, provider configuration, scheduling, Git authority, or external collaboration behavior.\n\nIt records the current health baseline, classifies historical debt as review input, and defines the boundary for the upcoming structural review.\n\n## 2. Current health baseline\n\nObserved before R068 execution on 2026-05-26:\n\n- `git status --short`: clean\n- `active_workflows`: 0\n- `pending_owner_items`: 0\n- `true_failures`: 0\n- `true_blocked`: 0\n- `invalid_changesets`: 47\n\nInterpretation: the governed pipeline has no active failure or pending approval at this baseline. Historical invalid ChangeSets remain as review evidence, not as active health failures.\n\n## 3. Historical invalid ChangeSet classification\n\nThe 47 invalid ChangeSet records were classified from their validation and parse diagnostic fields. They should be treated as historical learning samples for the structural review, not as current broken workflows.\n\n| Category | Count | Review meaning |\n|---|---:|---|\n| placeholder_content | 21 | Implementation output still sometimes uses placeholder prose or abbreviated code where complete content is required. |\n| anchor_resolution_failure | 13 | Edit plans still choose anchors, symbol spans, or replacement strategies that are too broad or not uniquely resolvable. |\n| missing_edits | 7 | Some edit-plan outputs omit the required edits array or fail to provide actionable edit operations. |\n| edit_plan_parse_error | 3 | Some outputs are malformed JSON or legacy ChangeSet material that cannot be parsed safely. |\n| symbol_resolution_failure | 3 | Some plans reference symbols that do not exist in the disclosed source file or current module shape. |\n\nThe largest historical class is placeholder_content, followed by anchor_resolution_failure. Recent R056-R067 work has added feedback and deterministic guardrails, but these records remain useful review samples.\n\n## 4. Older open items reclassified as review inputs\n\nThe following older items should not be read as current active failures unless a new workflow reproduces them. They remain important structural review inputs.\n\n| Item | Review classification | Structural question |\n|---|---|---|\n| R007 Provider and Agent Health Check | Deferred productization gap | What should a real provider/agent health check guarantee beyond ad hoc provider testing? |\n| R010 Harness Review Recovery | Historical failed recovery sample | Does the Harness recovery path have a current positive example, or should the old item be closed as superseded by later validation work? |\n| R013 Agent Prompt normalization | No-op / already-satisfied semantics sample | How should already_satisfied, blocked, no-op, and satisfied_without_changes be represented consistently? |\n| R031 Implementation JSON/provider stability | Historical instability sample, partially hardened later | Which remaining failures belong to output protocol, provider reliability, context coverage, or patch compilation? |\n\n## 5. Freeze boundary for structural review\n\nAfter the planned continuation through Context Broker generalization, Abyss should enter structural review / system optimization mode. During that review mode:\n\n- no new product features should be added;\n- no ordinary source-maintenance refactors should be started unless they are explicitly review outputs;\n- only read-only review, classification, documentation, risk labeling, and stop-the-line fixes should proceed;\n- stop-the-line fixes remain limited to restoring the governed iteration chain when it cannot run end-to-end.\n\n## 6. Completion line before structural review\n\nThe agreed development line before freezing is:\n\n1. FSM state semantics hardening.\n2. Insight v0 as a read-only snapshot layer.\n3. Historical invalid / failed / blocked debt classification and archive governance.\n4. Provider / Agent health check completion.\n5. R010 Harness Review Recovery positive example or explicit reclassification.\n6. R013 prompt/no-op/already_satisfied semantics redefinition.\n7. Git automation v0 for safe local checkpointing only.\n8. Context Broker generalization maintenance.\n\nContext Broker generalization is the terminal item for this development stretch. After that, freeze and start full structural review.\n\n## 7. Non-goals\n\nThis baseline does not implement Insight, Brain, Memory, external collaboration, Git push, remote repository automation, prompt mutation, policy mutation, or Context Broker behavior changes.\n\n## 8. Recommended next action\n\nProceed to a narrow FSM/state-semantics maintenance item. Its goal should be to make active, historical, expected-block, already_satisfied, superseded, and invalid-but-archived states consistently visible before implementing Insight v0.\n"
+      },
+      "preconditions": [
+        "target_absent"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "check_001",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m compileall -q abyss_cli"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_002",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_003",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli summary --check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    }
+  ],
+  "generated_by": "corrected_implementation_path",
+  "created_at": "2026-05-26T18:45:00+08:00",
+  "updated_at": "2026-05-26T18:45:00+08:00",
+  "no_action_executed": true
+}

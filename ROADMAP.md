@@ -1671,6 +1671,30 @@ Acceptance check:
 - The proposal can be inspected independently of ROADMAP.md.
 - No external interface is used for anything other than standard LLM invocation.
 
+### R068. R068 structural review pre-freeze baseline
+
+Source proposal: `evo_prop_20260526_183840_673862`.
+
+Purpose: R068 structural review pre-freeze baseline
+
+Why it is needed: Source-adjacent documentation maintenance. Scope: create artifacts/drafts/structural_review_baseline.md only. Goal: record a review baseline that classifies historical invalid changesets and older failed or blocked samples as review input rather than active health failures, captures current health fields, git checkpoint, open issue categories, and freeze boundary for the upcoming structural review. Non-goals: no source code changes, no rule changes, no prompt changes, no runtime state edits, no ROADMAP manual edits. Acceptance: baseline document exists, distinguishes active health from historical debt, lists invalid changeset categories at summary level, records open issues R007 R010 R013 R031 as review inputs, and compileall/check/summary pass.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
 ## Pending proposals
 
 None.
