@@ -154,6 +154,7 @@ def _workflow_failure_diagnostics(workflows: list[dict[str, Any]], *, limit: int
     failed_workflows = [
         wf for wf in workflows
         if wf.get("status") in {"failed", "blocked", "rejected"}
+        and _classify_workflow_outcome(wf) != "satisfied_without_changes"
     ]
     failed_workflows = sorted(
         failed_workflows,
@@ -185,6 +186,7 @@ def _workflow_failure_diagnostics(workflows: list[dict[str, Any]], *, limit: int
 
 
 def _extract_last_event(workflow: dict[str, Any]) -> dict[str, Any] | None:
+
     """Extract the last meaningful event from workflow history for display."""
     history = workflow.get("history", [])
     if not history:
@@ -208,26 +210,23 @@ def _classify_workflow_outcome(workflow: dict[str, Any]) -> str:
     if status == "blocked":
         blocked_result_id = workflow.get("blocked_result_id")
         last_error = workflow.get("last_error", "")
+        history = workflow.get("history", [])
+        last_event = history[-1] if history else {}
+        details = last_event.get("details") or {}
+        if details.get("category") == "already_satisfied" or "blocked: [already_satisfied]" in last_error:
+            return "satisfied_without_changes"
         if "repeated_placeholder_format_feedback" in last_error:
             return "context_insufficient"
         if "context_request" in last_error:
             return "context_insufficient"
-        if blocked_result_id:
-            # Check if this is an already_satisfied outcome
-            if "already_satisfied" in last_error:
-                return "satisfied_without_changes"
         # Check if this is a governance_constraint block
-        history = workflow.get("history", [])
-        if history:
-            last_event = history[-1]
-            if last_event.get("event") == "implementation_blocked":
-                details = last_event.get("details") or {}
-                if details.get("category") == "governance_constraint":
-                    return "expected_governance_block"
+        if last_event.get("event") == "implementation_blocked" and details.get("category") == "governance_constraint":
+            return "expected_governance_block"
         return "true_blocked"
 
     if status == "failed":
         # Check if this failure has been explicitly superseded
+
         if workflow.get("superseded_by_workflow_id") or workflow.get("superseded_by_roadmap_id"):
             return "superseded_failure"
         last_error = workflow.get("last_error", "")
