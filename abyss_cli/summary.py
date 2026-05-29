@@ -52,10 +52,12 @@ WORKFLOW_FAILURE_CATEGORIES = (
     ("timed out", "provider_empty_or_timeout"),
     ("empty stdout", "provider_empty_or_timeout"),
     ("empty filtered response", "provider_empty_or_timeout"),
+    ("response field was empty after filtering", "provider_empty_or_timeout"),
     ("implementation_agent_transient_failure", "provider_empty_or_timeout"),
     ("governance_constraint", "expected_governance_block"),
     ("implementation_blocked", "expected_governance_block"),
 )
+
 
 
 def _validation_messages(changeset: dict[str, Any]) -> list[str]:
@@ -233,19 +235,22 @@ def _classify_workflow_outcome(workflow: dict[str, Any]) -> str:
 
     if status == "failed":
         # Check if this failure has been explicitly superseded
-
         if workflow.get("superseded_by_workflow_id") or workflow.get("superseded_by_roadmap_id"):
             return "superseded_failure"
         last_error = workflow.get("last_error", "")
+        failure_categories = _classify_workflow_failure(workflow)
         # Check if failure is due to context insufficiency vs actual implementation failure
         if "context_request" in last_error:
             return "context_insufficient"
+        if failure_categories == ["provider_empty_or_timeout"]:
+            return "provider_empty_or_timeout"
         return "true_failure"
 
     if status == "done":
         return "successfully_completed"
 
     if status == "rejected":
+
         return "owner_rejected"
 
     return "active_or_pending"
@@ -273,12 +278,14 @@ def build_summary(*, include_check: bool = False) -> dict[str, Any]:
     superseded_by_corrected = [item["workflow"] for item in classified_workflows if item["outcome"] == "superseded_by_corrected_changeset"]
     true_blocked = [item["workflow"] for item in classified_workflows if item["outcome"] == "true_blocked"]
     expected_governance_blocks = [item["workflow"] for item in classified_workflows if item["outcome"] == "expected_governance_block"]
+    provider_empty_or_timeout = [item["workflow"] for item in classified_workflows if item["outcome"] == "provider_empty_or_timeout"]
     satisfied_outcomes = [item["workflow"] for item in classified_workflows if item["outcome"] == "satisfied_without_changes"]
     context_issues = [item["workflow"] for item in classified_workflows if item["outcome"] == "context_insufficient"]
     completed_workflows = [item["workflow"] for item in classified_workflows if item["outcome"] == "successfully_completed"]
     rejected_workflows = [item["workflow"] for item in classified_workflows if item["outcome"] == "owner_rejected"]
     
     # Sort completed workflows by date and limit
+
     recent_completed = sorted(
         completed_workflows,
         key=lambda x: x.get("updated_at", ""),
@@ -292,9 +299,11 @@ def build_summary(*, include_check: bool = False) -> dict[str, Any]:
         "true_failures": len(true_failures),
         "true_blocked": len(true_blocked),
         "expected_governance_blocks": len(expected_governance_blocks),
+        "provider_empty_or_timeout": len(provider_empty_or_timeout),
         "superseded_failures": len(superseded_failures),
         "superseded_by_corrected_changeset": len(superseded_by_corrected),
         "invalid_changesets": len([item for item in changesets if item.get("status") == "invalid"]),
+
         "recent_completed_workflows": len(recent_completed),
     }
 
@@ -307,12 +316,14 @@ def build_summary(*, include_check: bool = False) -> dict[str, Any]:
         ],
         "historical_or_expected_buckets": [
             "expected_governance_blocks",
+            "provider_empty_or_timeout",
             "superseded_failures",
             "superseded_by_corrected_changeset",
             "satisfied_without_changes",
             "context_insufficient",
             "owner_rejected",
         ],
+
         "review_input_buckets": [
             "invalid_changesets",
             "implementation_pipeline_diagnostics",
@@ -395,9 +406,20 @@ def build_summary(*, include_check: bool = False) -> dict[str, Any]:
                 }
                 for item in context_issues
             ],
+            "provider_empty_or_timeout": [
+                {
+                    "id": item.get("id"),
+                    "roadmap_id": item.get("roadmap_id"),
+                    "status": item.get("status"),
+                    "last_error": item.get("last_error"),
+                    "last_event": _extract_last_event(item),
+                }
+                for item in provider_empty_or_timeout
+            ],
             "expected_governance_blocks": [
                 {
                     "id": item.get("id"),
+
                     "roadmap_id": item.get("roadmap_id"),
                     "status": item.get("status"),
                     "last_error": item.get("last_error"),
