@@ -24,9 +24,13 @@ IMPLEMENTATION_FAILURE_CATEGORIES = (
     ("unsupported edit kind", "unsupported_edit_kind"),
     ("missing new_content", "missing_new_content"),
     ("MISSING_EDITS", "missing_edits"),
+    ("MISSING_OPERATIONS", "missing_edits"),
     ("INVALID_EDIT_PLAN_SCHEMA", "invalid_edit_plan_schema"),
+    ("PATH_NOT_ALLOWED", "policy_boundary_rejected"),
+    ("COMMAND_NOT_ALLOWED", "policy_boundary_rejected"),
     ("task_type", "task_type_misclassification"),
     ("harness_review_violation", "harness_violation"),
+
     ("harness review violation", "harness_violation"),
 )
 
@@ -75,8 +79,23 @@ def _classify_implementation_failure(message: str) -> str:
     return "other_invalid_changeset"
 
 
+def _classify_invalid_changeset_review_bucket(categories: list[str], messages: list[str]) -> str:
+    combined = " ".join(messages).lower()
+    category_set = set(categories)
+    if "path_not_allowed" in combined or "command_not_allowed" in combined:
+        return "policy_boundary_rejected"
+    if category_set & {"placeholder_content", "edit_plan_parse_error", "invalid_edit_plan_schema", "missing_edits", "missing_new_content", "unsupported_edit_kind"}:
+        return "implementation_output_contract_feedback"
+    if category_set & {"symbol_resolution_failure", "anchor_resolution_failure", "old_content_match_failure"}:
+        return "target_resolution_feedback"
+    if category_set & {"provider_empty_or_timeout", "task_type_misclassification", "harness_violation"}:
+        return "pipeline_runtime_feedback"
+    return "uncategorized_invalid_changeset"
+
+
 def _classify_workflow_failure(workflow: dict[str, Any]) -> list[str]:
     """Classify a failed/blocked workflow into pipeline failure categories.
+
 
     Returns a list of matched category strings from WORKFLOW_FAILURE_CATEGORIES.
     """
@@ -115,17 +134,21 @@ def _implementation_pipeline_diagnostics(changesets: list[dict[str, Any]], *, li
     )
 
     failure_counts: dict[str, int] = {}
+    review_bucket_counts: dict[str, int] = {}
     recent: list[dict[str, Any]] = []
     for item in invalid_changesets:
         messages = _validation_messages(item)
         categories = sorted({_classify_implementation_failure(message) for message in messages}) or ["unknown"]
+        review_bucket = _classify_invalid_changeset_review_bucket(categories, messages)
         for category in categories:
             failure_counts[category] = failure_counts.get(category, 0) + 1
+        review_bucket_counts[review_bucket] = review_bucket_counts.get(review_bucket, 0) + 1
         if len(recent) < limit:
             recent.append({
                 "id": item.get("id"),
                 "roadmap_id": item.get("roadmap_id"),
                 "summary": item.get("summary"),
+                "review_bucket": review_bucket,
                 "categories": categories,
                 "validation_messages": messages,
                 "parse_diagnostics": item.get("parse_diagnostics"),
@@ -135,12 +158,15 @@ def _implementation_pipeline_diagnostics(changesets: list[dict[str, Any]], *, li
             })
 
     return {
+        "invalid_changeset_review_bucket_counts": review_bucket_counts,
         "invalid_changeset_failure_counts": failure_counts,
         "recent_invalid_changesets": recent,
     }
 
+
 def _workflow_failure_diagnostics(workflows: list[dict[str, Any]], *, limit: int = 10) -> dict[str, Any]:
     """Classify recent actionable workflow issues into pipeline failure categories.
+
 
     Excludes terminal non-action items that are summarized elsewhere:
     - satisfied_without_changes
