@@ -1914,6 +1914,30 @@ Acceptance check:
 - The proposal can be inspected independently of ROADMAP.md.
 - No external interface is used for anything other than standard LLM invocation.
 
+### R078. R078 OpenAI-compatible API provider interface standard
+
+Source proposal: `evo_prop_20260526_200705_45d140`.
+
+Purpose: R078 OpenAI-compatible API provider interface standard
+
+Why it is needed: Add a governed standard LLM provider interface for OpenAI-compatible chat completions, using DeepSeek as the first target configuration pattern. Scope: extend provider schema with http_openai_chat_completion_v1; preserve existing cli and http_json_prompt_package_response_v1 behavior; build non-streaming chat/completions request from the complete Abyss Prompt Package as one user message; support bearer_token_env without storing secrets; extract choices.0.message.content as execution text; treat reasoning_content as diagnostics only; classify auth/quota/rate-limit/server/network/bad-response/empty-response errors; document disabled-by-default DeepSeek local config example. Non-goals: no tool calls, no streaming v1, no automatic model switching, no hardcoded API keys, no governance policy changes, no external provider side effects beyond standard LLM text invocation.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
 ## Pending proposals
 
 None.

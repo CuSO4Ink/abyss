@@ -289,6 +289,16 @@ request:   { "schema": "abyss.llm_api_request.v1", "prompt_package": "...", "met
 response:  { "response": "complete LLM response body" }
 ```
 
+OpenAI-compatible chat provider interface:
+
+```text
+interface: http_openai_chat_completion_v1
+method:    POST
+request:   { "model": "...", "messages": [{ "role": "user", "content": "complete Prompt Package" }], "stream": false }
+response:  choices.0.message.content is imported as the complete LLM response body
+notes:     choices.0.message.reasoning_content is diagnostics only and is not imported as executable response text
+```
+
 Provider defaults live in `rules/llm_providers.yaml`. Machine-local overrides live in `.local/llm_providers.json`, which is ignored by Git. Do not hardcode tokens, passwords, API keys, or private credentials in tracked files; use environment variables or local config controlled by the user.
 
 Example local CLI provider config:
@@ -323,6 +333,25 @@ Example local API provider config:
       "bearer_token_env": "ABYSS_LLM_API_TOKEN",
       "response_json_path": "response",
       "timeout_seconds": 300
+    }
+  }
+}
+```
+
+Example local OpenAI-compatible chat provider config:
+
+```json
+{
+  "providers": {
+    "openai_chat": {
+      "enabled": true,
+      "interface": "http_openai_chat_completion_v1",
+      "base_url": "https://api.deepseek.com",
+      "endpoint": "/chat/completions",
+      "model": "deepseek-chat",
+      "bearer_token_env": "DEEPSEEK_API_KEY",
+      "timeout_seconds": 300,
+      "max_attempts": 2
     }
   }
 }

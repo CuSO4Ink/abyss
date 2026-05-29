@@ -23,6 +23,7 @@ LOCAL_PROVIDER_CONFIG_PATH = repo_root() / ".local" / "llm_providers.json"
 INTENT_ID_RE = re.compile(r"^-\s*intent_id:\s*(\S+)\s*$", re.MULTILINE)
 CLI_PROVIDER_INTERFACE = "stdin_prompt_package_stdout_response_v1"
 API_PROVIDER_INTERFACE = "http_json_prompt_package_response_v1"
+OPENAI_CHAT_PROVIDER_INTERFACE = "http_openai_chat_completion_v1"
 
 
 def sanitize_llm_text(text: str) -> str:
@@ -174,6 +175,11 @@ def _json_path(data: Any, path: str) -> Any:
     for part in path.split("."):
         if isinstance(current, dict) and part in current:
             current = current[part]
+        elif isinstance(current, list) and part.isdigit():
+            index = int(part)
+            if index < 0 or index >= len(current):
+                return None
+            current = current[index]
         else:
             return None
     return current
@@ -256,6 +262,142 @@ def _api_response(provider_config: dict[str, Any], prompt_path: Path, prompt_tex
     raise SystemExit(f"API provider failed after {max_attempts} attempt(s) (provider=api, interface={interface}): {detail}")
 
 
+def _classify_openai_chat_error(status_code: int | None, exc: Exception | None = None) -> str:
+    if status_code in (401, 403):
+        return "auth"
+    if status_code == 402:
+        return "quota"
+    if status_code == 429:
+        return "rate_limit"
+    if status_code is not None and 500 <= status_code <= 599:
+        return "server"
+    if isinstance(exc, (urllib.error.URLError, TimeoutError, socket.timeout, OSError)):
+        return "network"
+    return "bad_response"
+
+
+def _openai_chat_endpoint(provider_config: dict[str, Any]) -> str:
+    url = str(provider_config.get("url") or "").strip()
+    if url:
+        return url
+    base_url = str(provider_config.get("base_url") or "").strip().rstrip("/")
+    endpoint = str(provider_config.get("endpoint") or "/chat/completions").strip()
+    if not base_url:
+        raise SystemExit("OpenAI-compatible chat provider is not configured. Set providers.<name>.url or base_url in .local/llm_providers.json")
+    if not endpoint.startswith("/"):
+        endpoint = "/" + endpoint
+    return base_url + endpoint
+
+
+def _optional_number(config: dict[str, Any], key: str, numeric_type: type[int] | type[float]) -> int | float | None:
+    value = config.get(key)
+    if value is None:
+        request_config = config.get("request")
+        if isinstance(request_config, dict):
+            value = request_config.get(key)
+    if value is None:
+        return None
+    try:
+        return numeric_type(value)
+    except (TypeError, ValueError) as exc:
+        raise SystemExit(f"OpenAI-compatible chat provider request.{key} must be a {numeric_type.__name__}") from exc
+
+
+def _openai_chat_response(provider: str, provider_config: dict[str, Any], prompt_path: Path, prompt_text: str) -> str:
+    interface = provider_config.get("interface", OPENAI_CHAT_PROVIDER_INTERFACE)
+    if interface != OPENAI_CHAT_PROVIDER_INTERFACE:
+        raise SystemExit(f"Unsupported OpenAI-compatible chat provider interface: {interface}")
+
+    url = _openai_chat_endpoint(provider_config)
+    model = str(provider_config.get("model") or "").strip()
+    if not model:
+        raise SystemExit("OpenAI-compatible chat provider is not configured. Set providers.<name>.model in .local/llm_providers.json")
+
+    timeout = _positive_int(provider_config.get("timeout_seconds"), 120)
+    max_attempts = _positive_int(provider_config.get("max_attempts"), 2, maximum=3)
+    retry_backoff_seconds = _positive_int(provider_config.get("retry_backoff_seconds"), 3, minimum=0, maximum=30)
+    retryable_errors: list[str] = []
+
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    configured_headers = provider_config.get("headers", {})
+    if isinstance(configured_headers, dict):
+        headers.update({str(k): str(v) for k, v in configured_headers.items()})
+
+    bearer_env = str(provider_config.get("bearer_token_env") or "").strip()
+    if bearer_env:
+        token = os.environ.get(bearer_env)
+        if not token:
+            raise SystemExit(f"OpenAI-compatible chat provider bearer_token_env is set but environment variable is empty: {bearer_env}")
+        headers["Authorization"] = f"Bearer {token}"
+
+    body: dict[str, Any] = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt_text}],
+        "stream": False,
+    }
+    max_tokens = _optional_number(provider_config, "max_tokens", int)
+    temperature = _optional_number(provider_config, "temperature", float)
+    top_p = _optional_number(provider_config, "top_p", float)
+    if max_tokens is not None:
+        body["max_tokens"] = max_tokens
+    if temperature is not None:
+        body["temperature"] = temperature
+    if top_p is not None:
+        body["top_p"] = top_p
+
+    request_body = json.dumps(body, ensure_ascii=False).encode("utf-8")
+
+    for attempt in range(1, max_attempts + 1):
+        request = urllib.request.Request(url, data=request_body, headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                response_text = response.read().decode("utf-8", errors="replace")
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace") if exc.fp else ""
+            category = _classify_openai_chat_error(exc.code, exc)
+            if category in ("rate_limit", "server"):
+                message = f"OpenAI-compatible chat provider HTTP {exc.code} [{category}] (provider={provider}, attempt {attempt}/{max_attempts}): {detail or exc.reason}"
+                retryable_errors.append(message)
+                append_event("llm.provider.retryable_failure", message, {"provider": provider, "interface": interface, "attempt": attempt, "max_attempts": max_attempts, "reason": category, "http_status": exc.code})
+            else:
+                raise SystemExit(f"OpenAI-compatible chat provider HTTP {exc.code} [{category}] (provider={provider}): {detail or exc.reason}") from exc
+        except (urllib.error.URLError, TimeoutError, socket.timeout, OSError) as exc:
+            category = _classify_openai_chat_error(None, exc)
+            reason = getattr(exc, "reason", exc)
+            message = f"OpenAI-compatible chat provider request failed [{category}] (provider={provider}, attempt {attempt}/{max_attempts}): {reason}"
+            retryable_errors.append(message)
+            append_event("llm.provider.retryable_failure", message, {"provider": provider, "interface": interface, "attempt": attempt, "max_attempts": max_attempts, "reason": category, "timeout_seconds": timeout})
+        else:
+            try:
+                payload = json.loads(response_text)
+            except json.JSONDecodeError as exc:
+                raise SystemExit(f"OpenAI-compatible chat provider returned non-JSON response [bad_response] (provider={provider}): {response_text[:500]}") from exc
+
+            message_obj = _json_path(payload, "choices.0.message")
+            if not isinstance(message_obj, dict):
+                raise SystemExit(f"OpenAI-compatible chat provider response missing choices.0.message [bad_response] (provider={provider})")
+
+            reasoning_content = message_obj.get("reasoning_content")
+            if isinstance(reasoning_content, str) and reasoning_content.strip():
+                append_event("llm.provider.diagnostics", "OpenAI-compatible chat provider returned reasoning_content (diagnostics only)", {"provider": provider, "interface": interface, "prompt_package": prompt_path.as_posix(), "reasoning_content_length": len(reasoning_content)})
+
+            content = message_obj.get("content")
+            if isinstance(content, str) and content.strip():
+                if attempt > 1:
+                    append_event("llm.provider.retry_recovered", "OpenAI-compatible chat provider returned output after retry", {"provider": provider, "attempt": attempt, "max_attempts": max_attempts, "prior_errors": retryable_errors})
+                return content.strip() + "\n"
+
+            message = f"OpenAI-compatible chat provider choices.0.message.content is empty [empty_response] (provider={provider}, attempt {attempt}/{max_attempts})"
+            retryable_errors.append(message)
+            append_event("llm.provider.retryable_failure", message, {"provider": provider, "interface": interface, "attempt": attempt, "max_attempts": max_attempts, "reason": "empty_response"})
+
+        if attempt < max_attempts and retry_backoff_seconds > 0:
+            time.sleep(retry_backoff_seconds * attempt)
+
+    detail = "; ".join(retryable_errors[-max_attempts:]) or "unknown retryable provider failure"
+    raise SystemExit(f"OpenAI-compatible chat provider failed after {max_attempts} attempt(s) (provider={provider}, interface={interface}): {detail}")
+
+
 def _provider_response(provider: str, provider_config: dict[str, Any], prompt_path: Path, prompt_text: str) -> str:
     prompt_text = sanitize_llm_text(prompt_text)
     interface = provider_config.get("interface", CLI_PROVIDER_INTERFACE)
@@ -263,6 +405,8 @@ def _provider_response(provider: str, provider_config: dict[str, Any], prompt_pa
         return _cli_response(provider_config, prompt_text)
     if interface == API_PROVIDER_INTERFACE:
         return _api_response(provider_config, prompt_path, prompt_text)
+    if interface == OPENAI_CHAT_PROVIDER_INTERFACE:
+        return _openai_chat_response(provider, provider_config, prompt_path, prompt_text)
     raise SystemExit(f"Unsupported LLM provider interface for {provider}: {interface}")
 
 

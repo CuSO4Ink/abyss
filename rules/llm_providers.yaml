@@ -33,6 +33,35 @@
       "response_json_path": "Dot path to response text field; default: response",
       "auth": "Use bearer_token_env or headers in .local/llm_providers.json. Never hardcode secrets in tracked files.",
       "side_effects": "Provider may call an LLM service, but must not modify Abyss files directly. Abyss is responsible for saving result files and importing action proposals."
+    },
+    "http_openai_chat_completion_v1": {
+      "description": "Abyss sends the complete Prompt Package as one non-streaming user message to an OpenAI-compatible chat/completions endpoint. The provider must return choices.0.message.content as the complete LLM response text.",
+      "method": "POST",
+      "request_headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      "request_body": {
+        "model": "provider model name from local config",
+        "messages": [
+          {
+            "role": "user",
+            "content": "complete Prompt Package text encoded as UTF-8 JSON string"
+          }
+        ],
+        "stream": false
+      },
+      "optional_request_fields": [
+        "max_tokens",
+        "temperature",
+        "top_p"
+      ],
+      "response_body": {
+        "choices.0.message.content": "complete LLM response text encoded as UTF-8 JSON string",
+        "choices.0.message.reasoning_content": "diagnostics only; never imported as executable response text"
+      },
+      "auth": "Use bearer_token_env or headers in .local/llm_providers.json. Never hardcode secrets in tracked files.",
+      "side_effects": "Provider may call an LLM service, but must not modify Abyss files directly. Abyss is responsible for saving result files and importing action proposals."
     }
   },
   "providers": {
@@ -56,6 +85,20 @@
       "bearer_token_env": "",
       "response_json_path": "response",
       "timeout_seconds": 300
+    },
+    "openai_chat": {
+      "enabled": false,
+      "interface": "http_openai_chat_completion_v1",
+      "description": "OpenAI-compatible non-streaming chat/completions provider. Configure url or base_url, model, optional headers, optional bearer_token_env, and bounded request fields in .local/llm_providers.json.",
+      "url": "",
+      "base_url": "",
+      "endpoint": "/chat/completions",
+      "model": "",
+      "headers": {},
+      "bearer_token_env": "",
+      "timeout_seconds": 300,
+      "max_attempts": 2,
+      "retry_backoff_seconds": 3
     }
   },
   "security": {
