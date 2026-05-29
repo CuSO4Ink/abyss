@@ -158,8 +158,9 @@ def _workflow_failure_diagnostics(workflows: list[dict[str, Any]], *, limit: int
     - expected_governance_block
     - other
     """
-    non_actionable_outcomes = {"satisfied_without_changes", "owner_rejected", "superseded_failure"}
+    non_actionable_outcomes = {"satisfied_without_changes", "owner_rejected", "superseded_failure", "implementation_pipeline_issue"}
     failed_workflows = [
+
         wf for wf in workflows
         if wf.get("status") in {"failed", "blocked", "rejected"}
         and _classify_workflow_outcome(wf) not in non_actionable_outcomes
@@ -224,12 +225,18 @@ def _classify_workflow_outcome(workflow: dict[str, Any]) -> str:
         details = last_event.get("details") or {}
         if details.get("category") == "already_satisfied" or "blocked: [already_satisfied]" in last_error:
             return "satisfied_without_changes"
+        failure_categories = _classify_workflow_failure(workflow)
+        if "repeated_placeholder_output" in failure_categories:
+            return "implementation_pipeline_issue"
+        if "context_request" in last_error and any(marker in last_error.lower() for marker in ("malformed", "placeholder", "edit-plan")):
+            return "implementation_pipeline_issue"
         if "repeated_placeholder_format_feedback" in last_error:
             return "context_insufficient"
         if "context_request" in last_error:
             return "context_insufficient"
         # Check if this is a governance_constraint block
         if last_event.get("event") == "implementation_blocked" and details.get("category") == "governance_constraint":
+
             return "expected_governance_block"
         return "true_blocked"
 
@@ -279,9 +286,11 @@ def build_summary(*, include_check: bool = False) -> dict[str, Any]:
     true_blocked = [item["workflow"] for item in classified_workflows if item["outcome"] == "true_blocked"]
     expected_governance_blocks = [item["workflow"] for item in classified_workflows if item["outcome"] == "expected_governance_block"]
     provider_empty_or_timeout = [item["workflow"] for item in classified_workflows if item["outcome"] == "provider_empty_or_timeout"]
+    implementation_pipeline_issues = [item["workflow"] for item in classified_workflows if item["outcome"] == "implementation_pipeline_issue"]
     satisfied_outcomes = [item["workflow"] for item in classified_workflows if item["outcome"] == "satisfied_without_changes"]
     context_issues = [item["workflow"] for item in classified_workflows if item["outcome"] == "context_insufficient"]
     completed_workflows = [item["workflow"] for item in classified_workflows if item["outcome"] == "successfully_completed"]
+
     rejected_workflows = [item["workflow"] for item in classified_workflows if item["outcome"] == "owner_rejected"]
     
     # Sort completed workflows by date and limit
@@ -300,8 +309,10 @@ def build_summary(*, include_check: bool = False) -> dict[str, Any]:
         "true_blocked": len(true_blocked),
         "expected_governance_blocks": len(expected_governance_blocks),
         "provider_empty_or_timeout": len(provider_empty_or_timeout),
+        "implementation_pipeline_issues": len(implementation_pipeline_issues),
         "superseded_failures": len(superseded_failures),
         "superseded_by_corrected_changeset": len(superseded_by_corrected),
+
         "invalid_changesets": len([item for item in changesets if item.get("status") == "invalid"]),
 
         "recent_completed_workflows": len(recent_completed),
@@ -317,8 +328,10 @@ def build_summary(*, include_check: bool = False) -> dict[str, Any]:
         "historical_or_expected_buckets": [
             "expected_governance_blocks",
             "provider_empty_or_timeout",
+            "implementation_pipeline_issues",
             "superseded_failures",
             "superseded_by_corrected_changeset",
+
             "satisfied_without_changes",
             "context_insufficient",
             "owner_rejected",
@@ -416,9 +429,20 @@ def build_summary(*, include_check: bool = False) -> dict[str, Any]:
                 }
                 for item in provider_empty_or_timeout
             ],
+            "implementation_pipeline_issues": [
+                {
+                    "id": item.get("id"),
+                    "roadmap_id": item.get("roadmap_id"),
+                    "status": item.get("status"),
+                    "last_error": item.get("last_error"),
+                    "last_event": _extract_last_event(item),
+                }
+                for item in implementation_pipeline_issues
+            ],
             "expected_governance_blocks": [
                 {
                     "id": item.get("id"),
+
 
                     "roadmap_id": item.get("roadmap_id"),
                     "status": item.get("status"),
