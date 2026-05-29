@@ -184,7 +184,13 @@ def _workflow_failure_diagnostics(workflows: list[dict[str, Any]], *, limit: int
     - expected_governance_block
     - other
     """
-    non_actionable_outcomes = {"satisfied_without_changes", "owner_rejected", "superseded_failure", "implementation_pipeline_issue"}
+    non_actionable_outcomes = {
+        "satisfied_without_changes",
+        "owner_rejected",
+        "superseded_failure",
+        "implementation_pipeline_issue",
+        "expected_governance_block",
+    }
     failed_workflows = [
 
         wf for wf in workflows
@@ -193,6 +199,7 @@ def _workflow_failure_diagnostics(workflows: list[dict[str, Any]], *, limit: int
     ]
 
     failed_workflows = sorted(
+
         failed_workflows,
         key=lambda item: item.get("updated_at") or item.get("created_at") or "",
         reverse=True,
@@ -220,10 +227,39 @@ def _workflow_failure_diagnostics(workflows: list[dict[str, Any]], *, limit: int
     }
 
 
+def _workflow_expected_governance_diagnostics(workflows: list[dict[str, Any]], *, limit: int = 10) -> dict[str, Any]:
+    """Summarize expected governance blocks separately from failures."""
+    governance_workflows = [
+        wf for wf in workflows
+        if _classify_workflow_outcome(wf) == "expected_governance_block"
+    ]
+    governance_workflows = sorted(
+        governance_workflows,
+        key=lambda item: item.get("updated_at") or item.get("created_at") or "",
+        reverse=True,
+    )
+    recent = [
+        {
+            "id": wf.get("id"),
+            "roadmap_id": wf.get("roadmap_id"),
+            "status": wf.get("status"),
+            "last_error": (wf.get("last_error") or "")[:200],
+            "last_event": _extract_last_event(wf),
+            "updated_at": wf.get("updated_at"),
+        }
+        for wf in governance_workflows[:limit]
+    ]
+    return {
+        "count": len(governance_workflows),
+        "meaning": "Expected governance blocks are deliberate Owner/governance boundary stops, not active execution failures.",
+        "recent_expected_governance_blocks": recent,
+    }
+
 
 def _extract_last_event(workflow: dict[str, Any]) -> dict[str, Any] | None:
 
     """Extract the last meaningful event from workflow history for display."""
+
     history = workflow.get("history", [])
     if not history:
         return None
@@ -367,13 +403,16 @@ def build_summary(*, include_check: bool = False) -> dict[str, Any]:
             "invalid_changesets",
             "implementation_pipeline_diagnostics",
             "workflow_failure_diagnostics",
+            "workflow_expected_governance_diagnostics",
         ],
         "notes": {
             "active_health_gates": "Non-zero values here require current operator attention before continuing normal work.",
             "historical_or_expected_buckets": "These buckets may describe legitimate terminal outcomes, expected governance blocks, or resolved historical failures rather than active health failures.",
             "review_input_buckets": "These buckets preserve historical evidence for structural review and stability work.",
+            "workflow_expected_governance_diagnostics": "Expected governance blocks indicate the governance boundary is working as designed; they are not active execution failures.",
         },
     }
+
 
     summary: dict[str, Any] = {
         "schema": "abyss.summary.v1",
@@ -534,8 +573,10 @@ def build_summary(*, include_check: bool = False) -> dict[str, Any]:
         },
         "implementation_pipeline_diagnostics": _implementation_pipeline_diagnostics(changesets),
         "workflow_failure_diagnostics": _workflow_failure_diagnostics(workflows),
+        "workflow_expected_governance_diagnostics": _workflow_expected_governance_diagnostics(workflows),
     }
     if include_check:
+
         ok, messages = run_checks()
         summary["integrity"] = {"ok": ok, "messages": messages}
     return summary
