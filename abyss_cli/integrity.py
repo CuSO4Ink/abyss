@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Any
 
 from .disclosure import audit_context_manifest
 from .request_rules import validate_request_rules_config
@@ -421,6 +422,33 @@ def _check_modules_context_and_disclosure(root: Path, messages: list[str]) -> bo
 
 def _check_agents_and_llm_providers(root: Path, messages: list[str]) -> bool:
     ok = True
+    agents: dict[str, Any] = {}
+    providers: dict[str, Any] = {}
+
+    llm_providers_path = root / "rules" / "llm_providers.yaml"
+    if llm_providers_path.exists():
+        try:
+            llm_providers = read_record(llm_providers_path)
+            if llm_providers.get("schema") != "abyss.llm_providers.v2":
+                ok = False
+                messages.append(f"INVALID_LLM_PROVIDERS_SCHEMA {llm_providers.get('schema')}")
+            raw_providers = llm_providers.get("providers", {})
+            providers = raw_providers if isinstance(raw_providers, dict) else {}
+            cli_provider = providers.get("cli")
+            if not isinstance(cli_provider, dict):
+                ok = False
+                messages.append("MISSING_CLI_PROVIDER")
+            else:
+                if not isinstance(cli_provider.get("model", ""), str):
+                    ok = False
+                    messages.append("INVALID_CLI_PROVIDER_MODEL")
+                if not isinstance(cli_provider.get("model_argument", "--model"), str):
+                    ok = False
+                    messages.append("INVALID_CLI_PROVIDER_MODEL_ARGUMENT")
+        except Exception as exc:
+            ok = False
+            messages.append(f"INVALID_LLM_PROVIDERS_FILE {exc}")
+
     agents_path = root / "rules" / "agents.yaml"
     if agents_path.exists():
         try:
@@ -428,9 +456,10 @@ def _check_agents_and_llm_providers(root: Path, messages: list[str]) -> bool:
             if agents_config.get("schema") != "abyss.agents.v1":
                 ok = False
                 messages.append(f"INVALID_AGENTS_SCHEMA {agents_config.get('schema')}")
-            agents = agents_config.get("agents", {})
+            raw_agents = agents_config.get("agents", {})
+            agents = raw_agents if isinstance(raw_agents, dict) else {}
             for required_agent in ["harness", "self_evolution", "implementation"]:
-                spec = agents.get(required_agent) if isinstance(agents, dict) else None
+                spec = agents.get(required_agent)
                 if not isinstance(spec, dict) or not spec.get("enabled"):
                     ok = False
                     messages.append(f"MISSING_ENABLED_AGENT {required_agent}")
@@ -439,7 +468,25 @@ def _check_agents_and_llm_providers(root: Path, messages: list[str]) -> bool:
                 if not role_prompt.exists():
                     ok = False
                     messages.append(f"MISSING_AGENT_ROLE_PROMPT {required_agent} {role_prompt.relative_to(root) if role_prompt.is_relative_to(root) else role_prompt}")
-            brain = agents.get("brain") if isinstance(agents, dict) else None
+            for agent_id, spec in agents.items():
+                if not isinstance(spec, dict):
+                    continue
+                provider_name = str(spec.get("provider") or "")
+                default_provider_interface = spec.get("default_provider_interface")
+                provider_spec = providers.get(provider_name) if provider_name else None
+                if not provider_name:
+                    ok = False
+                    messages.append(f"AGENT_MISSING_PROVIDER {agent_id}")
+                elif not isinstance(provider_spec, dict):
+                    ok = False
+                    messages.append(f"AGENT_PROVIDER_NOT_CONFIGURED {agent_id} {provider_name}")
+                if not isinstance(default_provider_interface, str) or not default_provider_interface:
+                    ok = False
+                    messages.append(f"AGENT_MISSING_DEFAULT_PROVIDER_INTERFACE {agent_id}")
+                elif isinstance(provider_spec, dict) and default_provider_interface != provider_spec.get("interface"):
+                    ok = False
+                    messages.append(f"AGENT_DEFAULT_PROVIDER_INTERFACE_MISMATCH {agent_id} {provider_name}")
+            brain = agents.get("brain")
             if not isinstance(brain, dict):
                 ok = False
                 messages.append("MISSING_BRAIN_AGENT_CONTRACT")
@@ -456,30 +503,8 @@ def _check_agents_and_llm_providers(root: Path, messages: list[str]) -> bool:
             ok = False
             messages.append(f"INVALID_AGENTS_FILE {exc}")
 
-    llm_providers_path = root / "rules" / "llm_providers.yaml"
-    if llm_providers_path.exists():
-        try:
-            llm_providers = read_record(llm_providers_path)
-            if llm_providers.get("schema") != "abyss.llm_providers.v2":
-                ok = False
-                messages.append(f"INVALID_LLM_PROVIDERS_SCHEMA {llm_providers.get('schema')}")
-            providers = llm_providers.get("providers", {})
-            cli_provider = providers.get("cli") if isinstance(providers, dict) else None
-            if not isinstance(cli_provider, dict):
-                ok = False
-                messages.append("MISSING_CLI_PROVIDER")
-            else:
-                if not isinstance(cli_provider.get("model", ""), str):
-                    ok = False
-                    messages.append("INVALID_CLI_PROVIDER_MODEL")
-                if not isinstance(cli_provider.get("model_argument", "--model"), str):
-                    ok = False
-                    messages.append("INVALID_CLI_PROVIDER_MODEL_ARGUMENT")
-        except Exception as exc:
-            ok = False
-            messages.append(f"INVALID_LLM_PROVIDERS_FILE {exc}")
-
     return ok
+
 
 
 def _check_roadmap_refs(root: Path, messages: list[str]) -> bool:
