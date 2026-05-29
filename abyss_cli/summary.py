@@ -138,7 +138,12 @@ def _implementation_pipeline_diagnostics(changesets: list[dict[str, Any]], *, li
     }
 
 def _workflow_failure_diagnostics(workflows: list[dict[str, Any]], *, limit: int = 10) -> dict[str, Any]:
-    """Classify recent failed/blocked workflows into pipeline failure categories.
+    """Classify recent actionable workflow issues into pipeline failure categories.
+
+    Excludes terminal non-action items that are summarized elsewhere:
+    - satisfied_without_changes
+    - owner_rejected
+    - superseded_failure
 
     Categories reported:
     - context_insufficient
@@ -151,11 +156,13 @@ def _workflow_failure_diagnostics(workflows: list[dict[str, Any]], *, limit: int
     - expected_governance_block
     - other
     """
+    non_actionable_outcomes = {"satisfied_without_changes", "owner_rejected", "superseded_failure"}
     failed_workflows = [
         wf for wf in workflows
         if wf.get("status") in {"failed", "blocked", "rejected"}
-        and _classify_workflow_outcome(wf) != "satisfied_without_changes"
+        and _classify_workflow_outcome(wf) not in non_actionable_outcomes
     ]
+
     failed_workflows = sorted(
         failed_workflows,
         key=lambda item: item.get("updated_at") or item.get("created_at") or "",
