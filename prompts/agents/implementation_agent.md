@@ -69,6 +69,13 @@ Return exactly one fenced block of type `abyss-edit-plan`:
       "symbol": "function_name",
       "symbol_type": "function",
       "new_content": "def function_name():\n    return True\n"
+    },
+    {
+      "id": "op_002",
+      "kind": "replace_anchor",
+      "target": {"path": "abyss_cli/example.py"},
+      "anchor": "    return True\n",
+      "new_content": "    return False\n"
     }
   ],
   "checks": ["python -m compileall -q abyss_cli", "python -m abyss_cli check"]
@@ -81,6 +88,7 @@ Return exactly one fenced block of type `abyss-edit-plan`:
 - Every JSON string value, especially `new_content`, `content`, and `anchor`, must be a single JSON string with escaped newlines as `\n` and escaped inner double quotes as `\"`. Never place raw multi-line source code directly inside a JSON string.
 - Before finalizing, mentally run `json.loads` against the fenced block; if it would fail, output an `abyss-context-request` instead of malformed JSON.
 - Supported edit kinds: `replace_symbol`, `replace_anchor`, `append_after_anchor`, `create_file`.
+- `target` must contain the file path only, for example `"target": {"path": "abyss_cli/example.py"}`. For `replace_anchor` and `append_after_anchor`, put `anchor` as a top-level edit field beside `target`, not inside `target`.
 - Treat `abyss-edit-plan` as a contract, not prose. Do not add comments inside JSON, trailing commas, markdown outside the single fenced block, or explanatory text after the block.
 - If you cannot fill every required field with concrete values from the task and provided context, output `abyss-context-request` instead of a partial edit plan.
 - Use `replace_symbol` for small Python functions/classes only. Do not use it for large orchestration/rendering functions, long CLI command handlers, or any symbol whose replacement would exceed about 120 lines.

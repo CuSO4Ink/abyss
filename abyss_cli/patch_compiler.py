@@ -19,11 +19,20 @@ PLACEHOLDER_MARKERS = (
     "rest of",
     "omitted",
     "placeholder",
+    # Align compiler enforcement with Implementation Agent prompt/retry guidance
+    # without rejecting legitimate identifiers such as todo_list.
+    "todo:",
+    "# todo",
+    "// todo",
+    "other code unchanged",
+    "code unchanged",
+    "ellipsis placeholder",
 )
 
 
 def _normalize_path(raw: str) -> str:
     return raw.replace("\\", "/").lstrip("/")
+
 
 
 def _repo_file(rel_path: str) -> Path:
@@ -40,6 +49,24 @@ def _operation_target_path(edit: dict[str, Any]) -> str:
     if isinstance(target, dict):
         return _normalize_path(str(target.get("path") or ""))
     return _normalize_path(str(edit.get("path") or ""))
+
+
+def _edit_anchor(edit: dict[str, Any], edit_id: str | None = None) -> str:
+    """Return the canonical anchor, accepting target.anchor only as an alias.
+
+    The edit-plan contract keeps ``edit.anchor`` as the canonical location for
+    replace_anchor and append_after_anchor. Real-provider probes showed that
+    models may reasonably place the anchor under target.anchor because target
+    already holds path information. Accept that form when unambiguous, but
+    reject conflicting anchors rather than guessing.
+    """
+    target = edit.get("target")
+    top_level_anchor = str(edit.get("anchor") or "")
+    nested_anchor = str(target.get("anchor") or "") if isinstance(target, dict) else ""
+    if top_level_anchor and nested_anchor and top_level_anchor != nested_anchor:
+        label = edit_id or str(edit.get("id") or "edit")
+        raise ValueError(f"EDIT_PLAN_CONTRACT_CONFLICTING_ANCHOR {label}")
+    return top_level_anchor or nested_anchor
 
 
 def _read_lines(rel_path: str) -> tuple[Path, str, list[str]]:
@@ -141,8 +168,14 @@ def preflight_validate_edit_plan_contract(edits: list[dict[str, Any]]) -> list[s
             messages.append(f"EDIT_PLAN_CONTRACT_MISSING_TARGET_PATH {edit_id}")
         if kind == "replace_symbol" and not edit.get("symbol"):
             messages.append(f"EDIT_PLAN_CONTRACT_MISSING_SYMBOL {edit_id}")
-        if kind in {"replace_anchor", "append_after_anchor"} and not edit.get("anchor"):
-            messages.append(f"EDIT_PLAN_CONTRACT_MISSING_ANCHOR {edit_id}")
+        if kind in {"replace_anchor", "append_after_anchor"}:
+            try:
+                anchor = _edit_anchor(edit, edit_id)
+            except ValueError as exc:
+                messages.append(str(exc))
+                anchor = ""
+            if not anchor:
+                messages.append(f"EDIT_PLAN_CONTRACT_MISSING_ANCHOR {edit_id}")
         if kind in {"replace_symbol", "replace_anchor"} and not edit.get("new_content"):
             messages.append(f"EDIT_PLAN_CONTRACT_MISSING_NEW_CONTENT {edit_id}")
         if kind in {"append_after_anchor", "create_file"} and not (edit.get("content") or edit.get("new_content")):
@@ -164,7 +197,6 @@ def _local_context_snippet(rel_path: str, needle: str = "", *, radius: int = 6) 
     start = max(0, line_index - radius)
     end = min(len(lines), line_index + radius + 1)
     return {"path": rel_path, "available": True, "needle_found": True, "line_start": start + 1, "line_end": end, "snippet": "".join(lines[start:end])}
-
 
 
 def _operation_from_edit(edit: dict[str, Any]) -> dict[str, Any]:
@@ -196,10 +228,10 @@ def _operation_from_edit(edit: dict[str, Any]) -> dict[str, Any]:
         new_content = str(edit.get("new_content") or "")
 
     elif kind == "replace_anchor":
-        old_content = _exact_anchor(rel_path, str(edit.get("anchor") or ""))
+        old_content = _exact_anchor(rel_path, _edit_anchor(edit, edit_id))
         new_content = str(edit.get("new_content") or "")
     elif kind == "append_after_anchor":
-        anchor = _exact_anchor(rel_path, str(edit.get("anchor") or ""))
+        anchor = _exact_anchor(rel_path, _edit_anchor(edit, edit_id))
         addition = str(edit.get("content") if "content" in edit else edit.get("new_content") or "")
         old_content = anchor
         new_content = anchor + addition
@@ -250,10 +282,14 @@ def _build_context_recovery_packet(plan: dict[str, Any] | None, messages: list[s
                 continue
             rel_path = _operation_target_path(edit)
             kind = str(edit.get("kind") or "")
-            anchor = str(edit.get("anchor") or "")
+            edit_id = str(edit.get("id") or f"op_{index:03d}")
+            try:
+                anchor = _edit_anchor(edit, edit_id)
+            except ValueError:
+                anchor = ""
             symbol = str(edit.get("symbol") or "")
             item: dict[str, Any] = {
-                "edit_id": str(edit.get("id") or f"op_{index:03d}"),
+                "edit_id": edit_id,
                 "kind": kind,
                 "target_path": rel_path,
                 "requested_anchor": anchor or None,

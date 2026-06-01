@@ -1,0 +1,63 @@
+{
+  "schema": "abyss.request_envelope.v1",
+  "request_id": "REQ-edit-plan-anchor-contract-alignment-20260601",
+  "request_type": "governance_mutation",
+  "source": "owner_chat_real_provider_probe_followup",
+  "created_at": "2026-06-01T21:08:00+08:00",
+  "created_by": "owner",
+  "user_intent": "Land a minimal meta-governed fix for the edit-plan anchor placement ambiguity exposed by real-provider testing.",
+  "title": "Align edit-plan anchor contract for real-provider output",
+  "description": "A real-provider E2E probe showed that one provider placed replace_anchor anchor text under target.anchor while the current compiler only accepts top-level edit.anchor. This request records an owner-requested meta iteration to clarify the canonical contract and add bounded compiler compatibility without changing approval, apply, provider, or workflow authority.",
+  "scope": [
+    "abyss_cli/patch_compiler.py",
+    "prompts/agents/implementation_agent.md",
+    "tests/test_self_iteration_edit_plan.py"
+  ],
+  "risk_level": "medium",
+  "governance_route": "meta_governance",
+  "requires_code_change": true,
+  "requires_cognition_update": false,
+  "requires_owner_approval": true,
+  "required_context": [
+    "abyss_cli/patch_compiler.py",
+    "prompts/agents/implementation_agent.md",
+    "tests/test_self_iteration_edit_plan.py",
+    "rules/request_types.v1.yaml"
+  ],
+  "expected_artifacts": [
+    "Patch Compiler anchor accessor that keeps top-level edit.anchor canonical while accepting target.anchor as a compatibility alias when unambiguous",
+    "Implementation Agent prompt clarification and replace_anchor example showing top-level anchor",
+    "Regression tests for target.anchor compatibility, canonical top-level anchor support, and conflicting anchor rejection",
+    "Validation results from targeted pytest, full pytest, compileall, and abyss_cli check"
+  ],
+  "validation_plan": [
+    "python -m pytest -q tests/test_self_iteration_edit_plan.py",
+    "python -m compileall -q abyss_cli tests",
+    "python -m pytest -q",
+    "python -m abyss_cli check"
+  ],
+  "related_documents": [
+    "prompts/agents/implementation_agent.md",
+    "abyss_cli/patch_compiler.py",
+    "rules/request_types.v1.yaml"
+  ],
+  "status": "normalized",
+  "request_fields": {
+    "owner_approval_required": "explicit",
+    "activation_policy": "delayed; candidate material only until owner review and normal ChangeSet boundaries; no same-cycle activation of any governance rule change",
+    "affected_governance_surface": "Self Evolution edit-plan contract, Implementation Agent output contract, and Patch Compiler validation boundary. This changes field parsing compatibility for anchor-based edit plans but does not change approval, apply, dry-run, provider, path, or owner-authority policy.",
+    "current_problem": "The Implementation Agent prompt mentions target.path and symbol or anchor but only shows a replace_symbol example. The compiler reads edit.get('anchor') for replace_anchor and append_after_anchor, so a reasonable target.anchor placement from a real provider fails with EDIT_PLAN_CONTRACT_MISSING_ANCHOR even though the output is otherwise structurally valid.",
+    "owner_authority_impact": "No reduction or delegation of Owner authority. Real-provider test success remains evidence only and does not approve, apply, commit, or activate changes. Existing Owner approval gates remain unchanged.",
+    "old_rule_review": "Prior rules require changes touching agent contracts or self-iteration validation boundaries to be recorded before modification. Existing governance forbids bypassing proposal, dry-run, Harness review, Owner approval, and apply gates. This request preserves those gates and only aligns edit-plan field parsing/documentation.",
+    "risk_assessment": "Main risk is accepting an additional anchor location. Mitigation: top-level edit.anchor remains canonical, target.anchor is accepted only as an alias when top-level anchor is absent or equal, both still require unique exact anchor resolution, and conflicting anchors are explicitly rejected.",
+    "rollback_plan": "Revert the anchor accessor and call-site changes in abyss_cli/patch_compiler.py, revert the Implementation Agent prompt clarification/example, and remove the added regression tests. Existing top-level anchor edit plans continue to work without this compatibility alias.",
+    "validation_plan": "Run targeted edit-plan compiler tests, compileall, full pytest, and abyss_cli check. Confirm target.anchor compiles, conflicting anchors are rejected, and canonical top-level anchor remains supported.",
+    "proposed_change": "Keep top-level edit.anchor as the canonical contract; explicitly document that target must contain path only; add a replace_anchor example; make the compiler accept target.anchor as a compatibility alias when top-level anchor is absent. If both top-level anchor and target.anchor are present and differ, reject the plan with an explicit conflicting-anchor contract error."
+  },
+  "missing_required_fields": [],
+  "warnings": [
+    "The first packet generated for this request intentionally captured an incomplete-envelope failure and should be treated as process evidence, not the final ready packet."
+  ],
+  "notes": "This request is created before modifying production code, per the owner's meta-iteration requirement. The packet builder is read-only except for persisting review packets when explicitly requested.",
+  "contract_version": "abyss.request_envelope.v1"
+}
