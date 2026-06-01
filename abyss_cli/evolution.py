@@ -186,6 +186,30 @@ def show_evolution_record(value: str) -> tuple[Path, dict[str, Any]]:
     return path, read_record(path)
 
 
+def proposal_requires_meta_governance(proposal: dict[str, Any]) -> bool:
+    """Return whether a proposal is marked as governance-core scoped.
+
+    This is a command-layer guard only. It grants no approval path by itself;
+    ordinary evolution approval/start must not turn a governance-core proposal
+    into implementation work just because an agent produced a plausible plan.
+    """
+    detection = proposal.get("governance_core_detection")
+    if isinstance(detection, dict) and detection.get("requires_meta_governance"):
+        return True
+    route = str(proposal.get("recommended_governance_route") or proposal.get("governance_route") or "")
+    request_type = str(proposal.get("recommended_request_type") or proposal.get("request_type") or "")
+    return route == "meta_governance" or request_type in {"governance_mutation", "meta_evolution_request"}
+
+
+def reject_governance_core_ordinary_approval(proposal: dict[str, Any]) -> None:
+    if proposal_requires_meta_governance(proposal):
+        proposal_id = str(proposal.get("id") or "")
+        raise SystemExit(
+            "Cannot approve governance-core proposal through ordinary evolution approve: "
+            f"{proposal_id}. Use explicit meta-governance review and delayed activation."
+        )
+
+
 def load_governance_state() -> dict[str, Any]:
     if GOVERNANCE_PATH.exists():
         return read_record(GOVERNANCE_PATH)
@@ -269,6 +293,7 @@ def approve_proposal(proposal_value: str, approver: str = "user", add_to_roadmap
     proposal = read_record(proposal_path)
     if proposal.get("status") == "rejected":
         raise SystemExit(f"Cannot approve rejected proposal: {proposal.get('id')}")
+    reject_governance_core_ordinary_approval(proposal)
 
     roadmap_id = proposal.get("roadmap_entry")
     roadmap_status = "not_requested"

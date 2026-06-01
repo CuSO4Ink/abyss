@@ -9,7 +9,7 @@ from typing import Any
 from .agent_runner import run_agent, run_harness_changeset_review
 from .audit import append_event
 from .changeset import apply_changeset, dry_run_changeset, load_changeset
-from .evolution import PROPOSALS_DIR, show_evolution_record
+from .evolution import PROPOSALS_DIR, proposal_requires_meta_governance, show_evolution_record
 from .integrity import run_checks
 from .utils import list_records, new_id, now_iso, read_record, relative_to_repo, resolve_record_arg, runtime_root, write_record
 
@@ -105,6 +105,11 @@ def create_workflow_for_proposal(proposal: dict[str, Any], *, provider: str = "c
         return existing
     if proposal.get("status") != "approved" or not proposal.get("implementation_allowed"):
         raise SystemExit(f"Proposal is not approved for implementation: {proposal_id}")
+    if proposal_requires_meta_governance(proposal):
+        raise SystemExit(
+            "Cannot start ordinary workflow for governance-core proposal: "
+            f"{proposal_id}. Use explicit meta-governance review and delayed activation."
+        )
     roadmap_id = str(proposal.get("roadmap_entry") or "")
     if not roadmap_id:
         raise SystemExit(f"Approved proposal has no roadmap entry: {proposal_id}")

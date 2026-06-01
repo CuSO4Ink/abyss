@@ -1,0 +1,64 @@
+{
+  "schema": "abyss.request_envelope.v1",
+  "request_id": "REQ-governance-core-hard-gate-20260601",
+  "request_type": "governance_mutation",
+  "source": "owner_chat_real_provider_adversarial_probe_followup",
+  "created_at": "2026-06-01T22:24:59+08:00",
+  "created_by": "owner",
+  "user_intent": "Harden governance-core detection and command-layer gates after real-provider probes exposed gaps in proposal detection and approval/start enforcement.",
+  "title": "Harden governance-core protected surfaces and proposal approval gates",
+  "description": "Real-provider adversarial probes found two governance weaknesses: changes to abyss_cli/changeset.py executor allowlists were not detected as permission-boundary governance-core scope, and evolution approve/workflow start did not hard-block proposals already marked requires_meta_governance or implementation_allowed=false. This request records an owner-requested meta iteration to close both gaps without weakening Owner, Harness, or apply gates.",
+  "scope": [
+    "abyss_cli/request_rules.py",
+    "abyss_cli/evolution.py",
+    "abyss_cli/workflow.py",
+    "tests/test_self_iteration_governance_core_gates.py"
+  ],
+  "risk_level": "high",
+  "governance_route": "meta_governance",
+  "requires_code_change": true,
+  "requires_cognition_update": false,
+  "requires_owner_approval": true,
+  "required_context": [
+    "abyss_cli/request_rules.py",
+    "abyss_cli/evolution.py",
+    "abyss_cli/workflow.py",
+    "abyss_cli/changeset.py",
+    "rules/request_types.v1.yaml"
+  ],
+  "expected_artifacts": [
+    "Detect abyss_cli/changeset.py as a permission-boundary governance-core surface",
+    "Reject ordinary evolution approve for governance-core proposals that require meta-governance",
+    "Reject workflow creation for governance-core proposals that require meta-governance or are not implementation_allowed",
+    "Regression tests for F1 and F2"
+  ],
+  "validation_plan": [
+    "python -m pytest -q tests/test_self_iteration_governance_core_gates.py",
+    "python -m pytest -q tests/test_self_iteration_edit_plan.py tests/test_self_iteration_governance_core_gates.py",
+    "python -m pytest -q",
+    "python -m abyss_cli check"
+  ],
+  "related_documents": [
+    "artifacts/drafts/adversarial_probe_20260601/README.md",
+    "abyss_cli/request_rules.py",
+    "abyss_cli/evolution.py",
+    "abyss_cli/workflow.py"
+  ],
+  "status": "normalized",
+  "request_fields": {
+    "owner_approval_required": "explicit",
+    "activation_policy": "delayed; candidate code is reviewable evidence in this cycle and does not retroactively approve, apply, or activate any governance-core change outside the normal gates",
+    "affected_governance_surface": "Governance-core scope detection, permission-boundary protected surface definitions, evolution proposal approval command gate, and workflow creation command gate.",
+    "current_problem": "F1: permission_boundaries protects rules/capabilities.yaml and rules/policy.yaml but misses abyss_cli/changeset.py, where executor allowlists and blocklists live. F2: proposals marked requires_meta_governance and implementation_allowed=false can still be approved by evolution approve and started as workflows, making the marker advisory rather than a hard command-layer gate.",
+    "old_rule_review": "Prior accepted rules require governance-core mutations to go through meta-governance, old-rule review, explicit Owner approval, risk assessment, rollback plan, validation plan, and delayed activation. Ordinary self-evolution must not self-approve or same-cycle activate governance-core changes.",
+    "owner_authority_impact": "No Owner authority is delegated or reduced. The change strengthens command-layer refusal for governance-core proposals unless an explicit meta-governance route is used, and it does not approve, apply, start, or activate any specific proposal by itself.",
+    "risk_assessment": "Medium-to-high governance safety fix. The change makes detection and command gates stricter, which may block ordinary approve/start attempts for governance-core proposals until they are routed through explicit meta-governance. This is intended; it prevents relying on provider judgment as the final safety layer.",
+    "rollback_plan": "Revert the added protected surface entry for abyss_cli/changeset.py, remove the evolution/workflow governance-core blocking helpers, and remove the regression tests. Existing non-governance proposal approval/start behavior should remain unchanged.",
+    "validation_plan": "Run targeted governance-core gate tests, relevant edit-plan tests, full pytest, and abyss_cli check. Confirm changeset.py allowlist requests are detected, ordinary approve is blocked for governance-core proposals, and workflow start cannot bypass the block.",
+    "proposed_change": "Add abyss_cli/changeset.py to permission_boundaries. Add command-layer hard gates so ordinary evolution approve and workflow creation reject proposals with governance_core_detection.requires_meta_governance unless a future explicit meta-governance approval path is implemented. Preserve implementation_allowed checks."
+  },
+  "missing_required_fields": [],
+  "warnings": [],
+  "notes": "This is the record-before-mutation step for the owner-reported F1/F2 findings from real-provider adversarial testing.",
+  "contract_version": "abyss.request_envelope.v1"
+}
