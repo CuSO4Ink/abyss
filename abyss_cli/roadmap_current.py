@@ -12,14 +12,13 @@ from .workflow import list_workflows, state_display_label
 ROADMAP_ITEM_RE = re.compile(r"^###\s+(R\d+)\.\s+(.+?)\s*$")
 
 
-def _parse_approved_roadmap_items() -> list[dict[str, Any]]:
-    """Parse approved roadmap item headings from ROADMAP.md without mutating it."""
-    roadmap_path = repo_root() / "ROADMAP.md"
-    if not roadmap_path.exists():
+def _parse_roadmap_items(path: Any) -> list[dict[str, Any]]:
+    """Parse roadmap item headings from one Markdown file without mutating it."""
+    if not path.exists():
         return []
 
     items: list[dict[str, Any]] = []
-    for line_number, line in enumerate(roadmap_path.read_text(encoding="utf-8").splitlines(), start=1):
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         match = ROADMAP_ITEM_RE.match(line)
         if not match:
             continue
@@ -27,7 +26,22 @@ def _parse_approved_roadmap_items() -> list[dict[str, Any]]:
             "id": match.group(1),
             "title": match.group(2),
             "line": line_number,
+            "source": str(path.relative_to(repo_root())),
         })
+    return items
+
+
+def _parse_current_roadmap_items() -> list[dict[str, Any]]:
+    """Parse active/current approved roadmap item headings from ROADMAP.md."""
+    return _parse_roadmap_items(repo_root() / "ROADMAP.md")
+
+
+def _parse_archived_roadmap_items() -> list[dict[str, Any]]:
+    """Parse archived approved roadmap item headings for count/context only."""
+    archive_dir = repo_root() / "docs" / "archive"
+    items: list[dict[str, Any]] = []
+    for path in sorted(archive_dir.glob("ROADMAP_R*.md")) if archive_dir.exists() else []:
+        items.extend(_parse_roadmap_items(path))
     return items
 
 
@@ -99,7 +113,8 @@ def build_roadmap_current_view(*, recent_limit: int = 10) -> dict[str, Any]:
             if workflow_id:
                 outcome_by_workflow_id[workflow_id] = label_outcome
 
-    roadmap_items = _parse_approved_roadmap_items()
+    roadmap_items = _parse_current_roadmap_items()
+    archived_roadmap_items = _parse_archived_roadmap_items()
     workflows_by_roadmap = _workflow_index_by_roadmap()
     latest_items = list(reversed(roadmap_items[-recent_limit:]))
 
@@ -134,10 +149,13 @@ def build_roadmap_current_view(*, recent_limit: int = 10) -> dict[str, Any]:
 
     return {
         "schema": "abyss.roadmap_current.v1",
-        "source": "ROADMAP.md plus runtime summary/workflow records",
+        "source": "ROADMAP.md, docs/archive/ROADMAP_*.md, plus runtime summary/workflow records",
         "read_only": True,
         "roadmap": {
-            "approved_item_count": len(roadmap_items),
+            "current_item_count": len(roadmap_items),
+            "archived_item_count": len(archived_roadmap_items),
+            "total_known_item_count": len(roadmap_items) + len(archived_roadmap_items),
+            "archive_files": sorted({item["source"] for item in archived_roadmap_items}),
             "latest_approved_items": latest_approved_items,
         },
         "operations_current": {
@@ -168,7 +186,9 @@ def render_roadmap_current_text() -> str:
     lines = [
         "Abyss roadmap current view",
         f"read_only={view['read_only']}",
-        f"approved_items={view['roadmap']['approved_item_count']}",
+        f"current_items={view['roadmap']['current_item_count']}",
+        f"archived_items={view['roadmap']['archived_item_count']}",
+        f"total_known_items={view['roadmap']['total_known_item_count']}",
         "",
         "Active health gates:",
     ]
