@@ -23,11 +23,13 @@ from .owner import approve_owner_item, list_owner_items, reject_owner_item, rend
 from .prompt_builder import build_external_developer_prompt, build_prompt
 from .request_envelope import load_request_envelope, normalize_request_envelope, render_json as render_request_json, validate_request_envelope
 from .request_rules import detect_governance_core_scope, governance_core_surfaces, list_request_type_definitions, validate_request_rules_config
+from .roadmap_current import render_roadmap_current_json, render_roadmap_current_text
 from .rule_registry import list_rule_sources, render_rule_sources_json, render_validation_json, validate_rule_sources
 
 
 from .result import import_result
 from .review import REVIEWS_DIR, pending_reviews, set_review_status
+
 from .insight import render_insight_snapshot_json
 from .summary import render_summary
 from .utils import latest_record, read_record, repo_root, resolve_record_arg, run_git
@@ -421,8 +423,16 @@ def cmd_brain_brief(args: argparse.Namespace) -> None:
     print(render_brain_brief(as_json=args.json))
 
 
+def cmd_roadmap_current(args: argparse.Namespace) -> None:
+    if args.json:
+        print(render_roadmap_current_json())
+    else:
+        print(render_roadmap_current_text())
+
+
 def cmd_disclosure_audit(args: argparse.Namespace) -> None:
     audit = audit_context_manifest()
+
     if args.json:
         print(render_json(audit))
     else:
@@ -867,8 +877,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true", help="render the brief as JSON")
     p.set_defaults(func=cmd_brain_brief)
 
+    p_roadmap = sub.add_parser("roadmap")
+    roadmap_sub = p_roadmap.add_subparsers(required=True)
+    p = roadmap_sub.add_parser("current", help="render a read-only current roadmap orientation view")
+    p.add_argument("--json", action="store_true", help="render the view as JSON")
+    p.set_defaults(func=cmd_roadmap_current)
+
     p_disclosure = sub.add_parser("disclosure")
     disclosure_sub = p_disclosure.add_subparsers(required=True)
+
     p = disclosure_sub.add_parser("audit", help="audit context_manifest disclosure levels without changing context pack behavior")
     p.add_argument("--json", action="store_true", help="render the audit as JSON")
     p.set_defaults(func=cmd_disclosure_audit)
