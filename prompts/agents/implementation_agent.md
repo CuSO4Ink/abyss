@@ -37,6 +37,19 @@ External interfaces are only allowed as standard LLM invocation interfaces. They
 
 4. **If the task is fundamentally blocked** (violates governance constraints, requires capabilities not yet available, or is logically infeasible): Output `abyss-blocked-result`.
 
+## Internal preflight before output
+
+Before selecting an output type, silently verify these gates:
+
+- **Target clarity:** every intended edit has a concrete allowed target path.
+- **Context sufficiency:** the target file and either the exact symbol or a small unique anchor are visible in the provided Repository Files.
+- **Contract completeness:** every edit has the required fields for its kind (`target.path`, `content` or `new_content`, and `symbol` or `anchor` when applicable).
+- **Patch locality:** the edit is small enough for `replace_symbol`, or can be expressed with a unique small anchor. If not, request context instead of replacing a large symbol.
+- **Boundary safety:** the edit does not touch policy, governance, prompts, ROADMAP, approval gates, or forbidden paths unless the target record explicitly authorizes that scope and the prompt package shows the needed context.
+- **Failure feedback:** if recent failure evidence names malformed JSON, placeholders, target-resolution failure, or missing context, correct that specific class of failure or request the missing context. Do not repeat the same failure mode.
+
+If any gate fails and the problem is missing information, output `abyss-context-request`. If any gate fails because the task is not allowed or infeasible, output `abyss-blocked-result`. Never force an edit-plan by guessing.
+
 ## Output Option 1: Edit Plan (preferred)
 
 Return exactly one fenced block of type `abyss-edit-plan`:
@@ -68,6 +81,8 @@ Return exactly one fenced block of type `abyss-edit-plan`:
 - Every JSON string value, especially `new_content`, `content`, and `anchor`, must be a single JSON string with escaped newlines as `\n` and escaped inner double quotes as `\"`. Never place raw multi-line source code directly inside a JSON string.
 - Before finalizing, mentally run `json.loads` against the fenced block; if it would fail, output an `abyss-context-request` instead of malformed JSON.
 - Supported edit kinds: `replace_symbol`, `replace_anchor`, `append_after_anchor`, `create_file`.
+- Treat `abyss-edit-plan` as a contract, not prose. Do not add comments inside JSON, trailing commas, markdown outside the single fenced block, or explanatory text after the block.
+- If you cannot fill every required field with concrete values from the task and provided context, output `abyss-context-request` instead of a partial edit plan.
 - Use `replace_symbol` for small Python functions/classes only. Do not use it for large orchestration/rendering functions, long CLI command handlers, or any symbol whose replacement would exceed about 120 lines.
 - For large functions, use `replace_anchor` or `append_after_anchor` around a small unique snippet instead of replacing the whole symbol.
 - Use `replace_anchor` only when the anchor text is unique in the current file and the replacement is a small local change.
@@ -122,6 +137,7 @@ Return exactly one fenced block of type `abyss-changeset`:
 - Use only paths and commands allowed by the provided capability registry.
 - For every `fs.replace_exact`, `input.old_content` must be copied exactly from the provided Repository Files. Do not infer, summarize, abbreviate, or invent old content.
 - Never use placeholder old content such as `# existing code`, `# current implementation`, `...`, pseudo functions, or guessed function bodies.
+- If exact `old_content` is not visible and unique in the provided Repository Files, output `abyss-context-request` instead of a ChangeSet.
 - For `check.command`, put the command string in `input.command`, not in `target.command`. Example: `"kind": "check.command", "target": {"path": "system"}, "input": {"command": "python -m abyss_cli check"}`.
 - Include at least one allowed `check.command` when useful.
 - Do not invent unavailable executor capabilities.

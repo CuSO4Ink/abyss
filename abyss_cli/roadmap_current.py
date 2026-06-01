@@ -9,7 +9,7 @@ from .utils import repo_root
 from .workflow import list_workflows, state_display_label
 
 
-ROADMAP_ITEM_RE = re.compile(r"^###\s+(R\d+)\.\s+(.+?)\s*$")
+ROADMAP_ITEM_RE = re.compile(r"^###\s+(R\d+[A-Z]?)\.\s+(.+?)\s*$")
 
 
 def _parse_roadmap_items(path: Any) -> list[dict[str, Any]]:
@@ -145,6 +145,12 @@ def build_roadmap_current_view(*, recent_limit: int = 10) -> dict[str, Any]:
         "superseded_by_corrected_changeset": health_counts.get("superseded_by_corrected_changeset", 0),
         "invalid_changesets": health_counts.get("invalid_changesets", 0),
         "invalid_changeset_review_buckets": summary.get("implementation_pipeline_diagnostics", {}).get("invalid_changeset_review_bucket_counts", {}),
+        "self_iteration_reliability_metrics": summary.get("self_iteration_reliability_metrics", {}).get("metrics", {}),
+        "self_iteration_reliability_windows": sorted((summary.get("self_iteration_reliability_metrics", {}).get("windows") or {}).keys()),
+        "failure_probe_candidate_count": summary.get("failure_probe_candidates", {}).get("candidate_count", 0),
+        "schema_registry_entry_count": summary.get("schema_registry", {}).get("entry_count", 0),
+        "runtime_only_schema_count": (summary.get("schema_registry", {}).get("diagnostics") or {}).get("runtime_only_schema_count", 0),
+        "smoke_fixture_count": summary.get("smoke_fixture_manifest", {}).get("fixture_count", 0),
     }
 
     return {

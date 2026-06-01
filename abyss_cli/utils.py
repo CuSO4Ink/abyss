@@ -12,10 +12,16 @@ BJ_TZ = timezone(timedelta(hours=8))
 
 
 def repo_root() -> Path:
+    override = os.environ.get("ABYSS_REPO_ROOT")
+    if override:
+        return Path(override).resolve()
     return Path(__file__).resolve().parents[1]
 
 
 def runtime_root() -> Path:
+    override = os.environ.get("ABYSS_RUNTIME_ROOT")
+    if override:
+        return Path(override).resolve()
     return repo_root() / ".local" / "runtime"
 
 

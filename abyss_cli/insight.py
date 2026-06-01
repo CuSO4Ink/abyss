@@ -79,8 +79,24 @@ def build_insight_snapshot() -> dict[str, Any]:
             for b in true_blocked
         ],
         "historical_review_inputs": historical_review_inputs,
+        "failure_taxonomy": summary.get("failure_taxonomy"),
+        "schema_registry": {
+            "entry_count": (summary.get("schema_registry") or {}).get("entry_count"),
+            "diagnostics": (summary.get("schema_registry") or {}).get("diagnostics"),
+        },
+        "smoke_fixture_manifest": {
+            "fixture_count": (summary.get("smoke_fixture_manifest") or {}).get("fixture_count"),
+            "diagnostics": (summary.get("smoke_fixture_manifest") or {}).get("diagnostics"),
+            "retention_policy": (summary.get("smoke_fixture_manifest") or {}).get("retention_policy"),
+        },
+        "self_iteration_reliability_metrics": summary.get("self_iteration_reliability_metrics"),
+        "failure_probe_candidates": {
+            "candidate_count": (summary.get("failure_probe_candidates") or {}).get("candidate_count"),
+            "activation_policy": (summary.get("failure_probe_candidates") or {}).get("activation_policy"),
+        },
         "recommended_next_safe_action": recommended,
     }
+
 
     # Include provider reliability baseline
     snapshot["provider_reliability"] = {

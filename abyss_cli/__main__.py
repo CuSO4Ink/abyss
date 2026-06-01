@@ -19,12 +19,20 @@ from .health import render_provider_health_json
 from .integrity import run_checks
 from .intent import INTENTS_DIR, create_intent
 from .llm_executor import run_llm
+from .meta_governance import build_meta_governance_packet, persist_meta_governance_packet, render_meta_governance_packet_json
 from .owner import approve_owner_item, list_owner_items, reject_owner_item, render_owner_item
 from .prompt_builder import build_external_developer_prompt, build_prompt
 from .request_envelope import load_request_envelope, normalize_request_envelope, render_json as render_request_json, validate_request_envelope
 from .request_rules import detect_governance_core_scope, governance_core_surfaces, list_request_type_definitions, validate_request_rules_config
 from .roadmap_current import render_roadmap_current_json, render_roadmap_current_text
+from .self_iteration_metrics import render_self_iteration_reliability_metrics_json
+from .failure_probe import render_failure_probe_candidates_json
+from .schema_registry import render_schema_registry_json
+from .smoke_fixtures import render_smoke_fixture_manifest_json
+
 from .rule_registry import list_rule_sources, render_rule_sources_json, render_validation_json, validate_rule_sources
+
+
 
 
 from .result import import_result
@@ -545,7 +553,33 @@ def cmd_request_validate(args: argparse.Namespace) -> None:
     raise SystemExit(0 if validation.get("ok") else 1)
 
 
+def cmd_request_meta_packet(args: argparse.Namespace) -> None:
+    path = Path(args.path)
+    if not path.is_absolute():
+        path = (Path.cwd() / path).resolve()
+    if not path.exists():
+        raise SystemExit(f"Request envelope file not found: {path}")
+    envelope = load_request_envelope(path)
+    packet = build_meta_governance_packet(envelope, source_path=path)
+    if args.persist:
+        packet_path = persist_meta_governance_packet(packet)
+        packet["persisted_path"] = str(packet_path.relative_to(repo_root()))
+    if args.json:
+        print(render_meta_governance_packet_json(packet), end="")
+    else:
+        print(f"id={packet.get('id')}")
+        print(f"status={packet.get('status')}")
+        print(f"requires_meta_governance={packet.get('readiness', {}).get('requires_meta_governance')}")
+        print(f"missing_meta_requirements={','.join(packet.get('readiness', {}).get('missing_meta_requirements', []))}")
+        print("no_action_executed=True")
+        print("no_approval_granted=True")
+        if packet.get("persisted_path"):
+            print(f"persisted_path={packet.get('persisted_path')}")
+    raise SystemExit(0 if packet.get("status") == "ready_for_owner_review" else 1)
+
+
 def cmd_request_governance_core(args: argparse.Namespace) -> None:
+
     text_parts = [args.text or ""]
     for path_value in args.path or []:
         text_parts.append(path_value)
@@ -609,9 +643,33 @@ def cmd_checkpoint_status(args: argparse.Namespace) -> None:
     print(render_checkpoint_status_json())
 
 
+def cmd_reliability_metrics(args: argparse.Namespace) -> None:
+    if not args.json:
+        raise SystemExit("reliability metrics requires --json flag")
+    print(render_self_iteration_reliability_metrics_json(), end="")
+
+
+def cmd_probe_candidates(args: argparse.Namespace) -> None:
+    if not args.json:
+        raise SystemExit("probe candidates requires --json flag")
+    print(render_failure_probe_candidates_json(limit=args.limit), end="")
+
+
+def cmd_schema_registry(args: argparse.Namespace) -> None:
+    if not args.json:
+        raise SystemExit("schema registry requires --json flag")
+    print(render_schema_registry_json(), end="")
+
+
+def cmd_smoke_fixtures(args: argparse.Namespace) -> None:
+    if not args.json:
+        raise SystemExit("smoke fixtures requires --json flag")
+    print(render_smoke_fixture_manifest_json(), end="")
 
 
 def build_parser() -> argparse.ArgumentParser:
+
+
 
 
     parser = argparse.ArgumentParser(prog="abyss", description="Abyss MVP CLI")
@@ -883,7 +941,25 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true", help="render the view as JSON")
     p.set_defaults(func=cmd_roadmap_current)
 
+    p_reliability = sub.add_parser("reliability", help="read-only self-iteration reliability views")
+    reliability_sub = p_reliability.add_subparsers(required=True)
+    p = reliability_sub.add_parser("metrics", help="render self-iteration reliability metrics")
+    p.add_argument("--json", action="store_true", help="render metrics as JSON (required)")
+    p.set_defaults(func=cmd_reliability_metrics)
+    p = reliability_sub.add_parser("probe-candidates", help="render inactive failure-to-probe candidates")
+    p.add_argument("--json", action="store_true", help="render candidates as JSON (required)")
+    p.add_argument("--limit", type=int, default=20)
+    p.set_defaults(func=cmd_probe_candidates)
+    p = reliability_sub.add_parser("schema-registry", help="render read-only schema/contract registry")
+    p.add_argument("--json", action="store_true", help="render registry as JSON (required)")
+    p.set_defaults(func=cmd_schema_registry)
+    p = reliability_sub.add_parser("smoke-fixtures", help="render read-only smoke fixture manifest")
+    p.add_argument("--json", action="store_true", help="render manifest as JSON (required)")
+    p.set_defaults(func=cmd_smoke_fixtures)
+
     p_disclosure = sub.add_parser("disclosure")
+
+
     disclosure_sub = p_disclosure.add_subparsers(required=True)
 
     p = disclosure_sub.add_parser("audit", help="audit context_manifest disclosure levels without changing context pack behavior")
@@ -920,11 +996,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("path")
     p.add_argument("--json", action="store_true", help="render validation as JSON")
     p.set_defaults(func=cmd_request_validate)
+    p = request_sub.add_parser("meta-packet", help="build a read-only meta-governance review packet from a Request Envelope")
+    p.add_argument("path")
+    p.add_argument("--json", action="store_true", help="render the packet as JSON")
+    p.add_argument("--persist", action="store_true", help="persist the packet under .local/runtime/meta_governance/packets")
+    p.set_defaults(func=cmd_request_meta_packet)
     p = request_sub.add_parser("governance-core", help="detect whether text or paths touch governance-core surfaces")
     p.add_argument("--text", default="")
     p.add_argument("--path", action="append", default=[])
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_request_governance_core)
+
     p = request_sub.add_parser("governance-surfaces", help="list protected governance-core surfaces")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_request_governance_surfaces)

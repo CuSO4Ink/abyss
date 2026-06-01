@@ -90,15 +90,19 @@ def build_brain_brief() -> dict[str, Any]:
 
     if not ok:
         owner_decisions_needed.append("Review integrity failures before expanding Brain Agent behavior.")
+    reliability = summary.get("self_iteration_reliability_metrics", {})
+    failure_probes = summary.get("failure_probe_candidates", {})
+    taxonomy = summary.get("failure_taxonomy", {})
+    schema_registry = summary.get("schema_registry", {})
+    smoke_fixtures = summary.get("smoke_fixture_manifest", {})
+
     if disclosure_audit.get("warnings"):
         next_candidates.append("Review disclosure audit warnings and reduce over-disclosure before dynamic expansion.")
-    else:
-        next_candidates.append("Proceed with cautious disclosure planner integration after disclosure_plan.v1 schema validation is stable.")
-    next_candidates.append("Global Direction internalization: ensure Brain brief and external packages reflect current strategic direction.")
-    next_candidates.append("External model onboarding: validate EXTERNAL_MODEL_ONBOARDING.md as standalone import path for external platforms.")
-    next_candidates.append("Disclosure plan schema: stabilize disclosure_plan contract and JSON Schema for context governance.")
-    next_candidates.append("Implementation Agent output hardening: further constrain edit-plan/ChangeSet generation within R003 scope.")
-    next_candidates.append("Keep Brain Agent as disabled/read-only while iterating brief quality and feedback-card summaries.")
+    next_candidates.append("Stabilize the self-iteration substrate: keep failure taxonomy, summary, insight, and Brain brief classification language aligned.")
+    next_candidates.append("Add reliability metric windows so post-R080/R084 behavior can be compared with all-time historical failures.")
+    next_candidates.append("Materialize inactive failure-probe candidates into reviewable probe files without enabling them as required gates.")
+    next_candidates.append("Connect context_recovery_packet to a bounded recovery runner that can prepare one retry candidate without applying or approving it.")
+    next_candidates.append("Prepare Brain Agent readonly coordination interfaces only after the observation/recovery substrate remains stable.")
 
     return {
         "schema": "abyss.brain_brief.v1",
@@ -118,6 +122,16 @@ def build_brain_brief() -> dict[str, Any]:
             "ok": disclosure_audit.get("ok"),
             "warnings": disclosure_audit.get("warnings", []),
             "task_count": len(disclosure_audit.get("tasks") or []),
+        },
+        "stabilization_context": {
+            "failure_taxonomy_schema": taxonomy.get("schema"),
+            "schema_registry_entry_count": schema_registry.get("entry_count"),
+            "runtime_only_schema_count": (schema_registry.get("diagnostics") or {}).get("runtime_only_schema_count"),
+            "smoke_fixture_count": smoke_fixtures.get("fixture_count"),
+            "failure_probe_candidate_count": failure_probes.get("candidate_count"),
+            "reliability_metric_names": sorted((reliability.get("metrics") or {}).keys()) if isinstance(reliability.get("metrics"), dict) else [],
+            "reliability_windows": sorted((reliability.get("windows") or {}).keys()) if isinstance(reliability.get("windows"), dict) else [],
+            "brain_remains_read_only": True,
         },
         "recent_feedback_cards": _load_recent_feedback_cards(),
         "recent_reports": _load_recent_reports(),

@@ -24,9 +24,10 @@ Direct modification mode must end for ordinary system changes once the governed 
 
 > The active ROADMAP.md keeps the current reading window only; archived items remain available as historical approval evidence.
 
-Current active/current-reading window: R070-R079.
+Current active/current-reading window: R070-R084.
 
 ### R070. R070 Insight v0 read-only snapshot
+
 
 Source proposal: `evo_prop_20260526_184750_9c796d`.
 
@@ -272,7 +273,200 @@ Acceptance check:
 - Accepted governance-core changes activate only in a later workflow cycle, not in the cycle that approved them.
 - No governance-core change was applied, activated, or scheduled by this proposal record.
 
+### R079A. Meta-governance workflow closure for governance-core and meta-evolution requests
+
+Source approval: current owner conversation.
+
+Purpose: Close the dedicated meta-governance path for changes to governance-core surfaces and self-evolution mechanisms.
+
+Why it is needed: Self-iteration must not approve, apply, or activate structural changes to itself. Abyss already has governance_mutation and meta_evolution_request semantics, governance-core detection, recommended meta_governance routing, and delayed-activation rules; this item turns those rules into a minimal review packet flow. Scope: add a read-only/request-recording meta-governance packet builder and CLI wiring that consumes Request Envelope records, validates prior-rule review requirements, surfaces required Owner/Harness/rollback/validation/delayed-activation checks, and refuses to grant execution or approval authority. Non-goals: no same-cycle activation, no automatic approval, no executor apply, no policy relaxation, no ordinary self-evolution bypass, no Brain or external model authority expansion.
+
+Minimal implementation slice:
+
+- Add a meta-governance packet builder for governance_mutation and meta_evolution_request envelopes.
+- Expose a request meta-packet command that can render JSON and optionally persist the review packet.
+- Include prior accepted rule sources, missing meta requirements, forbidden closures, and delayed activation status.
+- Keep the packet as candidate review material only.
+
+Expected user-visible result: governance-core/self-evolution structural change requests can be turned into explicit review packets instead of being mistaken for ordinary self-evolution work.
+
+Risk level: L3 governance-core-adjacent.
+
+Acceptance check:
+
+- Packet generation performs no execution, no approval, no file mutation other than optional packet persistence, and no activation.
+- Missing old-rule review, rollback plan, validation plan, explicit Owner approval, or delayed activation policy are reported.
+- governance_mutation and meta_evolution_request requests remain outside ordinary self-evolution closure.
+- compileall, abyss check, request type listing, governance-core detection, and packet generation smoke pass.
+
+### R080. Context Broker V1 evidence-driven target discovery
+
+Source approval: current owner conversation.
+
+Purpose: Replace fragile keyword-rule context selection with evidence-driven target discovery.
+
+Why it is needed: The current Context Broker remains vulnerable to missing or wrong implementation context because it relies heavily on deterministic keyword/task-type logic. This causes downstream agents to generate incorrect ChangeSets. Goal: move from keyword rules to evidence-driven target discovery. Scope: design and implement a bounded Context Broker V1 that discovers likely files/symbols through request envelope evidence, repository search, manifests, imports/dependency adjacency, and sufficiency checks while preserving governance and disclosure boundaries.
+
+Minimal implementation slice:
+
+- Add target discovery evidence records before context pack construction.
+- Use exact file/symbol/request evidence before falling back to task-type keyword matching.
+- Emit context sufficiency and ambiguity diagnostics.
+- Preserve existing disclosure policy and approval boundaries unless separately routed through meta-governance.
+
+Expected user-visible result: Implementation Agent receives the right target context more often, reducing incorrect ChangeSet generation.
+
+Risk level: L3.
+
+Acceptance check:
+
+- Existing context behavior remains compatible for known task categories.
+- Target discovery emits evidence and uncertainty instead of silent keyword-only selection.
+- No disclosure expansion occurs without explicit governance approval.
+- Context-insufficient cases block or request more evidence rather than producing low-confidence edit context.
+
+Implementation evidence:
+
+- Added Context Broker V1 target discovery evidence using explicit paths, path mentions, filename/module mentions, symbol export matches, and import adjacency.
+- Context packs now include target_discovery and context_sufficiency diagnostics.
+- Implementation prompts now expose target discovery evidence and warn agents to request local_edit_context instead of guessing when confidence is low or ambiguous.
+
+### R081. Implementation edit-plan contract hardening
+
+
+Source approval: current owner conversation.
+
+Purpose: Reduce invalid Implementation Agent edit-plan output.
+
+Why it is needed: Historical invalid ChangeSets include 31 output-contract issues where agent output could not be applied as a valid edit plan. Goal: significantly reduce the probability that the Agent outputs an unappliable edit plan.
+
+Minimal implementation slice:
+
+- Strengthen edit-plan schema and prompt contract checks.
+- Add stricter import-time validation for operations, anchors, old_content/new_content, and target paths.
+- Provide precise format feedback for retry without granting execution authority.
+- Preserve existing ChangeSet/Harness/Owner boundaries.
+
+Expected user-visible result: Implementation Agent outputs conform to the expected ChangeSet/edit-plan contract more reliably.
+
+Risk level: L2.
+
+Acceptance check:
+
+- Invalid format cases are classified as output-contract issues with actionable retry guidance.
+- Valid existing ChangeSets continue to import and dry-run.
+- No automatic apply or approval is introduced.
+
+Implementation evidence:
+
+- Added preflight_validate_edit_plan_contract for required edit kind, target.path, symbol, anchor, new_content, and content fields.
+- Contract failures are classified before target resolution to keep output-contract feedback separate from context failures.
+- Prompt grounding now states the stricter abyss-edit-plan contract and forbids abbreviated placeholder code.
+
+### R082. ChangeSet preflight and auto-recovery
+
+
+Source approval: current owner conversation.
+
+Purpose: Reduce target-resolution failures through preflight checks and bounded context recovery.
+
+Why it is needed: Historical invalid ChangeSets include 17 target-resolution issues where anchor, old_content, or symbol resolution failed. Goal: after anchor/old_content/symbol failure, automatically supplement local context and retry within bounded limits.
+
+Minimal implementation slice:
+
+- Add preflight checks for target path, anchor uniqueness, old_content match, and symbol presence.
+- Generate local context recovery packets when target resolution fails.
+- Allow bounded retry with supplemented evidence, without expanding scope silently.
+- Record recovery classification and outcome.
+
+Expected user-visible result: Recoverable ChangeSet target-resolution failures produce better follow-up context instead of requiring manual repair in most cases.
+
+Risk level: L3.
+
+Acceptance check:
+
+- Preflight detects target-resolution failures before execution.
+- Recovery packets include precise evidence and retry limits.
+- Auto-recovery never bypasses dry-run, Harness review, Owner approval, or executor boundaries.
+
+Implementation evidence:
+
+- ChangeSet dry-run now includes a structured abyss.changeset_preflight.v1 report.
+- Invalid edit-plan target-resolution failures can include an abyss.context_recovery_packet.v1 with local context preview and retry_limit=1.
+- Recovery remains candidate retry context only and does not apply, approve, or bypass Harness/Owner boundaries.
+
+### R083. Self-iteration reliability metrics
+
+
+Source approval: current owner conversation.
+
+Purpose: Quantify whether the self-iteration process is becoming more reliable.
+
+Why it is needed: Abyss needs operational metrics rather than anecdotal confidence. Metrics should expose first-pass success, invalid ChangeSet rate, provider empty rate, manual correction rate, and context recovery success rate.
+
+Minimal implementation slice:
+
+- Add read-only metrics aggregation from workflow, ChangeSet, provider, and recovery records.
+- Report first_pass_success_rate, invalid_changeset_rate, provider_empty_rate, manual_correction_rate, and context_recovery_success_rate.
+- Integrate compact summaries into insight/current views without creating active gates prematurely.
+
+Expected user-visible result: The operator can see whether self-iteration reliability is improving or regressing.
+
+Risk level: L2.
+
+Acceptance check:
+
+- Metrics are read-only and derived from existing records where possible.
+- Missing data is reported explicitly instead of guessed.
+- No workflow state changes or approvals are performed.
+
+Implementation evidence:
+
+- Added abyss_cli/self_iteration_metrics.py with first_pass_success_rate, invalid_changeset_rate, provider_empty_rate, manual_correction_rate, and context_recovery_success_rate.
+- Added python -m abyss_cli reliability metrics --json.
+- Summary, insight, and roadmap current views expose the metrics as read-only observations.
+- Stability pass added all_time, recent_20, and recent_50 metric windows so post-hardening behavior can be compared against historical baselines without creating gates.
+- Stability pass added a read-only schema registry view for runtime-only and rules-backed contracts so metric/insight schemas are visible before externalization.
+
+### R084. Failure-to-probe feedback loop
+
+
+
+Source approval: current owner conversation.
+
+Purpose: Turn failures into repeatable tests or probes.
+
+Why it is needed: Repeated self-iteration failures should not remain only as audit history; each meaningful failure should produce a candidate probe/test so future changes can demonstrate improvement.
+
+Minimal implementation slice:
+
+- Classify failure records that are suitable for probes.
+- Generate candidate probe specs from invalid ChangeSet, provider, context, and workflow failures.
+- Keep generated probes as candidate material until approved or explicitly selected.
+- Link probes back to source failures and reliability metrics.
+
+Expected user-visible result: Each meaningful failure can become a repeatable regression signal instead of being manually rediscovered.
+
+Risk level: L2.
+
+Acceptance check:
+
+- Probe generation is read-only/candidate by default.
+- Probe specs preserve source failure evidence.
+- No test is activated as a required gate without explicit approval.
+
+Implementation evidence:
+
+- Added abyss_cli/failure_probe.py to generate inactive failure probe candidates from invalid ChangeSets and failed/blocked workflows.
+- Added python -m abyss_cli reliability probe-candidates --json.
+- Summary, insight, and roadmap current views expose candidate counts/evidence while keeping probes inactive by default.
+- Stability pass added abyss_cli/failure_taxonomy.py so summary, insight, Brain brief, and failure probes share one classification vocabulary.
+- Stability pass added a read-only smoke fixture manifest so negative/boundary smoke artifacts remain clearly candidate-only and cannot be confused with runtime records or approvals.
+
 ## Pending proposals
+
+
+
 
 None.
 

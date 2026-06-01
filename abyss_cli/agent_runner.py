@@ -314,6 +314,7 @@ Return exactly one `abyss-harness-review` fenced block. Do not produce `abyss-ac
     return prompt_path, target_path, target_id
 
 
+
 def _build_harness_changeset_prompt(spec: dict[str, Any], target: str) -> tuple[Path, Path, str, dict[str, Any]]:
     target_path = resolve_changeset(target)
     target_record = read_record(target_path)
@@ -406,6 +407,7 @@ Return exactly one `abyss-harness-review` fenced block. Evaluate whether the Cha
     return prompt_path, target_path, target_id, deterministic_context
 
 
+
 def _build_self_evolution_agent_prompt(spec: dict[str, Any], target: str) -> tuple[Path, Path, str]:
     target_path = resolve_evolution_target(target)
     target_record = read_record(target_path)
@@ -490,6 +492,7 @@ Return exactly one `abyss-evolution-analysis` fenced block. Do not produce `abys
     return prompt_path, target_path, target_id
 
 
+
 def _build_implementation_agent_prompt(spec: dict[str, Any], target: str) -> tuple[Path, Path, str, dict[str, Any]]:
     target_path = resolve_evolution_target(target)
     target_record = read_record(target_path)
@@ -554,6 +557,8 @@ def _build_implementation_agent_prompt(spec: dict[str, Any], target: str) -> tup
 ```
 
 Important: If a file is listed under `Files included`, it is available in the Repository Files section below. Do not request a file that is already included; use an `abyss-edit-plan` if the included file contains the target symbol or unique anchor.
+
+Implementation output preflight: before producing any edit, verify target clarity, context sufficiency, contract completeness, patch locality, and boundary safety. If the target file, exact symbol, unique anchor, or exact old content is not visible in the provided Repository Files, output `abyss-context-request` instead of guessing. If recent failure evidence identifies malformed JSON, placeholders, target-resolution failure, or missing context, correct that specific failure class or request the missing context; do not repeat it.
 
 ---
 
@@ -633,6 +638,8 @@ Edit-plan JSON requirements:
 - The fenced block must be strictly valid JSON parseable by `json.loads`.
 - Every JSON string value, especially `new_content`, `content`, and `anchor`, must be a single JSON string with escaped newlines as `\\n` and escaped inner double quotes as `\\"`. Never place raw multi-line source code directly inside a JSON string.
 - Before finalizing, mentally run `json.loads` against the fenced block; if it would fail, output `abyss-context-request` instead of malformed JSON.
+- Treat `abyss-edit-plan` as a contract, not prose: do not add comments inside JSON, trailing commas, markdown outside the single fenced block, or explanatory text after the block.
+- If you cannot fill every required field with concrete values from the task and provided context, output `abyss-context-request` instead of a partial edit plan.
 
 - If you have sufficient context to implement safely but cannot express the edit as an edit plan: output `abyss-changeset` with valid JSON for schema `abyss.change_set.v1`.
 
@@ -645,6 +652,7 @@ Do not produce `abyss-action` blocks. Do not approve, reject, apply, run command
     prompt_path = AGENT_PROMPT_DIR / f"{ppkg_id}.md"
     prompt_path.write_text(body, encoding="utf-8")
     context_metadata = {
+
         "context_pack_id": context_pack.get("id"),
         "task_type": context_pack.get("task_type"),
         "files_included": context_pack.get("files_included", []),

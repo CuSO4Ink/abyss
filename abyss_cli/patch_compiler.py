@@ -125,6 +125,48 @@ def preflight_reject_placeholder_edits(edits: list[dict[str, Any]]) -> list[str]
     return messages
 
 
+def preflight_validate_edit_plan_contract(edits: list[dict[str, Any]]) -> list[str]:
+    """Validate edit-plan shape before attempting repository resolution."""
+    messages: list[str] = []
+    for index, edit in enumerate(edits, start=1):
+        if not isinstance(edit, dict):
+            messages.append(f"EDIT_PLAN_CONTRACT_INVALID_EDIT_TYPE index={index}")
+            continue
+        edit_id = str(edit.get("id") or f"op_{index:03d}")
+        kind = str(edit.get("kind") or "")
+        if kind not in {"replace_symbol", "replace_anchor", "append_after_anchor", "create_file"}:
+            messages.append(f"EDIT_PLAN_CONTRACT_UNSUPPORTED_KIND {edit_id} {kind}")
+        rel_path = _operation_target_path(edit)
+        if not rel_path:
+            messages.append(f"EDIT_PLAN_CONTRACT_MISSING_TARGET_PATH {edit_id}")
+        if kind == "replace_symbol" and not edit.get("symbol"):
+            messages.append(f"EDIT_PLAN_CONTRACT_MISSING_SYMBOL {edit_id}")
+        if kind in {"replace_anchor", "append_after_anchor"} and not edit.get("anchor"):
+            messages.append(f"EDIT_PLAN_CONTRACT_MISSING_ANCHOR {edit_id}")
+        if kind in {"replace_symbol", "replace_anchor"} and not edit.get("new_content"):
+            messages.append(f"EDIT_PLAN_CONTRACT_MISSING_NEW_CONTENT {edit_id}")
+        if kind in {"append_after_anchor", "create_file"} and not (edit.get("content") or edit.get("new_content")):
+            messages.append(f"EDIT_PLAN_CONTRACT_MISSING_CONTENT {edit_id}")
+    return messages
+
+
+def _local_context_snippet(rel_path: str, needle: str = "", *, radius: int = 6) -> dict[str, Any]:
+    try:
+        path, text, lines = _read_lines(rel_path)
+    except Exception as exc:
+        return {"path": rel_path, "available": False, "error": str(exc)}
+    if not needle:
+        return {"path": rel_path, "available": True, "line_start": 1, "line_end": min(len(lines), radius * 2), "snippet": "".join(lines[: radius * 2])}
+    offset = text.find(needle)
+    if offset < 0:
+        return {"path": rel_path, "available": True, "needle_found": False, "line_start": 1, "line_end": min(len(lines), radius * 2), "snippet": "".join(lines[: radius * 2])}
+    line_index = text[:offset].count("\n")
+    start = max(0, line_index - radius)
+    end = min(len(lines), line_index + radius + 1)
+    return {"path": rel_path, "available": True, "needle_found": True, "line_start": start + 1, "line_end": end, "snippet": "".join(lines[start:end])}
+
+
+
 def _operation_from_edit(edit: dict[str, Any]) -> dict[str, Any]:
     edit_id = str(edit.get("id") or new_id("edit"))
     kind = str(edit.get("kind") or "").strip()
@@ -199,10 +241,45 @@ def _check_operations(checks: Any) -> list[dict[str, Any]]:
     return operations
 
 
+def _build_context_recovery_packet(plan: dict[str, Any] | None, messages: list[str]) -> dict[str, Any]:
+    edits = plan.get("edits") if isinstance(plan, dict) else []
+    recovery_items: list[dict[str, Any]] = []
+    if isinstance(edits, list):
+        for index, edit in enumerate(edits, start=1):
+            if not isinstance(edit, dict):
+                continue
+            rel_path = _operation_target_path(edit)
+            kind = str(edit.get("kind") or "")
+            anchor = str(edit.get("anchor") or "")
+            symbol = str(edit.get("symbol") or "")
+            item: dict[str, Any] = {
+                "edit_id": str(edit.get("id") or f"op_{index:03d}"),
+                "kind": kind,
+                "target_path": rel_path,
+                "requested_anchor": anchor or None,
+                "requested_symbol": symbol or None,
+                "recovery_action": "request_more_precise_local_edit_context",
+            }
+            if rel_path:
+                item["local_context_preview"] = _local_context_snippet(rel_path, anchor or symbol)
+            recovery_items.append(item)
+    return {
+        "schema": "abyss.context_recovery_packet.v1",
+        "status": "candidate_retry_context",
+        "retry_limit": 1,
+        "failure_messages": messages,
+        "items": recovery_items,
+        "retry_guidance": "Retry with a smaller exact unique anchor copied from local_context_preview or request local_edit_context if the preview is insufficient.",
+        "no_action_executed": True,
+        "no_approval_granted": True,
+    }
+
+
 def _invalid_changeset(plan: dict[str, Any] | None, messages: list[str], *, agent_run_id: str | None, result_path: Path) -> dict[str, Any]:
     roadmap_id = "unknown"
     if isinstance(plan, dict):
         roadmap_id = str(plan.get("roadmap_id") or "unknown")
+
     context_markers = (
         "replace_symbol target is too large",
         "anchor match count is",
@@ -212,7 +289,9 @@ def _invalid_changeset(plan: dict[str, Any] | None, messages: list[str], *, agen
         "EDIT_PLAN_PARSE_ERROR",
         "MISSING_EDITS_DUE_TO_PARSE_FAILURE",
         "MISSING_EDITS_NO_EDITS_BLOCK",
+        "EDIT_PLAN_CONTRACT_",
     )
+
     placeholder_markers = (
         "placeholder content is not allowed",
         "ellipsis placeholder expression is not allowed",
@@ -258,7 +337,9 @@ def _invalid_changeset(plan: dict[str, Any] | None, messages: list[str], *, agen
         "recoverable": is_recoverable,
         "recovery_classification": recovery_classification,
         "retry_guidance": retry_guidance,
+        "context_recovery_packet": _build_context_recovery_packet(plan, messages) if has_context_issue else None,
         "created_at": now_iso(),
+
         "updated_at": now_iso(),
         "no_action_executed": True,
         "output_type": "changeset",
@@ -311,10 +392,13 @@ def compile_edit_plan_from_agent_output(text: str, *, agent_run_id: str | None, 
     operations: list[dict[str, Any]] = []
 
     if isinstance(edits, list):
+        contract_errors = preflight_validate_edit_plan_contract(edits)
         placeholder_errors = preflight_reject_placeholder_edits(edits)
+        if contract_errors:
+            errors.extend(contract_errors)
         if placeholder_errors:
             errors.extend(placeholder_errors)
-        else:
+        if not contract_errors and not placeholder_errors:
             for edit in edits:
                 if not isinstance(edit, dict):
                     errors.append("INVALID_EDIT_TYPE")
@@ -325,6 +409,7 @@ def compile_edit_plan_from_agent_output(text: str, *, agent_run_id: str | None, 
                     errors.append(str(exc))
 
     operations.extend(_check_operations(plan.get("checks")))
+
 
     if errors:
         record = _invalid_changeset(plan, errors, agent_run_id=agent_run_id, result_path=result_path)

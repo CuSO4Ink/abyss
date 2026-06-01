@@ -97,6 +97,8 @@ def _target_path(raw: str) -> Path:
 
 def _is_allowed_fs_path(rel: str) -> bool:
     rel = _normalize_path(rel)
+    if not rel or ".." in Path(rel).parts:
+        return False
     if rel in BLOCKED_PATHS:
         return False
     if rel in ALLOWED_FS_PATHS:
@@ -109,6 +111,7 @@ def _is_allowed_fs_path(rel: str) -> bool:
         if rel == root:
             return True
     return False
+
 
 
 def _operation_target_path(operation: dict[str, Any]) -> str:
@@ -200,7 +203,63 @@ def validate_changeset(record: dict[str, Any], *, for_apply: bool = False) -> tu
     return (not messages, messages or ["OK"])
 
 
+def changeset_preflight_report(record: dict[str, Any]) -> dict[str, Any]:
+    """Return structured read-only preflight diagnostics for target resolution."""
+    operations = record.get("operations") if isinstance(record.get("operations"), list) else []
+    findings: list[dict[str, Any]] = []
+    for operation in operations:
+        if not isinstance(operation, dict):
+            findings.append({"ok": False, "category": "output_contract", "message": "INVALID_OPERATION_TYPE"})
+            continue
+        kind = str(operation.get("kind") or "")
+        op_id = str(operation.get("id") or kind or "operation")
+        rel = _normalize_path(_operation_target_path(operation))
+        data = _operation_input(operation)
+        if kind == "fs.replace_exact":
+            old_content = str(data.get("old_content") or "")
+            if not rel:
+                findings.append({"op_id": op_id, "ok": False, "category": "target_resolution", "message": "MISSING_TARGET_PATH"})
+            elif not _is_allowed_fs_path(rel):
+                findings.append({"op_id": op_id, "ok": False, "category": "target_resolution", "path": rel, "message": "PATH_NOT_ALLOWED"})
+            else:
+                path = _target_path(rel)
+                if not path.exists():
+                    findings.append({"op_id": op_id, "ok": False, "category": "target_resolution", "path": rel, "message": "TARGET_MISSING"})
+                elif old_content:
+                    text = path.read_text(encoding="utf-8")
+                    count = text.count(old_content)
+                    findings.append({"op_id": op_id, "ok": count == 1, "category": "target_resolution", "path": rel, "message": "OLD_CONTENT_MATCH_COUNT", "count": count})
+                else:
+                    findings.append({"op_id": op_id, "ok": False, "category": "output_contract", "path": rel, "message": "MISSING_OLD_CONTENT"})
+        elif kind == "fs.create_file":
+            if not rel:
+                findings.append({"op_id": op_id, "ok": False, "category": "target_resolution", "message": "MISSING_TARGET_PATH"})
+            elif not _is_allowed_fs_path(rel):
+                findings.append({"op_id": op_id, "ok": False, "category": "target_resolution", "path": rel, "message": "PATH_NOT_ALLOWED"})
+            else:
+                path = _target_path(rel)
+                findings.append({"op_id": op_id, "ok": not path.exists(), "category": "target_resolution", "path": rel, "message": "TARGET_ABSENT_EXPECTED"})
+
+    target_failures = [item for item in findings if not item.get("ok") and item.get("category") == "target_resolution"]
+    contract_failures = [item for item in findings if not item.get("ok") and item.get("category") == "output_contract"]
+    return {
+        "schema": "abyss.changeset_preflight.v1",
+        "ok": not target_failures and not contract_failures,
+        "target_resolution_failures": target_failures,
+        "output_contract_failures": contract_failures,
+        "findings": findings,
+        "auto_recovery": {
+            "eligible": bool(target_failures),
+            "strategy": "supplement_local_context_and_retry_once" if target_failures else "not_needed",
+            "requires_harness_and_owner_boundaries": True,
+        },
+        "no_action_executed": True,
+        "no_approval_granted": True,
+    }
+
+
 def _store_imported_changeset(record: dict[str, Any], *, source: str) -> dict[str, Any]:
+
     if not record.get("id"):
         record["id"] = new_id("chg")
     record.setdefault("schema", SUPPORTED_SCHEMA)
@@ -300,14 +359,17 @@ def set_changeset_status(value: str, status: str, reason: str = "") -> dict[str,
 def dry_run_changeset(value: str) -> dict[str, Any]:
     record = load_changeset(value)
     ok, messages = validate_changeset(record, for_apply=True)
+    preflight = changeset_preflight_report(record)
     report = {
         "schema": "abyss.changeset_dry_run.v1",
         "changeset_id": record.get("id"),
         "ok": ok,
         "messages": messages,
+        "preflight": preflight,
         "checked_at": now_iso(),
         "no_action_executed": True,
     }
+
     append_event("changeset.dry_run", str(record.get("summary") or record.get("id")), {"changeset_id": record.get("id"), "ok": ok})
     return report
 

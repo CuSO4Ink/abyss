@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import ast
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 from .utils import new_id, now_iso, read_record, repo_root, runtime_root, write_record
+
 from .disclosure import build_disclosure_plan
 from .request_rules import context_task_type_for_request_type, request_rule_context_files_for_request_type
 
@@ -480,9 +482,133 @@ def _get_module_info(module_names: list[str]) -> dict[str, Any]:
     return result
 
 
+def _candidate_repo_files() -> list[str]:
+    roots = ["abyss_cli", "rules", "artifacts/drafts"]
+    suffixes = {".py", ".yaml", ".yml", ".json", ".md"}
+    files: list[str] = []
+    for root_name in roots:
+        root_path = repo_root() / root_name
+        if not root_path.exists():
+            continue
+        for path in root_path.rglob("*"):
+            if not path.is_file() or path.suffix.lower() not in suffixes:
+                continue
+            rel = path.relative_to(repo_root()).as_posix()
+            if "/__pycache__/" in rel or rel.startswith(".local/"):
+                continue
+            files.append(rel)
+    for rel in ("README.md", "SYSTEM_MAP.md", "EXTERNAL_MODEL_ONBOARDING.md", "ABYSS.md", "ABYSS_CONSTITUTION.md"):
+        if (repo_root() / rel).exists():
+            files.append(rel)
+    return sorted(dict.fromkeys(files))
+
+
+def _symbol_names_from_text(text: str) -> list[str]:
+    names = re.findall(r"`([A-Za-z_][A-Za-z0-9_]*)`", text)
+    names.extend(re.findall(r"\b([A-Za-z_][A-Za-z0-9_]{2,})\s*\(", text))
+    stopwords = {"python", "json", "yaml", "true", "false", "none", "null"}
+    return sorted({name for name in names if name.lower() not in stopwords})[:20]
+
+
+def discover_context_targets(target_record: dict[str, Any], *, task_type: str, request_type: str = "", declared_target_files: list[str] | None = None) -> dict[str, Any]:
+    """Discover likely target files using explicit evidence before keyword fallback.
+
+    This is Context Broker V1's read-only discovery layer. It does not expand
+    disclosure policy, grant execution authority, or silently include forbidden
+    paths. The caller decides which discovered files are eligible for inclusion
+    using the existing safe-path gate.
+    """
+    declared = list(declared_target_files or [])
+    text = json.dumps(target_record, ensure_ascii=False) if isinstance(target_record, dict) else str(target_record)
+    symbol_hints = _symbol_names_from_text(text)
+    file_hits: dict[str, dict[str, Any]] = {}
+
+    def add_hit(path: str, reason: str, score: int, symbol: str | None = None) -> None:
+        item = file_hits.setdefault(path, {"path": path, "score": 0, "evidence": [], "symbols": []})
+        item["score"] += score
+        item["evidence"].append(reason)
+        if symbol and symbol not in item["symbols"]:
+            item["symbols"].append(symbol)
+
+    for path in declared:
+        add_hit(path, "explicit_declared_target", 100)
+
+    mentioned_paths = re.findall(r"(?:abyss_cli|rules|artifacts/drafts|docs/archive)/[A-Za-z0-9_./-]+|[A-Z_]+\.md|[A-Za-z0-9_/-]+\.py", text)
+    for raw_path in mentioned_paths:
+        rel = raw_path.strip("`'\".,);]").replace("\\", "/")
+        if (repo_root() / rel).exists():
+            add_hit(rel, "path_mentioned_in_request", 80)
+
+    candidate_files = _candidate_repo_files()
+    lowered_text = text.lower()
+    for rel in candidate_files:
+        stem = Path(rel).stem.lower()
+        if stem and stem in lowered_text:
+            add_hit(rel, "filename_or_module_name_mentioned", 30)
+
+    for rel in candidate_files:
+        if not rel.endswith(".py") or not symbol_hints:
+            continue
+        full_path = repo_root() / rel
+        try:
+            source = full_path.read_text(encoding="utf-8", errors="replace")
+            tree = ast.parse(source, filename=str(full_path))
+        except Exception:
+            continue
+        exported: set[str] = set()
+        imported_text = ""
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                exported.add(node.name)
+            elif isinstance(node, ast.ImportFrom):
+                imported_text += " " + (node.module or "") + " " + " ".join(alias.name for alias in node.names)
+            elif isinstance(node, ast.Import):
+                imported_text += " " + " ".join(alias.name for alias in node.names)
+        for symbol in symbol_hints:
+            if symbol in exported:
+                add_hit(rel, "symbol_export_match", 60, symbol)
+            elif symbol in imported_text:
+                add_hit(rel, "import_adjacency_match", 20, symbol)
+
+    ranked = sorted(file_hits.values(), key=lambda item: (-int(item.get("score") or 0), str(item.get("path") or "")))[:12]
+    confidence = "none"
+    if ranked:
+        top_score = int(ranked[0].get("score") or 0)
+        if top_score >= 100:
+            confidence = "high"
+        elif top_score >= 60:
+            confidence = "medium"
+        else:
+            confidence = "low"
+    ambiguity = len([item for item in ranked if int(item.get("score") or 0) == int(ranked[0].get("score") or -1)]) > 1 if ranked else False
+    diagnostics: list[str] = []
+    if not ranked:
+        diagnostics.append("TARGET_DISCOVERY_NO_EVIDENCE")
+    if confidence == "low":
+        diagnostics.append("TARGET_DISCOVERY_LOW_CONFIDENCE")
+    if ambiguity:
+        diagnostics.append("TARGET_DISCOVERY_AMBIGUOUS_TOP_MATCHES")
+
+    return {
+        "schema": "abyss.context_target_discovery.v1",
+        "method": "explicit_paths_then_symbol_and_filename_evidence",
+        "task_type": task_type,
+        "request_type": request_type,
+        "symbol_hints": symbol_hints,
+        "ranked_targets": ranked,
+        "confidence": confidence,
+        "ambiguous": ambiguity,
+        "diagnostics": diagnostics,
+        "fallback_keyword_task_type": task_type,
+        "no_action_executed": True,
+        "no_approval_granted": True,
+    }
+
+
 def _build_python_symbol_index(rel_paths: list[str]) -> list[dict[str, Any]]:
     """Build a compact top-level import/export index for Python files."""
     index: list[dict[str, Any]] = []
+
     for rel_path in rel_paths:
         full_path = repo_root() / rel_path
         item: dict[str, Any] = {"path": rel_path, "exists": full_path.exists()}
@@ -611,6 +737,8 @@ def build_context_pack(
     if isinstance(target_record, dict):
         _extend_declared_targets(target_record.get("target_file"), declared_target_files)
         _extend_declared_targets(target_record.get("target_module"), declared_target_files)
+        _extend_declared_targets(target_record.get("scope"), declared_target_files)
+        _extend_declared_targets(target_record.get("required_context"), declared_target_files)
         manifest = target_record.get("task_coverage_manifest") if isinstance(target_record.get("task_coverage_manifest"), dict) else {}
         _extend_declared_targets(manifest.get("expected_files"), declared_target_files)
         details_text = str(target_record.get("details") or "")
@@ -619,8 +747,20 @@ def build_context_pack(
             if sep and key.strip() in {"target_file", "target_module"}:
                 _extend_declared_targets(value.strip(), declared_target_files)
 
+    target_discovery = discover_context_targets(
+        target_record,
+        task_type=task_type,
+        request_type=request_type,
+        declared_target_files=declared_target_files,
+    )
+    for candidate in target_discovery.get("ranked_targets", []):
+        safe_path = _safe_declared_target_path(str(candidate.get("path") or ""))
+        if safe_path and safe_path not in declared_target_files:
+            declared_target_files.append(safe_path)
+
 
     # Get rule source files for this task type from Rule Source Registry
+
 
     rule_source_files: list[str] = []
     try:
@@ -696,8 +836,16 @@ def build_context_pack(
         "file_contents": file_contents,
         "symbol_index_files": symbol_index_files,
         "python_symbol_index": symbol_index,
+        "target_discovery": target_discovery,
+        "context_sufficiency": {
+            "ok": target_discovery.get("confidence") not in {"none", "low"} and not target_discovery.get("ambiguous"),
+            "confidence": target_discovery.get("confidence"),
+            "ambiguous": target_discovery.get("ambiguous"),
+            "diagnostics": target_discovery.get("diagnostics", []),
+        },
 
         "constraints": system_brief.get("hard_constraints", []),
+
         "acceptance_criteria": context_spec.get("required_checks", []),
         "context_budget": context_budget,
         "disclosure_plan": disclosure_plan,
@@ -728,7 +876,22 @@ def build_context_pack(
         "symbol_index_file_count": len([f for f in symbol_index if f.get("exists")]),
         "total_content_size": total_content_size,
         "context_budget": context_budget,
+        "target_discovery": {
+            "schema": target_discovery.get("schema"),
+            "method": target_discovery.get("method"),
+            "confidence": target_discovery.get("confidence"),
+            "ambiguous": target_discovery.get("ambiguous"),
+            "diagnostics": target_discovery.get("diagnostics", []),
+            "ranked_targets": target_discovery.get("ranked_targets", [])[:8],
+        },
+        "context_sufficiency": {
+            "ok": target_discovery.get("confidence") not in {"none", "low"} and not target_discovery.get("ambiguous"),
+            "confidence": target_discovery.get("confidence"),
+            "ambiguous": target_discovery.get("ambiguous"),
+            "diagnostics": target_discovery.get("diagnostics", []),
+        },
         "coverage_check": {
+
             "has_manifest": coverage_check.get("has_manifest"),
             "ok": coverage_check.get("ok"),
             "missing_files": coverage_check.get("missing_files", []),
@@ -799,13 +962,28 @@ def render_context_pack_for_prompt(context_pack: dict[str, Any]) -> str:
     else:
         sections.append("[no module info available]\n")
 
+    # Target discovery section
+    target_discovery = context_pack.get("target_discovery", {})
+    if target_discovery:
+        sections.append("## Context Broker V1 Target Discovery Evidence\n\n")
+        sections.append("These are read-only target-discovery hints from explicit paths, filenames, symbols, and import adjacency. They do not expand disclosure boundaries or grant execution authority.\n\n")
+        sections.append(f"```json\n{json.dumps(target_discovery, ensure_ascii=False, indent=2)}\n```\n\n")
+    context_sufficiency = context_pack.get("context_sufficiency", {})
+    if context_sufficiency:
+        sections.append("## Context Sufficiency Check\n\n")
+        sections.append(f"```json\n{json.dumps(context_sufficiency, ensure_ascii=False, indent=2)}\n```\n\n")
+        if not context_sufficiency.get("ok"):
+            sections.append("If target context is insufficient or ambiguous, request local_edit_context instead of guessing anchors, symbols, or old_content.\n\n")
+
     # Repository Files section
     sections.append("## Repository Files (grounding context)\n")
     sections.append("The following are deterministic reads from the local repository. ")
     sections.append("For every `fs.replace_exact` operation, `input.old_content` MUST be copied exactly from one of these files. ")
-    sections.append("If the required target code is not present here, output `abyss.context_request.v1` instead of guessing.\n\n")
+    sections.append("If the required target code is not present here, output `abyss.context_request.v1` instead of guessing. ")
+    sections.append("Edit-plan contract: use exactly one abyss-edit-plan JSON block; each edit must have kind, target.path, and either symbol or a unique anchor; never use placeholders or abbreviated code.\n\n")
 
     file_contents = context_pack.get("file_contents", [])
+
     for file_info in file_contents:
         path = file_info.get("path", "unknown")
         if not file_info.get("exists"):

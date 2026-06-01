@@ -1,0 +1,60 @@
+{
+  "schema": "abyss.request_envelope.v1",
+  "request_id": "REQ-implementation-agent-output-hardening-20260601",
+  "request_type": "governance_mutation",
+  "source": "owner_chat",
+  "created_at": "2026-06-01T19:15:52+08:00",
+  "created_by": "owner",
+  "user_intent": "Strengthen Implementation Agent output quality using prompt, output-contract, context-request, and failure-feedback guidance without expanding workflow authority.",
+  "title": "Implementation Agent output hardening without workflow expansion",
+  "description": "Narrow Implementation Agent behavior so it chooses among edit-plan, context_request, and blocked_result more reliably; requests context instead of guessing; avoids placeholders and artifact-only pseudo-implementations; and treats previous failure feedback as structured correction input. This change updates agent guidance and tests only, and does not add execution authority, approval authority, new workflow stages, recovery runner, probe gate, or governance bypass.",
+  "scope": [
+    "prompts/agents/implementation_agent.md",
+    "abyss_cli/agent_runner.py",
+    "tests/"
+  ],
+  "risk_level": "medium",
+  "governance_route": "meta_governance",
+  "requires_code_change": true,
+  "requires_cognition_update": true,
+  "requires_owner_approval": true,
+  "required_context": [
+    "prompts/agents/implementation_agent.md",
+    "abyss_cli/agent_runner.py",
+    "tests/test_self_iteration_edit_plan.py",
+    "tests/test_self_iteration_flow_stops.py"
+  ],
+  "expected_artifacts": [
+    "Updated Implementation Agent guidance",
+    "Focused tests proving the guidance remains bounded and does not grant execution or approval authority",
+    "Validation results from compileall, pytest, and abyss_cli check"
+  ],
+  "validation_plan": [
+    "python -m compileall -q abyss_cli tests",
+    "python -m pytest -q",
+    "python -m abyss_cli check"
+  ],
+  "related_documents": [
+    "ABYSS.md",
+    "ABYSS_CONSTITUTION.md",
+    "rules/request_types.v1.yaml",
+    "rules/contracts/request_envelope.v1.yaml"
+  ],
+  "status": "normalized",
+  "request_fields": {
+    "owner_approval_required": "explicit",
+    "activation_policy": "delayed; candidate material only until owner review and normal ChangeSet boundaries",
+    "affected_governance_surface": "Implementation Agent prompt/behavior guidance and self-iteration output contract expectations; no approval gate, path policy, harness policy, or owner authority change.",
+    "current_problem": "The workflow orchestration is already able to block unsafe paths, but upstream Implementation Agent output can still be low quality: malformed edit-plan JSON, placeholders, guessed anchors/old_content, artifact-only pseudo-implementations, or missing-context guesses. This reduces first-pass success without requiring new workflow stages.",
+    "owner_authority_impact": "No reduction or delegation of Owner authority. The change explicitly preserves Owner approval, Harness review, dry-run, no_action_executed, no_approval_granted, and delayed activation semantics.",
+    "old_rule_review": "Prior accepted rules require governance-core or prompt/agent behavior changes to be recorded and reviewed through meta-governance; this request does not grant same-cycle authority.",
+    "risk_assessment": "Main risk is over-constraining the Implementation Agent or accidentally implying new execution authority. Mitigation: keep changes limited to output-contract guidance and tests; preserve no_action/no_approval semantics; do not add workflow stages or auto-retry runner.",
+    "rollback_plan": "Revert changes to prompts/agents/implementation_agent.md, abyss_cli/agent_runner.py if touched, and focused tests. The persisted meta-governance packet remains an audit record.",
+    "validation_plan": "Run compileall, full pytest suite, and abyss_cli check. Verify no new apply/approve capability and no automatic recovery runner is introduced.",
+    "proposed_change": "Update Implementation Agent guidance to use a short decision preflight, request context instead of guessing target content, consume prior failure feedback, avoid placeholders/artifact-only changes, and keep all changes inside existing edit-plan/ChangeSet/dry-run/Owner boundaries. Add tests for these constraints."
+  },
+  "missing_required_fields": [],
+  "warnings": [],
+  "notes": "This is a meta-governance review record before modifying prompt/code/test files. The packet builder is read-only except for persisting the review packet when explicitly requested.",
+  "contract_version": "abyss.request_envelope.v1"
+}
