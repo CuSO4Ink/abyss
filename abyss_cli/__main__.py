@@ -881,6 +881,21 @@ def cmd_smoke_fixtures(args: argparse.Namespace) -> None:
     print(render_smoke_fixture_manifest_json(), end="")
 
 
+def cmd_gui(args: argparse.Namespace) -> None:
+    try:
+        from .gui import launch
+    except ImportError as exc:
+        if "_tkinter" in str(exc):
+            raise SystemExit(
+                "tkinter is not available in this Python build.\n"
+                "On Windows, use the system Python (e.g. C:\\Python312\\python.exe) "
+                "which includes tkinter by default.\n"
+                "Run:  C:\\Users\\violinapeng\\AppData\\Local\\Programs\\Python\\Python312\\python.exe -m abyss_cli gui"
+            )
+        raise
+    launch(refresh_interval=args.interval)
+
+
 def build_parser() -> argparse.ArgumentParser:
     _dp = get_default_provider()
 
@@ -1324,6 +1339,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     p.add_argument("--check", action="store_true", help="include integrity check result")
     p.set_defaults(func=cmd_summary)
+
+    p = sub.add_parser("gui", help="launch native desktop dashboard (tkinter)")
+    p.add_argument("--interval", type=float, default=8.0, help="data refresh interval in seconds (default 8)")
+    p.set_defaults(func=cmd_gui)
 
     return parser
 
