@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -9,7 +9,7 @@ from .audit import append_event
 from .disclosure import audit_context_manifest
 from .integrity import run_checks
 from .summary import build_summary
-from .utils import list_records, new_id, now_iso, read_record, repo_root, runtime_root, write_record, ensure_dir
+from .utils import list_records, new_id, now_iso, read_record, repo_root, runtime_root, write_record, ensure_dir, BJ_TZ
 
 
 def _safe_text_excerpt(path: Path, limit: int = 1200) -> dict[str, Any]:
@@ -714,27 +714,113 @@ def save_working_memory_entry(agent_run_id: str, response_text: str, question: s
     return entry
 
 
-def load_working_memory(limit: int = 10) -> list[dict[str, Any]]:
-    """Load recent working-memory entries for prompt injection.
+# -- Decay configuration --
 
-    Returns entries in chronological order (oldest first, newest last) so
+DECAY_HALF_LIFE_HOURS = 6.0       # weight halves every 6 hours
+DECAY_FLOOR = 0.05                # entries below 5% weight are excluded from prompt
+DECAY_KIND_WEIGHT = {
+    "question_answer": 1.0,       # direct Owner interaction — highest priority
+    "periodic_assessment": 0.6,   # autonomous assessment — lower priority
+}
+ARCHIVE_DIR = WORKING_MEMORY_DIR / "archive"
+
+
+def _decay_weight(timestamp_str: str, kind: str, now: datetime | None = None) -> float:
+    """Compute exponential decay weight for a working-memory entry.
+
+    Weight = kind_weight * 0.5 ^ (age_hours / half_life_hours)
+    Entries below DECAY_FLOOR are candidates for archival.
+    """
+    if now is None:
+        now = datetime.now(BJ_TZ)
+    try:
+        # timestamp is ISO format like "2026-06-30T15:05:40+08:00"
+        ts = datetime.fromisoformat(timestamp_str)
+    except (ValueError, TypeError):
+        return 0.0
+    # Handle both tz-aware and naive timestamps
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=BJ_TZ)
+    age_hours = (now - ts).total_seconds() / 3600.0
+    if age_hours < 0:
+        age_hours = 0.0
+    kind_w = DECAY_KIND_WEIGHT.get(kind, 0.5)
+    return kind_w * (0.5 ** (age_hours / DECAY_HALF_LIFE_HOURS))
+
+
+def load_working_memory(limit: int = 10) -> list[dict[str, Any]]:
+    """Load working-memory entries for prompt injection, ranked by decay weight.
+
+    Entries below DECAY_FLOOR are silently excluded. The remaining entries
+    are sorted by weight (highest first), then truncated to *limit*.
+    Returned in chronological order (oldest first, newest last) so
     the LLM sees them as a coherent timeline.
     """
     if not WORKING_MEMORY_DIR.exists():
         return []
-    entries: list[dict[str, Any]] = []
-    for path in list_records(WORKING_MEMORY_DIR, "wm")[-limit:]:
+    now = datetime.now(BJ_TZ)
+    scored: list[tuple[float, dict[str, Any]]] = []
+    for path in list_records(WORKING_MEMORY_DIR, "wm"):
         try:
             entry = read_record(path)
-            entries.append({
-                "timestamp": entry.get("timestamp", ""),
-                "kind": entry.get("kind", ""),
-                "question": entry.get("question"),
-                "text": entry.get("excerpt", "")[:500],  # truncate further for prompt
-            })
         except Exception:
             continue
-    return entries
+        ts = entry.get("timestamp", "")
+        kind = entry.get("kind", "")
+        weight = _decay_weight(ts, kind, now)
+        if weight < DECAY_FLOOR:
+            continue
+        scored.append((weight, {
+            "timestamp": ts,
+            "kind": kind,
+            "question": entry.get("question"),
+            "text": entry.get("excerpt", "")[:500],
+            "weight": round(weight, 3),
+        }))
+    # Sort by weight descending, take top *limit*, then re-sort chronologically
+    scored.sort(key=lambda x: x[0], reverse=True)
+    top = scored[:limit]
+    top.sort(key=lambda x: x[1]["timestamp"])
+    return [e for _, e in top]
+
+
+def archive_stale_working_memory(dry_run: bool = False) -> dict[str, Any]:
+    """Move working-memory entries below DECAY_FLOOR to the archive directory.
+
+    Returns a summary dict with counts. When dry_run is True, reports what
+    would be moved without actually moving anything.
+    """
+    if not WORKING_MEMORY_DIR.exists():
+        return {"archived": 0, "remaining": 0, "dry_run": dry_run}
+    now = datetime.now(BJ_TZ)
+    archived: list[str] = []
+    remaining: list[str] = []
+    for path in list_records(WORKING_MEMORY_DIR, "wm"):
+        try:
+            entry = read_record(path)
+        except Exception:
+            continue
+        weight = _decay_weight(entry.get("timestamp", ""), entry.get("kind", ""), now)
+        if weight < DECAY_FLOOR:
+            archived.append(path.name)
+            if not dry_run:
+                ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+                target = ARCHIVE_DIR / path.name
+                path.rename(target)
+        else:
+            remaining.append(path.name)
+    if not dry_run:
+        append_event("brain.working_memory.archived", f"Archived {len(archived)} stale entries", {
+            "archived_count": len(archived),
+            "remaining_count": len(remaining),
+        })
+    return {
+        "archived": len(archived),
+        "archived_ids": archived,
+        "remaining": len(remaining),
+        "remaining_ids": remaining,
+        "dry_run": dry_run,
+    }
 
 
 def render_working_memory_json() -> str:

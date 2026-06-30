@@ -511,25 +511,38 @@ def cmd_brain_think(args: argparse.Namespace) -> None:
 
 
 def cmd_brain_memory(args: argparse.Namespace) -> None:
-    """Show Brain Agent working memory."""
-    from .brain import render_working_memory_json, load_working_memory
+    """Show Brain Agent working memory or archive stale entries."""
+    from .brain import render_working_memory_json, load_working_memory, archive_stale_working_memory
+
+    if getattr(args, "archive", False):
+        result = archive_stale_working_memory(dry_run=getattr(args, "dry_run", False))
+        action = "would archive" if result["dry_run"] else "archived"
+        print(f"{action}: {result['archived']} entries, remaining: {result['remaining']}")
+        if result.get("archived_ids"):
+            print("archived entries:")
+            for eid in result["archived_ids"]:
+                print(f"  - {eid}")
+        return
+
     if args.json:
         print(render_working_memory_json())
     else:
         entries = load_working_memory(limit=50)
         if not entries:
-            print("(no working memory entries yet)")
+            print("(no working memory entries above decay floor)")
             return
-        print(f"Brain Working Memory ({len(entries)} entries, most recent last)\n")
+        print(f"Brain Working Memory ({len(entries)} entries above decay floor, most recent last)\n")
         for entry in entries:
             ts = entry.get('timestamp', '')
             kind = entry.get('kind', '')
             question = entry.get('question', '')
             text = entry.get('text', '')[:200]
+            weight = entry.get('weight', '')
+            weight_str = f"  w={weight}" if weight else ""
             if question:
-                print(f"[{ts}] {kind}: Q: {question}")
+                print(f"[{ts}] {kind}{weight_str}: Q: {question}")
             else:
-                print(f"[{ts}] {kind}: {text[:120]}...")
+                print(f"[{ts}] {kind}{weight_str}: {text[:120]}...")
             print()
 
 
@@ -1197,6 +1210,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_brain_think)
     p = brain_sub.add_parser("memory", help="show Brain Agent working memory (recent cognitive outputs)")
     p.add_argument("--json", action="store_true", help="render as JSON")
+    p.add_argument("--archive", action="store_true", help="move stale entries (below decay floor) to archive")
+    p.add_argument("--dry-run", action="store_true", help="with --archive: show what would be moved without moving")
     p.set_defaults(func=cmd_brain_memory)
 
     p_roadmap = sub.add_parser("roadmap")
