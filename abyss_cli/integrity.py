@@ -491,11 +491,14 @@ def _check_agents_and_llm_providers(root: Path, messages: list[str]) -> bool:
                 ok = False
                 messages.append("MISSING_BRAIN_AGENT_CONTRACT")
             else:
-                if brain.get("enabled") is not False:
+                if not isinstance(brain.get("enabled"), bool):
                     ok = False
-                    messages.append("BRAIN_AGENT_MUST_REMAIN_DISABLED_IN_V0")
+                    messages.append("BRAIN_AGENT_ENABLED_MUST_BE_BOOL")
+                if not brain.get("role_prompt"):
+                    ok = False
+                    messages.append("BRAIN_AGENT_MISSING_ROLE_PROMPT")
                 forbidden = set(brain.get("forbidden", [])) if isinstance(brain.get("forbidden"), list) else set()
-                for required_forbidden in ["approve_roadmap_item", "approve_changeset", "apply_changeset", "modify_files", "bypass_harness", "replace_owner", "run_commands"]:
+                for required_forbidden in ["approve_roadmap_item", "approve_changeset", "apply_changeset", "modify_files", "bypass_harness", "replace_owner", "run_commands", "make_outbound_calls", "treat_suggestions_as_approved_tasks"]:
                     if required_forbidden not in forbidden:
                         ok = False
                         messages.append(f"BRAIN_AGENT_MISSING_FORBIDDEN {required_forbidden}")
@@ -542,6 +545,24 @@ def _check_sensitive_tracked_paths(root: Path, messages: list[str]) -> bool:
 
     return ok
 
+def _check_memory_store(messages: list[str]) -> bool:
+    """Read-only memory store integrity check (Memory v0, ROADMAP R085).
+
+    Verifies abyss.memory_record.v1 schema compliance without false positives on
+    an empty store. Does not mutate anything.
+    """
+    try:
+        from .memory import check_memory_store
+    except Exception as exc:  # defensive import boundary
+        messages.append(f"MEMORY_CHECK_IMPORT_FAILED {exc}")
+        return False
+    ok, mem_messages = check_memory_store()
+    for line in mem_messages:
+        if "ok" not in line.lower() and "empty" not in line.lower():
+            messages.append(f"MEMORY {line}")
+    return ok
+
+
 def run_checks() -> tuple[bool, list[str]]:
     root = repo_root()
     messages: list[str] = []
@@ -576,6 +597,9 @@ def run_checks() -> tuple[bool, list[str]]:
         ok = False
 
     if not _check_sensitive_tracked_paths(root, messages):
+        ok = False
+
+    if not _check_memory_store(messages):
         ok = False
 
     if ok:

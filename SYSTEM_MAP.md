@@ -50,6 +50,10 @@ abyss review approve <review>
 abyss review reject <review>
 abyss check
 abyss data init|status|pull|push
+abyss memory record --kind decision|direction --title "..." --body "..." [--related ids] [--tags ...]
+abyss memory list [--kind ...] [--json]
+abyss memory show <latest|id>
+abyss memory project <latest|id>
 ```
 
 ## Core modules
@@ -76,9 +80,11 @@ abyss data init|status|pull|push
 - `abyss_cli/owner.py` — Owner Inbox approval surface for user decisions, including automatic continuation after approval.
 - `abyss_cli/summary.py` — user-facing status overview for active workflows, pending approvals, failures, changesets, and optional integrity result.
 - `abyss_cli/integrity.py` — checks repository structure, runtime references, workflow records, safety invariants, cognition-layer synchronization, module capsule completeness, contract/schema presence, and minimum-disclosure boundaries.
-- `abyss_cli/brain.py` — renders Brain Agent v0 read-only status briefs; explains state and next candidates without execution, approval, mutation, or scheduling.
+- `abyss_cli/brain.py` — renders Brain Agent v0 read-only status briefs; explains state and next candidates without execution, approval, mutation, or scheduling. R086: also renders a deterministic direction-alignment view over Memory v0 records (no LLM).
 - `abyss_cli/disclosure.py` — audits `rules/context_manifest.yaml` against L0-L7 disclosure levels without replacing current context pack behavior.
 - `abyss_cli/schema_validator.py` — validates structured records against the local JSON Schema subset; structural validation only, not governance approval.
+- `abyss_cli/memory.py` — Memory v0 (R085): records Owner direction/decision knowledge as `abyss.memory_record.v1` and projects a record into an Obsidian note. Read-only projection, candidate knowledge only; no LLM, no promotion, no agent write authority.
+- `abyss_cli/fsm.py` — periodic integrity-check state machine (unknown/idle/checking/needs_attention); runs ticks via `fsm tick` and `fsm watch`. Registered as module capsule in R087.
 
 ## Data flow
 
@@ -169,6 +175,7 @@ Runtime records are local machine state and do not belong in system Git.
 - `.local/runtime/process/workflows/`
 - `.local/runtime/process/owner_inbox/`
 - `.local/runtime/process/reports/`
+- `.local/runtime/memory/records/`
 - `.local/runtime/evolution/requests/`
 - `.local/runtime/evolution/proposals/`
 - `.local/runtime/evolution/smoke_tests/`

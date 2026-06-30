@@ -2,6 +2,7 @@
   "schema": "abyss.llm_providers.v2",
   "purpose": "Configure local LLM executor providers without embedding secrets.",
   "local_override_path": ".local/llm_providers.json",
+  "default_provider": "deepseek",
   "interfaces": {
     "stdin_prompt_package_stdout_response_v1": {
       "description": "Abyss sends the complete Prompt Package to the provider process on stdin. The provider must write exactly the LLM response body to stdout and exit with code 0. Non-zero exit code or empty stdout is treated as provider failure.",
@@ -99,6 +100,23 @@
       "timeout_seconds": 300,
       "max_attempts": 2,
       "retry_backoff_seconds": 3
+    },
+    "deepseek": {
+      "enabled": false,
+      "interface": "http_openai_chat_completion_v1",
+      "description": "DeepSeek OpenAI-compatible chat completions provider. Enable and configure base_url, model, bearer_token_env, and request fields in .local/llm_providers.json.",
+      "base_url": "",
+      "endpoint": "/chat/completions",
+      "model": "",
+      "bearer_token_env": "",
+      "timeout_seconds": 300,
+      "max_attempts": 2,
+      "retry_backoff_seconds": 2,
+      "request": {
+        "temperature": 0,
+        "top_p": 1,
+        "max_tokens": 8192
+      }
     }
   },
   "security": {

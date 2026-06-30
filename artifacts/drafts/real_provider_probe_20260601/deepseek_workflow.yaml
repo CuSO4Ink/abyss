@@ -1,0 +1,46 @@
+{
+  "schema": "abyss.workflow.v1",
+  "id": "wf_20260601_205624_ce11a2",
+  "proposal_id": "evo_prop_20260601_205137_dee4d4",
+  "roadmap_id": "R085",
+  "summary": "Add a read-only demo helper command that prints a short hello banner",
+  "status": "failed",
+  "provider": "deepseek",
+  "source": "workflow_start",
+  "attempts": {
+    "implementation": 1,
+    "harness_review": 0,
+    "execution": 0
+  },
+  "history": [
+    {
+      "at": "2026-06-01T20:56:24+08:00",
+      "state": "implementation_pending",
+      "event": "workflow_created",
+      "source": "workflow_start"
+    },
+    {
+      "at": "2026-06-01T20:56:33+08:00",
+      "state": "implementation_running",
+      "event": "implementation_agent_started",
+      "details": {
+        "provider": "deepseek"
+      }
+    },
+    {
+      "at": "2026-06-01T20:57:07+08:00",
+      "state": "failed",
+      "event": "implementation_agent_produced_invalid_changeset",
+      "details": {
+        "changeset_id": "chg_invalid_20260601_205707_9b08d6"
+      }
+    }
+  ],
+  "created_at": "2026-06-01T20:56:24+08:00",
+  "updated_at": "2026-06-01T20:57:07+08:00",
+  "context_pack_id": null,
+  "implementation_agent_run_id": "agent_run_20260601_205707_1b32e6",
+  "changeset_id": "chg_invalid_20260601_205707_9b08d6",
+  "changeset_valid": false,
+  "last_error": "EDIT_PLAN_CONTRACT_MISSING_ANCHOR op_001"
+}

@@ -1,0 +1,117 @@
+{
+  "schema": "abyss.workflow.v1",
+  "id": "wf_20260601_220123_9faa9c",
+  "proposal_id": "evo_prop_20260601_220052_82e81f",
+  "roadmap_id": "R085",
+  "summary": "Add a read-only demo helper function demo_iteration_marker to abyss_cli/utils.py that returns a short static string (dee",
+  "status": "rejected",
+  "provider": "deepseek",
+  "source": "workflow_start",
+  "attempts": {
+    "implementation": 1,
+    "harness_review": 1,
+    "execution": 0
+  },
+  "history": [
+    {
+      "at": "2026-06-01T22:01:23+08:00",
+      "state": "implementation_pending",
+      "event": "workflow_created",
+      "source": "workflow_start"
+    },
+    {
+      "at": "2026-06-01T22:01:31+08:00",
+      "state": "implementation_running",
+      "event": "implementation_agent_started",
+      "details": {
+        "provider": "deepseek"
+      }
+    },
+    {
+      "at": "2026-06-01T22:02:09+08:00",
+      "state": "changeset_proposed",
+      "event": "changeset_generated",
+      "details": {
+        "changeset_id": "chg_demo_iteration_marker_r085"
+      }
+    },
+    {
+      "at": "2026-06-01T22:02:09+08:00",
+      "state": "dry_run_passed",
+      "event": "dry_run_passed",
+      "details": {
+        "changeset_id": "chg_demo_iteration_marker_r085"
+      }
+    },
+    {
+      "at": "2026-06-01T22:02:09+08:00",
+      "state": "harness_review_running",
+      "event": "harness_review_started",
+      "details": {
+        "changeset_id": "chg_demo_iteration_marker_r085",
+        "provider": "deepseek"
+      }
+    },
+    {
+      "at": "2026-06-01T22:02:33+08:00",
+      "state": "waiting_owner_approval",
+      "event": "owner_approval_required",
+      "details": {
+        "owner_item_id": "owner_20260601_220233_4a1940",
+        "harness_review_id": "hrev_20260601_220233_c67503"
+      }
+    },
+    {
+      "at": "2026-06-01T22:03:54+08:00",
+      "state": "rejected",
+      "event": "owner_rejected_changeset",
+      "details": {
+        "owner_item_id": "owner_20260601_220233_4a1940",
+        "reason": "smoke probe re-test cleanup: deepseek reached owner gate after anchor contract fix; rejecting without applying"
+      }
+    }
+  ],
+  "created_at": "2026-06-01T22:01:23+08:00",
+  "updated_at": "2026-06-01T22:03:54+08:00",
+  "context_pack_id": null,
+  "implementation_agent_run_id": "agent_run_20260601_220209_68710f",
+  "changeset_id": "chg_demo_iteration_marker_r085",
+  "changeset_valid": true,
+  "dry_run": {
+    "schema": "abyss.changeset_dry_run.v1",
+    "changeset_id": "chg_demo_iteration_marker_r085",
+    "ok": true,
+    "messages": [
+      "OK"
+    ],
+    "preflight": {
+      "schema": "abyss.changeset_preflight.v1",
+      "ok": true,
+      "target_resolution_failures": [],
+      "output_contract_failures": [],
+      "findings": [
+        {
+          "op_id": "op_001",
+          "ok": true,
+          "category": "target_resolution",
+          "path": "abyss_cli/utils.py",
+          "message": "OLD_CONTENT_MATCH_COUNT",
+          "count": 1
+        }
+      ],
+      "auto_recovery": {
+        "eligible": false,
+        "strategy": "not_needed",
+        "requires_harness_and_owner_boundaries": true
+      },
+      "no_action_executed": true,
+      "no_approval_granted": true
+    },
+    "checked_at": "2026-06-01T22:02:09+08:00",
+    "no_action_executed": true
+  },
+  "harness_agent_run_id": "agent_run_20260601_220233_d4d66c",
+  "harness_review_id": "hrev_20260601_220233_c67503",
+  "owner_item_id": "owner_20260601_220233_4a1940",
+  "rejection_reason": "smoke probe re-test cleanup: deepseek reached owner gate after anchor contract fix; rejecting without applying"
+}

@@ -24,6 +24,8 @@ ALLOWED_VALIDATION_COMMANDS = {
     "python -m compileall -q abyss_cli",
     "python -m abyss_cli request types --all --json",
     "python -m abyss_cli rules validate --json",
+    "python -m abyss_cli skill check",
+    "python -m abyss_cli adapter check",
 }
 
 

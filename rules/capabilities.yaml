@@ -33,7 +33,12 @@
     "executor.fs.create_file",
     "executor.fs.replace_exact",
     "executor.fs.append_file",
-    "executor.check.command_allowlist"
+    "executor.check.command_allowlist",
+    "memory.record",
+    "memory.list",
+    "memory.show",
+    "memory.project",
+    "brain.direction_alignment"
   ],
   "executor_capabilities": {
     "schema": "abyss.executor_capabilities.v1",

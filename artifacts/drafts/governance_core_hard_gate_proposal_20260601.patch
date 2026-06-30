@@ -1,0 +1,95 @@
+﻿diff --git a/abyss_cli/evolution.py b/abyss_cli/evolution.py
+index cee6e0d..7ee9688 100644
+--- a/abyss_cli/evolution.py
++++ b/abyss_cli/evolution.py
+@@ -186,6 +186,30 @@ def show_evolution_record(value: str) -> tuple[Path, dict[str, Any]]:
+     return path, read_record(path)
+ 
+ 
++def proposal_requires_meta_governance(proposal: dict[str, Any]) -> bool:
++    """Return whether a proposal is marked as governance-core scoped.
++
++    This is a command-layer guard only. It grants no approval path by itself;
++    ordinary evolution approval/start must not turn a governance-core proposal
++    into implementation work just because an agent produced a plausible plan.
++    """
++    detection = proposal.get("governance_core_detection")
++    if isinstance(detection, dict) and detection.get("requires_meta_governance"):
++        return True
++    route = str(proposal.get("recommended_governance_route") or proposal.get("governance_route") or "")
++    request_type = str(proposal.get("recommended_request_type") or proposal.get("request_type") or "")
++    return route == "meta_governance" or request_type in {"governance_mutation", "meta_evolution_request"}
++
++
++def reject_governance_core_ordinary_approval(proposal: dict[str, Any]) -> None:
++    if proposal_requires_meta_governance(proposal):
++        proposal_id = str(proposal.get("id") or "")
++        raise SystemExit(
++            "Cannot approve governance-core proposal through ordinary evolution approve: "
++            f"{proposal_id}. Use explicit meta-governance review and delayed activation."
++        )
++
++
+ def load_governance_state() -> dict[str, Any]:
+     if GOVERNANCE_PATH.exists():
+         return read_record(GOVERNANCE_PATH)
+@@ -269,6 +293,7 @@ def approve_proposal(proposal_value: str, approver: str = "user", add_to_roadmap
+     proposal = read_record(proposal_path)
+     if proposal.get("status") == "rejected":
+         raise SystemExit(f"Cannot approve rejected proposal: {proposal.get('id')}")
++    reject_governance_core_ordinary_approval(proposal)
+ 
+     roadmap_id = proposal.get("roadmap_entry")
+     roadmap_status = "not_requested"
+diff --git a/abyss_cli/request_rules.py b/abyss_cli/request_rules.py
+index a5276c0..ac06ea4 100644
+--- a/abyss_cli/request_rules.py
++++ b/abyss_cli/request_rules.py
+@@ -34,7 +34,7 @@ GOVERNANCE_CORE_SURFACES = {
+     "self_evolution": ["abyss_cli/evolution.py", "abyss_cli/evolution_analysis.py", "prompts/agents/self_evolution_agent.md"],
+     "harness_policy": ["abyss_cli/harness.py", "abyss_cli/harness_review.py", "prompts/agents/harness_agent.md"],
+     "approval_gates": ["abyss_cli/owner.py", "abyss_cli/workflow.py"],
+-    "permission_boundaries": ["rules/capabilities.yaml", "rules/policy.yaml"],
++    "permission_boundaries": ["rules/capabilities.yaml", "rules/policy.yaml", "abyss_cli/changeset.py"],
+     "memory_policy": ["rules/request_types.v1.yaml"],
+     "context_disclosure_policy": ["abyss_cli/context_pack.py", "abyss_cli/disclosure.py", "rules/context_manifest.yaml"],
+     "git_authority": ["abyss_cli/data_sync.py", "rules/capabilities.yaml"],
+@@ -61,6 +61,13 @@ GOVERNANCE_CORE_KEYWORDS = [
+     "owner approval gate",
+     "harness policy",
+     "permission boundary",
++    "permission boundaries",
++    "allowed_fs_roots",
++    "blocked_path_prefixes",
++    "blocked_paths",
++    "allowed_check_commands",
++    "executor allowlist",
++    "executor blocklist",
+     "context disclosure policy",
+     "memory policy",
+     "git authority",
+diff --git a/abyss_cli/workflow.py b/abyss_cli/workflow.py
+index 77879f6..2648f7d 100644
+--- a/abyss_cli/workflow.py
++++ b/abyss_cli/workflow.py
+@@ -9,7 +9,7 @@ from typing import Any
+ from .agent_runner import run_agent, run_harness_changeset_review
+ from .audit import append_event
+ from .changeset import apply_changeset, dry_run_changeset, load_changeset
+-from .evolution import PROPOSALS_DIR, show_evolution_record
++from .evolution import PROPOSALS_DIR, proposal_requires_meta_governance, show_evolution_record
+ from .integrity import run_checks
+ from .utils import list_records, new_id, now_iso, read_record, relative_to_repo, resolve_record_arg, runtime_root, write_record
+ 
+@@ -105,6 +105,11 @@ def create_workflow_for_proposal(proposal: dict[str, Any], *, provider: str = "c
+         return existing
+     if proposal.get("status") != "approved" or not proposal.get("implementation_allowed"):
+         raise SystemExit(f"Proposal is not approved for implementation: {proposal_id}")
++    if proposal_requires_meta_governance(proposal):
++        raise SystemExit(
++            "Cannot start ordinary workflow for governance-core proposal: "
++            f"{proposal_id}. Use explicit meta-governance review and delayed activation."
++        )
+     roadmap_id = str(proposal.get("roadmap_entry") or "")
+     if not roadmap_id:
+         raise SystemExit(f"Approved proposal has no roadmap entry: {proposal_id}")

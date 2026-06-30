@@ -1,0 +1,59 @@
+{
+  "schema": "abyss.request_envelope.v1",
+  "request_id": "REQ-prompt-stable-prefix-reorder-20260601",
+  "request_type": "governance_mutation",
+  "source": "owner_chat_deepseek_cache_optimization",
+  "created_at": "2026-06-01T23:11:32+08:00",
+  "created_by": "owner",
+  "user_intent": "Reorder self-iteration prompt packages so stable contracts and rules form a reusable prefix before dynamic workflow/context data, improving provider prefix-cache eligibility.",
+  "title": "Make self-iteration prompts more cache-friendly with stable prefixes",
+  "description": "Reorder prompt package sections to put stable agent contracts, rules, output schemas, and safety boundaries before dynamic IDs, timestamps, target records, recent failure evidence, and repository context. Preserve prompt semantics, output contract, approval gates, and execution permissions.",
+  "scope": [
+    "abyss_cli/agent_runner.py",
+    "abyss_cli/prompt_builder.py",
+    "tests/test_prompt_stable_prefix.py"
+  ],
+  "risk_level": "medium",
+  "governance_route": "meta_governance",
+  "requires_code_change": true,
+  "requires_cognition_update": false,
+  "requires_owner_approval": true,
+  "required_context": [
+    "abyss_cli/agent_runner.py",
+    "abyss_cli/prompt_builder.py",
+    "prompts/agents/implementation_agent.md",
+    "rules/capabilities.yaml"
+  ],
+  "expected_artifacts": [
+    "Implementation-agent prompt starts with stable contract/rules sections before run-specific metadata",
+    "External-developer prompt starts with stable boundary/instructions before run-specific metadata",
+    "Regression tests verifying section ordering"
+  ],
+  "validation_plan": [
+    "python -m pytest -q tests/test_prompt_stable_prefix.py",
+    "python -m pytest -q",
+    "python -m abyss_cli check"
+  ],
+  "related_documents": [
+    "abyss_cli/agent_runner.py",
+    "abyss_cli/prompt_builder.py",
+    "abyss_cli/context_pack.py"
+  ],
+  "status": "normalized",
+  "request_fields": {
+    "owner_approval_required": "explicit",
+    "activation_policy": "delayed; this request only creates a candidate prompt-structure change and does not approve or apply any future changeset by itself.",
+    "affected_governance_surface": "Self-iteration agent prompt package structure. The content contract, Owner/Harness gates, provider permissions, and changeset executor boundaries must remain unchanged.",
+    "current_problem": "Provider prefix cache likely misses because dynamic prompt package IDs, timestamps, target IDs, workflow records, and context data appear before large stable agent contracts and output rules.",
+    "old_rule_review": "Prior accepted rules require prompt/agent behavior changes to preserve governance boundaries, avoid automatic approval/apply, and remain reviewable via tests and audit artifacts.",
+    "owner_authority_impact": "No Owner authority is delegated or reduced. The change only reorders prompt sections while preserving explicit instructions that agents cannot approve, reject, apply, run commands, or claim execution.",
+    "risk_assessment": "Medium. Reordering prompt sections may affect model behavior even if text is preserved. Mitigation: keep all existing constraints, only move stable sections earlier, keep dynamic target/context sections present and clearly labeled, and add ordering regression tests.",
+    "rollback_plan": "Revert the prompt template ordering changes and remove ordering tests. Existing prompt package behavior will return to dynamic metadata-first ordering.",
+    "validation_plan": "Build representative prompt packages in isolated tests and assert stable sections appear before run-specific metadata/context sections. Run full pytest and abyss_cli check.",
+    "proposed_change": "Move stable system/role/output-contract sections before run-specific metadata in implementation and external developer prompt templates. Move prompt_package_id, target IDs, timestamps, target records, recent failure evidence, and context pack rendering after stable instructions."
+  },
+  "missing_required_fields": [],
+  "warnings": [],
+  "notes": "Round 2 of the DeepSeek cache investigation: cache-friendly ordering without changing gates or permissions.",
+  "contract_version": "abyss.request_envelope.v1"
+}

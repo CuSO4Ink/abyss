@@ -123,6 +123,36 @@ def build_external_developer_prompt(objective: str, *, details: str = "", copy: 
     context_pack_rendered = render_context_pack_for_prompt(context_pack)
     body = f"""# Abyss External Developer Prompt Package
 
+## Stable authority boundary
+
+The external model platform is a replaceable expert resource. Its output is candidate material only. It must not claim facts, approvals, execution, file mutation, state transition, scheduling, governance decisions, or ownership of Abyss memory/direction.
+
+Any meaningful system modification must still follow the governed path: proposal, approval, workflow, changeset, validation, Harness review, Owner approval, executor apply, and report.
+
+Do not claim execution. Do not output approvals. Do not bypass Harness, Owner, workflow, or executor boundaries.
+
+---
+
+## Stable required output
+
+Return a concise response with these sections:
+
+1. Task understanding
+2. Modules touched
+3. Files touched
+4. Proposed changes
+5. Candidate ChangeSet / code approach, if applicable
+6. Validation
+7. Risk assessment
+8. Architecture alignment
+9. Open questions
+10. Whether Brain Agent / Owner decision is needed
+11. Recommended next step
+
+---
+
+## Run metadata
+
 - prompt_package_id: {ppkg_id}
 - package_type: external_developer_task
 - created_at: {now_iso()}
@@ -146,14 +176,6 @@ def build_external_developer_prompt(objective: str, *, details: str = "", copy: 
 
 ---
 
-## Authority boundary
-
-The external model platform is a replaceable expert resource. Its output is candidate material only. It must not claim facts, approvals, execution, file mutation, state transition, scheduling, governance decisions, or ownership of Abyss memory/direction.
-
-Any meaningful system modification must still follow the governed path: proposal, approval, workflow, changeset, validation, Harness review, Owner approval, executor apply, and report.
-
----
-
 ## Context Pack Summary
 
 ```text
@@ -163,26 +185,6 @@ Any meaningful system modification must still follow the governed path: proposal
 ---
 
 {context_pack_rendered}
-
----
-
-## Required output
-
-Return a concise response with these sections:
-
-1. Task understanding
-2. Modules touched
-3. Files touched
-4. Proposed changes
-5. Candidate ChangeSet / code approach, if applicable
-6. Validation
-7. Risk assessment
-8. Architecture alignment
-9. Open questions
-10. Whether Brain Agent / Owner decision is needed
-11. Recommended next step
-
-Do not claim execution. Do not output approvals. Do not bypass Harness, Owner, workflow, or executor boundaries.
 """
     PROMPT_DIR.mkdir(parents=True, exist_ok=True)
     path = PROMPT_DIR / f"{ppkg_id}.md"

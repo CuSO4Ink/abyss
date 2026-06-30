@@ -111,6 +111,30 @@ The local sync configuration is stored in `.local/data_sync.json`, which is igno
 
 The canonical structured rules live in `rules/sync.yaml`.
 
+## Memory v0: direction and decision records
+
+Approved roadmap item `R085` adds the first runnable knowledge-precipitation mechanism. It records Owner direction choices and key decisions as structured candidate knowledge and can project a record into an Obsidian-friendly note.
+
+```powershell
+abyss memory record --kind direction --title "..." --body "..." --related "R085" --tags "direction,governance"
+abyss memory list
+abyss memory list --kind decision --json
+abyss memory show latest
+abyss memory project latest
+```
+
+Records are stored as `abyss.memory_record.v1` under `.local/runtime/memory/records/`. The `project` command writes a single Obsidian note under `user_data/memory/` with provenance frontmatter.
+
+V0 boundaries:
+
+```text
+Memory records are candidate knowledge written explicitly by the Owner.
+Creating a record approves nothing, executes nothing, and triggers no workflow transition.
+The project command is a read-only projection, NOT the storage->user_data promotion mechanism.
+The v0 schema is intentionally minimal; new fields require an explicit contract revision before Brain v1 depends on them.
+No LLM calls, no policy/governance/prompt/ROADMAP changes, no agent write authority.
+```
+
 ## Quick start
 
 Install once in editable mode so Abyss can be run from any directory:

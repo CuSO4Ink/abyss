@@ -1,0 +1,32 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "abyss.external_need.v1",
+  "type": "object",
+  "required": ["schema", "id", "type", "version", "payload", "lifecycle"],
+  "properties": {
+    "schema": {"const": "abyss.external_need.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Dotted open namespace. Originator writes the coarsest it knows: 'notify', 'notify.im', 'notify.im.wecom'. Platform matches by prefix fallback."
+    },
+    "version": {"type": "string", "default": "1"},
+    "payload": {"type": "object"},
+    "lifecycle": {
+      "type": "object",
+      "required": ["status", "created_at"],
+      "properties": {
+        "status": {"type": "string", "enum": ["pending", "fulfilled", "failed"]},
+        "created_at": {"type": "string", "minLength": 1},
+        "fulfilled_at": {"type": "string"},
+        "fulfilled_by": {"type": "string", "description": "platform_id of the fulfilling platform"},
+        "error": {"type": "string", "description": "failure reason if status=failed"}
+      },
+      "additionalProperties": false
+    },
+    "created_by": {"type": "string", "description": "module that created the need: fsm, brain, workflow, etc."},
+    "expires_at": {"type": "string", "description": "optional TTL; needs past this timestamp with status=pending are treated as expired"}
+  },
+  "additionalProperties": false
+}

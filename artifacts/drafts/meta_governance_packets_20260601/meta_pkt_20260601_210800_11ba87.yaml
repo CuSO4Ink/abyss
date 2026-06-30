@@ -1,0 +1,173 @@
+{
+  "schema": "abyss.meta_governance_packet.v1",
+  "id": "meta_pkt_20260601_210800_11ba87",
+  "created_at": "2026-06-01T21:08:00+08:00",
+  "source_request_path": "artifacts/drafts/request_edit_plan_anchor_contract_alignment_20260601.json",
+  "request_id": null,
+  "request_type": "governance_mutation",
+  "governance_route": null,
+  "status": "needs_meta_governance_completion",
+  "request_envelope": {
+    "schema": "abyss.request_envelope.v1",
+    "id": "REQ-20260601-edit-plan-anchor-contract-alignment",
+    "request_type": "governance_mutation",
+    "title": "Align edit-plan anchor contract for real-provider output",
+    "summary": "A real-provider E2E probe showed that one provider placed replace_anchor anchor text under target.anchor while the current compiler only accepts top-level edit.anchor. This request records an owner-requested meta iteration to clarify the canonical contract and add bounded compiler compatibility without changing approval, apply, or workflow authority.",
+    "affected_governance_surface": "Self Evolution edit-plan contract, Implementation Agent output contract, Patch Compiler validation boundary",
+    "current_problem": "The Implementation Agent prompt mentions target.path and symbol or anchor but only shows a replace_symbol example. The compiler reads edit.get('anchor') for replace_anchor and append_after_anchor, so a reasonable target.anchor placement from a real provider fails with EDIT_PLAN_CONTRACT_MISSING_ANCHOR even though the output is otherwise structurally valid.",
+    "proposed_change": "Keep top-level edit.anchor as the canonical contract, explicitly document that target must contain path only, add a replace_anchor example, and make the compiler accept target.anchor as a compatibility alias when top-level anchor is absent. If both top-level anchor and target.anchor are present and differ, reject the plan with an explicit conflicting-anchor contract error.",
+    "old_rule_review": "Existing governance requires Implementation Agent outputs to be deterministic edit-plan contracts and forbids bypassing proposal, dry-run, Harness review, Owner approval, and apply gates. This change does not weaken those gates; it only aligns field parsing with a real-provider ambiguity while preserving a canonical form.",
+    "risk_assessment": "Low-to-moderate contract parsing risk. Compatibility may accept an additional anchor location, but it still requires a unique exact anchor in the target file and produces the same fs.replace_exact operation. Conflicting anchors are rejected to avoid ambiguous edits.",
+    "owner_authority_impact": "No new owner authority is delegated. Test or provider success remains evidence only and does not approve, apply, commit, or activate changes. Owner approval gates remain unchanged.",
+    "rollback_plan": "Revert the helper and call-site changes in abyss_cli/patch_compiler.py, revert the Implementation Agent prompt clarification, and remove the added regression tests. Existing top-level anchor plans continue to work without this compatibility alias.",
+    "validation_plan": "Run targeted edit-plan compiler tests, compileall, full pytest, and python -m abyss_cli check. Confirm target.anchor compiles, conflicting anchors are rejected, and canonical top-level anchor remains supported.",
+    "activation_policy": "Candidate implementation only in this cycle. No workflow, approval, apply, or provider-routing changes are activated by the meta packet itself.",
+    "owner_approval_required": true,
+    "requires_code_change": true,
+    "requires_owner_approval": true,
+    "requires_validation_plan": true,
+    "requires_cognition_update": false,
+    "source": "owner_requested_real_provider_probe_followup",
+    "evidence": [
+      "Claude real-provider run reached waiting_owner_approval without auto-apply.",
+      "DeepSeek real-provider edit-plan used target.anchor and failed current compiler validation with EDIT_PLAN_CONTRACT_MISSING_ANCHOR.",
+      "Current patch_compiler.py reads edit.get('anchor') for anchor edits.",
+      "Current Implementation Agent prompt has a replace_symbol example but no replace_anchor example clarifying anchor placement."
+    ],
+    "non_goals": [
+      "Do not change Owner approval gates.",
+      "Do not auto-apply any ChangeSet.",
+      "Do not change workflow state transitions.",
+      "Do not change provider defaults or add a provider.",
+      "Do not treat real-provider test success as approval."
+    ],
+    "expected_output": "A small, reviewable candidate patch plus tests and validation results for edit-plan anchor field alignment.",
+    "notes": "This request is the record-before-mutation step for the owner-approved meta iteration. The packet builder is read-only except for persisting the review packet when explicitly requested."
+  },
+  "request_validation": {
+    "schema": "abyss.request_envelope_validation.v1",
+    "ok": false,
+    "errors": [
+      "$: missing required field request_id",
+      "$: missing required field created_at",
+      "$: missing required field created_by",
+      "$: missing required field description",
+      "$: missing required field status",
+      "$: missing required field governance_route",
+      "$: missing required field required_context",
+      "$: missing required field expected_artifacts",
+      "$.validation_plan: expected type 'array', got string"
+    ],
+    "warnings": [
+      "REQUEST_ENVELOPE_REQUIRES_COGNITION_UPDATE_DIFFERS_FROM_TYPE_DEFAULT",
+      "REQUEST_ENVELOPE_MISSING_TYPE_REQUIRED_FIELDS affected_governance_surface,current_problem,proposed_change,old_rule_review,risk_assessment,owner_authority_impact,rollback_plan,validation_plan,activation_policy,owner_approval_required",
+      "REQUEST_ENVELOPE_META_GOVERNANCE_ACTIVATION_POLICY_SHOULD_BE_DELAYED",
+      "REQUEST_ENVELOPE_META_GOVERNANCE_OWNER_APPROVAL_MUST_BE_EXPLICIT"
+    ],
+    "missing_required_fields": [
+      "affected_governance_surface",
+      "current_problem",
+      "proposed_change",
+      "old_rule_review",
+      "risk_assessment",
+      "owner_authority_impact",
+      "rollback_plan",
+      "validation_plan",
+      "activation_policy",
+      "owner_approval_required"
+    ],
+    "no_action_executed": true,
+    "no_approval_granted": true
+  },
+  "governance_core_detection": {
+    "schema": "abyss.governance_core_detection.v1",
+    "requires_meta_governance": false,
+    "recommended_request_type": "",
+    "recommended_route": "",
+    "matched_keywords": [],
+    "matched_surfaces": {},
+    "protected_surfaces": [
+      "approval_gates",
+      "constitution_rules",
+      "context_disclosure_policy",
+      "external_ai_authority",
+      "git_authority",
+      "global_rules",
+      "governance_contracts",
+      "harness_policy",
+      "memory_policy",
+      "permission_boundaries",
+      "self_evolution"
+    ],
+    "required_review": [],
+    "forbidden_closure": [],
+    "no_action_executed": true,
+    "no_approval_granted": true
+  },
+  "prior_rule_review": {
+    "review_must_use_prior_accepted_rules": true,
+    "candidate_prior_rule_sources": [
+      {
+        "path": "ABYSS.md",
+        "exists": true
+      },
+      {
+        "path": "ABYSS_CONSTITUTION.md",
+        "exists": true
+      },
+      {
+        "path": "rules/request_types.v1.yaml",
+        "exists": true
+      },
+      {
+        "path": "rules/contracts/request_envelope.v1.yaml",
+        "exists": true
+      },
+      {
+        "path": "rules/context_manifest.yaml",
+        "exists": true
+      }
+    ],
+    "old_rule_review_from_request": null,
+    "new_rule_must_not_retroactively_legitimize_itself": true
+  },
+  "required_meta_review": [
+    "review_under_prior_accepted_rules",
+    "explicit_owner_approval",
+    "risk_assessment",
+    "rollback_plan",
+    "validation_plan",
+    "activation_note",
+    "delayed_activation_in_later_cycle"
+  ],
+  "forbidden_closure": [
+    "self_approval",
+    "ordinary_self_evolution_apply",
+    "same_cycle_activation",
+    "retroactive_legitimization_by_new_rule",
+    "brain_or_external_model_approval"
+  ],
+  "activation_policy": {
+    "delayed_activation_required": true,
+    "activation_policy_from_request": null,
+    "activation_allowed_in_this_cycle": false,
+    "requires_later_cycle_activation_record": true
+  },
+  "readiness": {
+    "requires_meta_governance": true,
+    "is_meta_request_type": true,
+    "missing_meta_requirements": [
+      "explicit_owner_approval_required",
+      "delayed_activation_policy",
+      "old_rule_review",
+      "risk_assessment",
+      "rollback_plan",
+      "validation_plan"
+    ],
+    "ready_for_implementation_work": false,
+    "reason": "Meta-governance packet preparation is review material only; implementation still requires Harness and explicit Owner approval."
+  },
+  "no_action_executed": true,
+  "no_approval_granted": true,
+  "no_files_modified_by_packet_builder": true
+}

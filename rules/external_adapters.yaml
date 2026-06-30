@@ -1,0 +1,104 @@
+{
+  "schema": "abyss.external_need_registry.v1",
+  "purpose": "Registry for the Outbox Pattern: Abyss writes external needs to a local outbox directory; external platforms poll, claim, and fulfill them. Abyss never makes outbound calls. The registry declares need templates and platform capability cards. v0 includes one platform (boxai) for validation.",
+  "core_principle": "Outbox Pattern. Originator (Abyss) writes needs locally; external platforms read and fulfill at their discretion. Abyss is passive — it declares, never invokes.",
+  "v0_constraints": {
+    "read_only_registry": true,
+    "abyss_never_makes_outbound_calls": true,
+    "need_type_is_open_dotted_string": true,
+    "prefix_matching_for_capability_resolution": true,
+    "fulfillment_is_platform_discretion": true
+  },
+  "need_type_namespace": {
+    "description": "Dotted open namespace, like MIME types. No closed enum. Examples: notify, notify.im, notify.im.wecom, execute, execute.git, execute.git.push, store, store.kb, store.kb.box. Originator writes coarsest known; platform registers finest supported. Matching: need type matches platform capability if platform type is a prefix of need type OR need type is a prefix of platform type (bidirectional prefix match).",
+    "matching_rule": "A need of type T matches a platform capability of type C if C is a prefix of T (platform handles a broader category) OR T is a prefix of C (platform handles a more specific sub-type). Most specific match wins.",
+    "examples": [
+      "need notify.im.wecom -> matches platform declaring notify.im.wecom (exact), then notify.im (parent), then notify (grandparent)",
+      "need notify -> matches platform declaring notify.im (child, more specific), then notify (exact)"
+    ]
+  },
+  "lifecycle_states": {
+    "pending": "Originator wrote the need. Waiting for a platform to claim and fulfill.",
+    "fulfilled": "A platform fulfilled the need. Result is in the fulfillment record.",
+    "failed": "A platform attempted fulfillment but failed. Error is in lifecycle.error."
+  },
+  "outbox_transport": {
+    "v0_transport": "file_outbox",
+    "outbox_dir": ".local/runtime/outbox/needs/",
+    "fulfillment_dir": ".local/runtime/outbox/fulfillments/",
+    "description": "v0 uses flat files. Each need is one JSON file in outbox_dir. Each fulfillment is one JSON file in fulfillment_dir, named {need_id}.fulfillment.json. Future transports (HTTP, message queue) can replace this without changing the need/fulfillment schema."
+  },
+  "need_templates": {
+    "notify_owner_on_integrity_failure": {
+      "description": "When integrity check fails, notify the Owner.",
+      "type": "notify",
+      "trigger": "fsm tick detects integrity ok=false",
+      "payload_fields": {
+        "event_type": "string",
+        "severity": "string",
+        "summary": "string",
+        "failed_checks": "array"
+      }
+    },
+    "notify_owner_on_workflow_blocked": {
+      "description": "When a workflow enters blocked state, notify the Owner.",
+      "type": "notify",
+      "trigger": "workflow state -> blocked",
+      "payload_fields": {
+        "workflow_id": "string",
+        "block_reason": "string",
+        "blocked_stage": "string"
+      }
+    },
+    "execute_git_checkpoint": {
+      "description": "After a changeset is applied, checkpoint the repo via git commit.",
+      "type": "execute.git.commit",
+      "trigger": "changeset apply completes successfully",
+      "payload_fields": {
+        "changeset_id": "string",
+        "files_changed": "array",
+        "commit_message": "string"
+      }
+    },
+    "store_memory_to_knowledge_base": {
+      "description": "Sync accumulated memory records to a Box knowledge base.",
+      "type": "store.kb.box",
+      "trigger": "memory record count threshold or manual",
+      "payload_fields": {
+        "record_ids": "array",
+        "kb_target": "string",
+        "format": "string"
+      }
+    }
+  },
+  "capability_cards": {
+    "boxai": {
+      "platform_id": "boxai",
+      "description": "BoxAI platform — the first external platform validating the Outbox Pattern. BoxAI polls the outbox, reads pending needs, fulfills using its own capabilities, and writes fulfillment records.",
+      "supported_types": [
+        "notify",
+        "notify.im",
+        "notify.im.wecom",
+        "execute.git",
+        "execute.git.commit",
+        "execute.git.push",
+        "store.kb",
+        "store.kb.box"
+      ],
+      "payload_handling": "BoxAI reads payload fields per need_type and adapts them to its own APIs (WeCom push, git CLI, kb_upload). Payload interpretation is platform-specific.",
+      "fulfillment_protocol": "BoxAI reads needs with lifecycle.status=pending, fulfills, writes {need_id}.fulfillment.json to fulfillment_dir with status and result.",
+      "polling_cadence": "On-demand (user asks BoxAI to check) or via scheduled task. No real-time push.",
+      "transport": "file_outbox",
+      "enabled": true
+    }
+  },
+  "hard_boundaries": [
+    "Abyss never makes outbound calls of any kind.",
+    "Needs are passive declarations written to local outbox files.",
+    "Fulfillment is entirely the platform's responsibility and discretion.",
+    "Need type is an open dotted string, never a closed enum.",
+    "Platform capability cards are declarative; no runtime coupling to Abyss.",
+    "The registry is declarative and discoverable only."
+  ],
+  "no_action_executed": true
+}

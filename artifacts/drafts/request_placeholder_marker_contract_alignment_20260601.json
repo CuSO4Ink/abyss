@@ -1,0 +1,63 @@
+{
+  "schema": "abyss.request_envelope.v1",
+  "request_id": "REQ-placeholder-marker-contract-alignment-20260601",
+  "request_type": "governance_mutation",
+  "source": "owner_chat",
+  "created_at": "2026-06-01T20:14:00+08:00",
+  "created_by": "owner",
+  "user_intent": "Review and, if valid, land a minimal fix for the mismatch between Implementation Agent placeholder guidance and Patch Compiler placeholder detection.",
+  "title": "Align Patch Compiler placeholder marker detection with Implementation Agent contract",
+  "description": "The Implementation Agent role prompt and retry guidance forbid TODO and prose placeholders such as other code unchanged, but Patch Compiler PLACEHOLDER_MARKERS currently does not reject those forms. A testing agent documented the current slip-through behavior as strict xfail and exported a proposed patch. This request records the owner-requested review and minimal production-code alignment before modifying patch_compiler.py.",
+  "scope": [
+    "abyss_cli/patch_compiler.py",
+    "tests/test_implementation_agent_parser_adversarial.py",
+    "artifacts/drafts/placeholder_markers_proposal.patch"
+  ],
+  "risk_level": "medium",
+  "governance_route": "meta_governance",
+  "requires_code_change": true,
+  "requires_cognition_update": false,
+  "requires_owner_approval": true,
+  "required_context": [
+    "abyss_cli/patch_compiler.py",
+    "abyss_cli/agent_runner.py",
+    "prompts/agents/implementation_agent.md",
+    "tests/test_implementation_agent_parser_adversarial.py",
+    "artifacts/drafts/placeholder_markers_proposal.patch"
+  ],
+  "expected_artifacts": [
+    "Updated PLACEHOLDER_MARKERS with precise forbidden placeholder forms",
+    "Updated regression tests turning the documented xfail gap into normal passing assertions",
+    "Validation results from targeted pytest, full pytest, compileall, and abyss_cli check"
+  ],
+  "validation_plan": [
+    "python -m pytest -q tests/test_implementation_agent_parser_adversarial.py -rx",
+    "python -m compileall -q abyss_cli tests",
+    "python -m pytest -q",
+    "python -m abyss_cli check"
+  ],
+  "related_documents": [
+    "prompts/agents/implementation_agent.md",
+    "abyss_cli/agent_runner.py",
+    "artifacts/drafts/placeholder_markers_proposal.patch"
+  ],
+  "status": "normalized",
+  "request_fields": {
+    "owner_approval_required": "explicit",
+    "activation_policy": "delayed; candidate material only until owner review and normal ChangeSet boundaries",
+    "affected_governance_surface": "Patch Compiler validation for Implementation Agent edit-plan content; this changes rejection criteria for placeholder-like content but does not change approval, apply, dry-run, path, or owner-authority policy.",
+    "current_problem": "Current placeholder detection rejects existing code / placeholder / omitted / ellipsis forms, while runtime prompt and retry guidance also forbid TODO and other code unchanged. Tests show create_file content containing '# TODO: fill this in' or '// other code unchanged' currently compiles to a proposed ChangeSet rather than invalid format feedback.",
+    "owner_authority_impact": "No reduction or delegation of Owner authority. The change only makes compiler validation stricter for already-forbidden placeholder forms; it does not grant execution or approval authority.",
+    "old_rule_review": "Prior rules require changes touching agent contracts or self-iteration validation boundaries to be recorded before modification. This request records the review and keeps execution within existing compiler/test validation boundaries.",
+    "risk_assessment": "Main risk is false positives if placeholder markers are too broad. Mitigation: use precise forms such as todo:, # todo, // todo, other code unchanged, code unchanged, and ellipsis placeholder rather than a bare todo substring.",
+    "rollback_plan": "Revert the PLACEHOLDER_MARKERS additions and restore the two tests to strict xfail if the stricter validation proves too broad.",
+    "validation_plan": "Run the adversarial parser tests, compileall, full pytest, and abyss_cli check.",
+    "proposed_change": "Add precise TODO/prose-placeholder forms to PLACEHOLDER_MARKERS and convert the previously strict-xfail slip-through tests into normal rejection assertions. Keep the testing agent's proposal patch as review evidence; do not rely on git apply because the exported patch is not valid plain-text patch input."
+  },
+  "missing_required_fields": [],
+  "warnings": [
+    "artifacts/drafts/placeholder_markers_proposal.patch appears to be encoded with NUL bytes and is not directly accepted by git apply --check; use it as review evidence rather than direct patch input."
+  ],
+  "notes": "This request is created before modifying production code, per the owner's meta-iteration requirement.",
+  "contract_version": "abyss.request_envelope.v1"
+}

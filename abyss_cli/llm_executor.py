@@ -15,9 +15,11 @@ from .audit import append_event
 from .intent import INTENTS_DIR
 from .prompt_builder import PROMPT_DIR
 from .result import import_result
-from .utils import ensure_dir, new_id, repo_root, runtime_root
+from .utils import ensure_dir, new_id, now_iso, repo_root, runtime_root
+
 
 LLM_RESULTS_DIR = runtime_root() / "process" / "llm_results"
+LLM_USAGE_DIR = runtime_root() / "process" / "llm_usage"
 PROVIDER_RULES_PATH = repo_root() / "rules" / "llm_providers.yaml"
 LOCAL_PROVIDER_CONFIG_PATH = repo_root() / ".local" / "llm_providers.json"
 INTENT_ID_RE = re.compile(r"^-\s*intent_id:\s*(\S+)\s*$", re.MULTILINE)
@@ -57,6 +59,19 @@ def load_provider_config() -> dict[str, Any]:
     rules = _read_json_file(PROVIDER_RULES_PATH)
     local = _read_json_file(LOCAL_PROVIDER_CONFIG_PATH)
     return _deep_merge(rules, local)
+
+
+def get_default_provider() -> str:
+    """Return the default provider name from merged provider config.
+
+    Reads the ``default_provider`` key from the merged provider configuration
+    (rules + local override). Falls back to ``"cli"`` only if the key is
+    missing or empty, which preserves backward compatibility for repositories
+    that have not yet declared ``default_provider``.
+    """
+    config = load_provider_config()
+    name = str(config.get("default_provider") or "").strip()
+    return name or "cli"
 
 
 def resolve_prompt_package(value: str) -> Path:
@@ -303,7 +318,69 @@ def _optional_number(config: dict[str, Any], key: str, numeric_type: type[int] |
         raise SystemExit(f"OpenAI-compatible chat provider request.{key} must be a {numeric_type.__name__}") from exc
 
 
-def _openai_chat_response(provider: str, provider_config: dict[str, Any], prompt_path: Path, prompt_text: str) -> str:
+def _safe_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_openai_usage_diagnostics(payload: dict[str, Any]) -> dict[str, Any] | None:
+    usage = payload.get("usage")
+    if not isinstance(usage, dict):
+        return None
+
+    numeric_fields = (
+        "prompt_tokens",
+        "completion_tokens",
+        "total_tokens",
+        "prompt_cache_hit_tokens",
+        "prompt_cache_miss_tokens",
+    )
+    sanitized_usage: dict[str, int] = {}
+    for field in numeric_fields:
+        parsed = _safe_int(usage.get(field))
+        if parsed is not None:
+            sanitized_usage[field] = parsed
+
+    details = usage.get("prompt_tokens_details")
+    sanitized_details: dict[str, int] = {}
+    if isinstance(details, dict):
+        for field in ("cached_tokens",):
+            parsed = _safe_int(details.get(field))
+            if parsed is not None:
+                sanitized_details[field] = parsed
+
+    if not sanitized_usage and not sanitized_details:
+        return None
+
+    diagnostics: dict[str, Any] = {"usage": sanitized_usage}
+    if sanitized_details:
+        diagnostics["prompt_tokens_details"] = sanitized_details
+    return diagnostics
+
+
+def _usage_summary(diagnostics: dict[str, Any] | None) -> dict[str, int]:
+    if not isinstance(diagnostics, dict):
+        return {}
+    usage = diagnostics.get("usage")
+    details = diagnostics.get("prompt_tokens_details")
+    summary: dict[str, int] = {}
+    if isinstance(usage, dict):
+        for field in ("prompt_tokens", "completion_tokens", "total_tokens", "prompt_cache_hit_tokens", "prompt_cache_miss_tokens"):
+            value = _safe_int(usage.get(field))
+            if value is not None:
+                summary[field] = value
+    if isinstance(details, dict):
+        value = _safe_int(details.get("cached_tokens"))
+        if value is not None:
+            summary["cached_tokens"] = value
+    return summary
+
+
+def _openai_chat_response(provider: str, provider_config: dict[str, Any], prompt_path: Path, prompt_text: str) -> tuple[str, dict[str, Any] | None]:
     interface = provider_config.get("interface", OPENAI_CHAT_PROVIDER_INTERFACE)
     if interface != OPENAI_CHAT_PROVIDER_INTERFACE:
         raise SystemExit(f"Unsupported OpenAI-compatible chat provider interface: {interface}")
@@ -385,7 +462,7 @@ def _openai_chat_response(provider: str, provider_config: dict[str, Any], prompt
             if isinstance(content, str) and content.strip():
                 if attempt > 1:
                     append_event("llm.provider.retry_recovered", "OpenAI-compatible chat provider returned output after retry", {"provider": provider, "attempt": attempt, "max_attempts": max_attempts, "prior_errors": retryable_errors})
-                return content.strip() + "\n"
+                return content.strip() + "\n", _extract_openai_usage_diagnostics(payload)
 
             message = f"OpenAI-compatible chat provider choices.0.message.content is empty [empty_response] (provider={provider}, attempt {attempt}/{max_attempts})"
             retryable_errors.append(message)
@@ -398,13 +475,13 @@ def _openai_chat_response(provider: str, provider_config: dict[str, Any], prompt
     raise SystemExit(f"OpenAI-compatible chat provider failed after {max_attempts} attempt(s) (provider={provider}, interface={interface}): {detail}")
 
 
-def _provider_response(provider: str, provider_config: dict[str, Any], prompt_path: Path, prompt_text: str) -> str:
+def _provider_response(provider: str, provider_config: dict[str, Any], prompt_path: Path, prompt_text: str) -> tuple[str, dict[str, Any] | None]:
     prompt_text = sanitize_llm_text(prompt_text)
     interface = provider_config.get("interface", CLI_PROVIDER_INTERFACE)
     if interface == CLI_PROVIDER_INTERFACE:
-        return _cli_response(provider_config, prompt_text)
+        return _cli_response(provider_config, prompt_text), None
     if interface == API_PROVIDER_INTERFACE:
-        return _api_response(provider_config, prompt_path, prompt_text)
+        return _api_response(provider_config, prompt_path, prompt_text), None
     if interface == OPENAI_CHAT_PROVIDER_INTERFACE:
         return _openai_chat_response(provider, provider_config, prompt_path, prompt_text)
     raise SystemExit(f"Unsupported LLM provider interface for {provider}: {interface}")
@@ -419,23 +496,44 @@ def run_llm(prompt_package: str, provider: str) -> tuple[Path, list[dict[str, An
 
     prompt_path = resolve_prompt_package(prompt_package)
     prompt_text = prompt_path.read_text(encoding="utf-8")
-    response_text = _provider_response(provider, provider_config, prompt_path, prompt_text)
+    response_text, usage_diagnostics = _provider_response(provider, provider_config, prompt_path, prompt_text)
 
     ensure_dir(LLM_RESULTS_DIR)
     result_id = new_id("llm_result")
     result_path = LLM_RESULTS_DIR / f"{result_id}.md"
     result_path.write_text(response_text, encoding="utf-8")
 
+    usage_path: Path | None = None
+    if usage_diagnostics:
+        ensure_dir(LLM_USAGE_DIR)
+        usage_path = LLM_USAGE_DIR / f"{result_id}.json"
+        usage_record = {
+            "schema": "abyss.llm_usage_diagnostics.v1",
+            "id": result_id,
+            "created_at": now_iso(),
+            "provider": provider,
+            "interface": provider_config.get("interface", CLI_PROVIDER_INTERFACE),
+            "model": str(provider_config.get("model") or ""),
+            "prompt_package": prompt_path.as_posix(),
+            "result_path": result_path.as_posix(),
+            **usage_diagnostics,
+        }
+        usage_path.write_text(json.dumps(usage_record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
     intent_path = _intent_path_from_prompt(prompt_text)
     proposals = import_result(result_path, intent_path)
+    event_details: dict[str, Any] = {
+        "provider": provider,
+        "prompt_package": prompt_path.as_posix(),
+        "result_path": result_path.as_posix(),
+        "actions_found": len(proposals),
+    }
+    if usage_path:
+        event_details["usage_path"] = usage_path.as_posix()
+        event_details["usage"] = _usage_summary(usage_diagnostics)
     append_event(
         "llm.run",
         "Ran LLM provider and imported result",
-        {
-            "provider": provider,
-            "prompt_package": prompt_path.as_posix(),
-            "result_path": result_path.as_posix(),
-            "actions_found": len(proposals),
-        },
+        event_details,
     )
     return result_path, proposals

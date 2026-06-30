@@ -115,13 +115,13 @@ def _load_agent_run_records() -> list[dict[str, Any]]:
     agent_runs_dir = runtime_root() / "process" / "agent_runs"
     if not agent_runs_dir.exists():
         return []
-    import yaml
+    import json
     records: list[dict[str, Any]] = []
     paths = sorted(agent_runs_dir.glob("agent_run_*.yaml"), key=lambda p: p.stat().st_mtime, reverse=True)[:_MAX_RECENT_EVENTS]
     for path in paths:
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
-            data = yaml.safe_load(text) if text.strip() else {}
+            data = json.loads(text) if text.strip() else {}
         except Exception:
             data = {}
         if isinstance(data, dict):

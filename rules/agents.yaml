@@ -5,8 +5,8 @@
     "harness": {
       "enabled": true,
       "description": "Reviews action proposals, ChangeSets, LLM outputs, and Harness boundary risks without approving or executing actions.",
-      "provider": "cli",
-      "default_provider_interface": "stdin_prompt_package_stdout_response_v1",
+      "provider": "deepseek",
+      "default_provider_interface": "http_openai_chat_completion_v1",
       "role": "harness_review",
       "role_prompt": "prompts/agents/harness_agent.md",
       "output_schema": "abyss.harness_review.v1",
@@ -42,8 +42,8 @@
     "self_evolution": {
       "enabled": true,
       "description": "Analyzes evolution requests and proposes bounded self-iteration plans without modifying files or approving work.",
-      "provider": "cli",
-      "default_provider_interface": "stdin_prompt_package_stdout_response_v1",
+      "provider": "deepseek",
+      "default_provider_interface": "http_openai_chat_completion_v1",
       "role": "self_evolution_planning",
       "role_prompt": "prompts/agents/self_evolution_agent.md",
       "output_schema": "abyss.evolution_analysis.v1",
@@ -75,8 +75,8 @@
     "implementation": {
       "enabled": true,
       "description": "Generates proposed abyss.change_set.v1, abyss.context_request.v1, or abyss.blocked_result.v1 records for approved roadmap/evolution targets without executing, approving, or modifying files directly.",
-      "provider": "cli",
-      "default_provider_interface": "stdin_prompt_package_stdout_response_v1",
+      "provider": "deepseek",
+      "default_provider_interface": "http_openai_chat_completion_v1",
       "role": "implementation_changeset_planning",
       "role_prompt": "prompts/agents/implementation_agent.md",
       "output_schema": ["abyss.change_set.v1", "abyss.context_request.v1", "abyss.blocked_result.v1"],
@@ -112,14 +112,14 @@
       ]
     },
     "brain": {
-      "enabled": false,
+      "enabled": true,
       "experimental": true,
-      "description": "Read-only cognition, coordination, direction alignment, task decomposition, external task brief preparation, and result integration role. Brain Agent v0 has no execution, approval, mutation, scheduling, or governance authority.",
-      "provider": "cli",
-      "default_provider_interface": "stdin_prompt_package_stdout_response_v1",
-      "role": "brain_agent_v0_read_only_cognition",
-      "role_prompt": null,
-      "output_schema": ["abyss.context_request.v1", "abyss.blocked_result.v1", "abyss.external_work_feedback_card.v1", "human_readable_status_brief"],
+      "description": "Internal coordinator: builds system understanding, detects trigger conditions, drives the Outbox Pattern by writing needs, integrates external fulfillment results, and drafts candidate evolution proposals for Owner approval. Brain Agent v1 has no execution, approval, file mutation, scheduling, or governance authority.",
+      "provider": "deepseek",
+      "default_provider_interface": "http_openai_chat_completion_v1",
+      "role": "brain_agent_v1_internal_coordinator",
+      "role_prompt": "prompts/agents/brain_agent.md",
+      "output_schema": ["abyss.brain_context.v1", "abyss.brain_tick.v1", "abyss.brain_intake.v1", "abyss.brain_propose.v1", "abyss.brain_brief.v1", "abyss.direction_alignment_view.v1", "abyss.context_request.v1", "abyss.blocked_result.v1", "abyss.external_work_feedback_card.v1", "human_readable_status_brief"],
       "input_scope": [
         "ABYSS.md",
         "architecture_cognition",
@@ -128,6 +128,11 @@
         "module_capsules",
         "contracts",
         "summary",
+        "integrity_result",
+        "disclosure_audit",
+        "memory_records",
+        "outbox_state",
+        "roadmap_current",
         "workflows_reports_when_needed",
         "external_feedback_cards_when_needed"
       ],
@@ -138,6 +143,9 @@
         "explain_current_state",
         "judge_phase",
         "propose_next_step",
+        "write_outbox_needs",
+        "read_outbox_fulfillments",
+        "draft_evolution_proposal",
         "prepare_external_task_brief",
         "compress_external_results_into_feedback_cards"
       ],
@@ -157,6 +165,7 @@
         "schedule_work",
         "run_commands",
         "git_operation",
+        "make_outbound_calls",
         "treat_suggestions_as_approved_tasks",
         "start_infinite_loop"
       ]

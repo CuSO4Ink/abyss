@@ -1,989 +1,2753 @@
 {
-  "schema": "abyss.module_manifest.v2",
-  "purpose": "Structured capsule map of Abyss modules. Used by Context Broker and future Brain Agent to understand module responsibilities, boundaries, records, validation, and disclosure before reading source code.",
-  "capsule_required_fields": [
-    "files",
-    "responsibility",
-    "inputs",
-    "outputs",
-    "permissions",
-    "dependencies",
-    "risk_level",
-    "validation",
-    "failure_modes",
-    "observability",
-    "runtime_records",
-    "allowed_callers",
-    "forbidden_actions",
-    "invariants"
-  ],
-  "modules": {
-    "cli_entry": {
-      "files": [
-        "abyss_cli/__main__.py"
-      ],
-      "responsibility": [
-        "argparse command registration and routing",
-        "CLI subcommand dispatch",
-        "user-facing output formatting"
-      ],
-      "inputs": [
-        "command line arguments",
-        "record ids",
-        "file paths"
-      ],
-      "outputs": [
-        "stdout summaries",
-        "delegated module calls"
-      ],
-      "permissions": [
-        "route_to_modules",
-        "format_local_output"
-      ],
-      "dependencies": [
-        "all command handler modules"
-      ],
-      "risk_level": "medium",
-      "validation": [
-        "python -m abyss_cli --help",
-        "python -m abyss_cli check"
-      ],
-      "failure_modes": [
-        "command not registered",
-        "wrong argument mapping",
-        "business logic accidentally embedded in CLI"
-      ],
-      "observability": [
-        "command output",
-        "audit events from delegated modules"
-      ],
-      "runtime_records": [],
-      "allowed_callers": [
-        "human_owner",
-        "local_cli"
-      ],
-      "forbidden_actions": [
-        "perform_business_logic_directly",
-        "bypass_module_boundaries",
-        "grant_approval_or_execution_authority"
-      ],
-      "related_commands": [
-        "intent",
-        "prompt",
-        "llm",
-        "result",
-        "evolution",
-        "workflow",
-        "owner",
-        "changeset",
-        "summary",
-        "agent",
-        "check",
-        "external"
-      ],
-      "invariants": [
-        "All new CLI commands must be registered here",
-        "No business logic in routing — delegate to modules"
-      ]
-    },
-    "agent_runner": {
-      "files": [
-        "abyss_cli/agent_runner.py"
-      ],
-      "responsibility": [
-        "Build prompt packages for each agent type",
-        "Invoke LLM provider with prompt package",
-        "Parse agent outputs into structured records"
-      ],
-      "inputs": [
-        "agent id",
-        "target record",
-        "context pack",
-        "provider config"
-      ],
-      "outputs": [
-        "agent run record",
-        "provider result file",
-        "parsed candidate records"
-      ],
-      "permissions": [
-        "build_prompt_package",
-        "invoke_configured_provider",
-        "write_runtime_agent_records"
-      ],
-      "dependencies": [
-        "context_broker",
-        "llm_executor",
-        "rules/agents.yaml",
-        "rules/llm_providers.yaml"
-      ],
-      "risk_level": "medium",
-      "validation": [
-        "python -m abyss_cli agent run harness --target latest",
-        "python -m abyss_cli check"
-      ],
-      "failure_modes": [
-        "provider failure",
-        "invalid structured output",
-        "oversized context",
-        "missing role prompt"
-      ],
-      "observability": [
-        ".local/runtime/process/agent_runs/",
-        ".local/runtime/process/prompt_packages/",
-        ".local/runtime/process/llm_results/",
-        ".local/runtime/audit/audit.md"
-      ],
-      "runtime_records": [
-        ".local/runtime/process/agent_runs/",
-        ".local/runtime/process/prompt_packages/",
-        ".local/runtime/process/llm_results/"
-      ],
-      "allowed_callers": [
-        "workflow",
-        "human_owner",
-        "local_cli"
-      ],
-      "forbidden_actions": [
-        "execute_actions",
-        "approve_changesets",
-        "modify_files_directly",
-        "bypass_harness_or_owner"
-      ],
-      "related_agents": [
-        "harness",
-        "self_evolution",
-        "implementation"
-      ],
-      "invariants": [
-        "Agent runner never executes actions",
-        "All agent runs produce audit records"
-      ]
-    },
-    "workflow": {
-      "files": [
-        "abyss_cli/workflow.py"
-      ],
-      "responsibility": [
-        "Roadmap execution state machine",
-        "Orchestrate: implementation → dry-run → harness → owner → executor",
-        "Handle blocked/failed/retry states"
-      ],
-      "inputs": [
-        "approved roadmap/proposal target",
-        "workflow id",
-        "changeset id",
-        "owner decision",
-        "stage retry request"
-      ],
-      "outputs": [
-        "workflow record",
-        "owner inbox item",
-        "execution trigger after approval",
-        "report record"
-      ],
-      "permissions": [
-        "advance_workflow_state",
-        "request_agent_runs",
-        "request_dry_run",
-        "create_owner_inbox_item",
-        "continue_after_owner_approval"
-      ],
-      "dependencies": [
-        "agent_runner",
-        "changeset",
-        "harness_review",
-        "owner",
-        "summary",
-        "integrity"
-      ],
-      "risk_level": "high",
-      "validation": [
-        "python -m abyss_cli workflow list",
-        "python -m abyss_cli check",
-        "python -m abyss_cli summary --check"
-      ],
-      "failure_modes": [
-        "stale state",
-        "broken changeset reference",
-        "missing owner item",
-        "dry-run failure",
-        "provider output invalid",
-        "execution failure"
-      ],
-      "observability": [
-        ".local/runtime/process/workflows/",
-        ".local/runtime/process/reports/",
-        ".local/runtime/audit/audit.md"
-      ],
-      "runtime_records": [
-        ".local/runtime/process/workflows/",
-        ".local/runtime/process/reports/"
-      ],
-      "allowed_callers": [
-        "human_owner",
-        "local_cli",
-        "owner_after_approval"
-      ],
-      "forbidden_actions": [
-        "apply_without_owner_approval",
-        "skip_dry_run",
-        "skip_harness_review",
-        "silently_ignore_blockers"
-      ],
-      "states": [
-        "implementation_pending",
-        "implementation_running",
-        "changeset_proposed",
-        "dry_run_passed",
-        "harness_review_running",
-        "waiting_owner_approval",
-        "approved_for_execution",
-        "executing",
-        "checking",
-        "done",
-        "failed",
-        "blocked",
-        "rejected"
-      ],
-      "invariants": [
-        "Cannot apply changeset without owner approval",
-        "Blocked state must expose reason",
-        "Terminal states: done, failed, blocked, rejected"
-      ]
-    },
-    "changeset": {
-      "files": [
-        "abyss_cli/changeset.py"
-      ],
-      "responsibility": [
-        "ChangeSet schema validation",
-        "Dry-run simulation (old_content matching)",
-        "ChangeSet execution (fs operations)",
-        "Import from agent output"
-      ],
-      "inputs": [
-        "abyss.change_set.v1 record",
-        "operation list",
-        "approval status"
-      ],
-      "outputs": [
-        "validated changeset record",
-        "dry-run result",
-        "execution record"
-      ],
-      "permissions": [
-        "validate_changeset",
-        "dry_run_changeset",
-        "apply_approved_allowlisted_fs_operations"
-      ],
-      "dependencies": [
-        "rules/capabilities.yaml",
-        "rules/contracts/change_set.v1.yaml",
-        "audit"
-      ],
-      "risk_level": "high",
-      "validation": [
-        "python -m abyss_cli changeset dry-run <id>",
-        "python -m abyss_cli check"
-      ],
-      "failure_modes": [
-        "old_content mismatch",
-        "unsupported operation",
-        "path outside allowlist",
-        "unapproved execution attempt"
-      ],
-      "observability": [
-        ".local/runtime/process/changesets/",
-        ".local/runtime/process/executions/",
-        ".local/runtime/audit/audit.md"
-      ],
-      "runtime_records": [
-        ".local/runtime/process/changesets/",
-        ".local/runtime/process/executions/"
-      ],
-      "allowed_callers": [
-        "workflow",
-        "human_owner",
-        "local_cli"
-      ],
-      "forbidden_actions": [
-        "run_arbitrary_shell",
-        "modify_policy_without_governance",
-        "apply_unapproved_changeset",
-        "write_outside_allowlist"
-      ],
-      "operations": [
-        "fs.create_file",
-        "fs.replace_exact",
-        "fs.append_file",
-        "check.command"
-      ],
-      "invariants": [
-        "old_content must match exactly for replace_exact",
-        "Only allowlisted roots can be modified",
-        "Execution requires prior approval"
-      ]
-    },
-    "evolution": {
-      "files": [
-        "abyss_cli/evolution.py",
-        "abyss_cli/evolution_analysis.py"
-      ],
-      "responsibility": [
-        "Evolution request creation and management",
-        "Proposal generation consuming self-evolution analysis",
-        "ROADMAP approval chain"
-      ],
-      "inputs": [
-        "evolution request",
-        "self-evolution analysis",
-        "owner approval/rejection"
-      ],
-      "outputs": [
-        "evolution request record",
-        "proposal record",
-        "ROADMAP item"
-      ],
-      "permissions": [
-        "create_request",
-        "create_proposal",
-        "record_owner_decision",
-        "append_approved_roadmap_item"
-      ],
-      "dependencies": [
-        "agent_runner",
-        "rules/agents.yaml",
-        "rules/governance.yaml",
-        "ROADMAP.md"
-      ],
-      "risk_level": "high",
-      "validation": [
-        "python -m abyss_cli evolution status",
-        "python -m abyss_cli check"
-      ],
-      "failure_modes": [
-        "analysis missing",
-        "duplicate roadmap reference",
-        "proposal enters roadmap without approval"
-      ],
-      "observability": [
-        ".local/runtime/evolution/requests/",
-        ".local/runtime/evolution/proposals/",
-        ".local/runtime/audit/audit.md"
-      ],
-      "runtime_records": [
-        ".local/runtime/evolution/requests/",
-        ".local/runtime/evolution/proposals/"
-      ],
-      "allowed_callers": [
-        "human_owner",
-        "local_cli"
-      ],
-      "forbidden_actions": [
-        "auto_approve_proposal",
-        "modify_files",
-        "bypass_owner"
-      ],
-      "invariants": [
-        "Proposals require user explicit approval to enter ROADMAP",
-        "Evolution analysis is advisory only"
-      ]
-    },
-    "owner": {
-      "files": [
-        "abyss_cli/owner.py"
-      ],
-      "responsibility": [
-        "Owner inbox queue management",
-        "Approval/rejection of changeset items",
-        "Workflow state coordination on owner decisions"
-      ],
-      "inputs": [
-        "owner inbox item",
-        "human approve/reject command"
-      ],
-      "outputs": [
-        "owner decision record",
-        "workflow continuation or rejection"
-      ],
-      "permissions": [
-        "record_owner_decision",
-        "signal_workflow_after_approval"
-      ],
-      "dependencies": [
-        "workflow",
-        "changeset"
-      ],
-      "risk_level": "high",
-      "validation": [
-        "python -m abyss_cli owner inbox",
-        "python -m abyss_cli check"
-      ],
-      "failure_modes": [
-        "broken workflow reference",
-        "broken changeset reference",
-        "ambiguous decision target"
-      ],
-      "observability": [
-        ".local/runtime/process/owner_inbox/",
-        ".local/runtime/audit/audit.md"
-      ],
-      "runtime_records": [
-        ".local/runtime/process/owner_inbox/"
-      ],
-      "allowed_callers": [
-        "human_owner",
-        "local_cli"
-      ],
-      "forbidden_actions": [
-        "simulate_human_approval",
-        "auto_approve",
-        "hide_rejection_reason"
-      ],
-      "invariants": [
-        "Only human owner can approve or reject",
-        "Rejection must propagate to workflow"
-      ]
-    },
-    "harness_review": {
-      "files": [
-        "abyss_cli/harness_review.py"
-      ],
-      "responsibility": [
-        "Parse HarnessAgent structured output",
-        "Store harness review records"
-      ],
-      "inputs": [
-        "HarnessAgent output",
-        "target action or changeset"
-      ],
-      "outputs": [
-        "abyss.harness_review.v1 record"
-      ],
-      "permissions": [
-        "parse_review",
-        "write_review_record"
-      ],
-      "dependencies": [
-        "agent_runner",
-        "rules/contracts/harness_review.v1.yaml"
-      ],
-      "risk_level": "medium",
-      "validation": [
-        "python -m abyss_cli harness changeset-review latest",
-        "python -m abyss_cli check"
-      ],
-      "failure_modes": [
-        "invalid review JSON",
-        "missing target reference",
-        "advisory output mistaken as approval"
-      ],
-      "observability": [
-        ".local/runtime/process/harness_reviews/"
-      ],
-      "runtime_records": [
-        ".local/runtime/process/harness_reviews/"
-      ],
-      "allowed_callers": [
-        "workflow",
-        "human_owner",
-        "local_cli"
-      ],
-      "forbidden_actions": [
-        "approve_or_reject",
-        "execute",
-        "modify_files"
-      ],
-      "verdicts": [
-        "ok",
-        "review_required",
-        "violation"
-      ],
-      "invariants": [
-        "Harness cannot approve or reject — only advise",
-        "Must check implementation completeness, not just safety"
-      ]
-    },
-    "llm_executor": {
-      "files": [
-        "abyss_cli/llm_executor.py"
-      ],
-      "responsibility": [
-        "LLM provider invocation (CLI and HTTP API)",
-        "Provider configuration loading",
-        "Response capture and storage"
-      ],
-      "inputs": [
-        "prompt package path",
-        "provider config",
-        "model args"
-      ],
-      "outputs": [
-        "LLM result file",
-        "imported response candidate"
-      ],
-      "permissions": [
-        "invoke_provider",
-        "write_llm_result"
-      ],
-      "dependencies": [
-        "rules/llm_providers.yaml"
-      ],
-      "risk_level": "medium",
-      "validation": [
-        "python -m abyss_cli llm run latest --provider cli"
-      ],
-      "failure_modes": [
-        "provider unavailable",
-        "model returns invalid structure",
-        "secret missing"
-      ],
-      "observability": [
-        ".local/runtime/process/llm_results/",
-        ".local/runtime/audit/audit.md"
-      ],
-      "runtime_records": [
-        ".local/runtime/process/llm_results/"
-      ],
-      "allowed_callers": [
-        "agent_runner",
-        "human_owner",
-        "local_cli"
-      ],
-      "forbidden_actions": [
-        "treat_provider_output_as_approval",
-        "store_secrets_in_repo",
-        "execute_model_suggestions"
-      ],
-      "providers": [
-        "cli",
-        "api"
-      ],
-      "invariants": [
-        "Provider is a transport layer only",
-        "No business logic in provider execution"
-      ]
-    },
-    "summary": {
-      "files": [
-        "abyss_cli/summary.py"
-      ],
-      "responsibility": [
-        "System status rendering",
-        "Integrity check display",
-        "Workflow and evolution status aggregation"
-      ],
-      "inputs": [
-        "runtime records",
-        "integrity result"
-      ],
-      "outputs": [
-        "human-readable status summary"
-      ],
-      "permissions": [
-        "read_runtime_status",
-        "render_summary"
-      ],
-      "dependencies": [
-        "integrity",
-        "workflow",
-        "changeset",
-        "owner"
-      ],
-      "risk_level": "low",
-      "validation": [
-        "python -m abyss_cli summary --check"
-      ],
-      "failure_modes": [
-        "hidden blocked reason",
-        "unclassified failure",
-        "misleading status"
-      ],
-      "observability": [
-        "stdout summary"
-      ],
-      "runtime_records": [],
-      "allowed_callers": [
-        "human_owner",
-        "brain",
-        "local_cli"
-      ],
-      "forbidden_actions": [
-        "modify_state",
-        "approve",
-        "execute"
-      ],
-      "invariants": [
-        "Must surface blocked reasons from workflow history",
-        "Must show dry-run failure messages"
-      ]
-    },
-    "integrity": {
-      "files": [
-        "abyss_cli/integrity.py"
-      ],
-      "responsibility": [
-        "Structural integrity checks",
-        "Security boundary validation",
-        "Rule consistency verification",
-        "Cognition layer and minimum disclosure consistency checks"
-      ],
-      "inputs": [
-        "repository structure",
-        "rules",
-        "runtime references",
-        "tracked file list"
-      ],
-      "outputs": [
-        "ok flag",
-        "integrity messages"
-      ],
-      "permissions": [
-        "read_repo_structure",
-        "read_runtime_records",
-        "run_git_ls_files"
-      ],
-      "dependencies": [
-        "rules/capabilities.yaml",
-        "rules/agents.yaml",
-        "rules/modules.yaml",
-        "rules/context_manifest.yaml",
-        "rules/architecture_cognition.yaml",
-        "rules/contracts/"
-      ],
-      "risk_level": "low",
-      "validation": [
-        "python -m abyss_cli check"
-      ],
-      "failure_modes": [
-        "false positive",
-        "missing rule coverage",
-        "unreadable malformed record"
-      ],
-      "observability": [
-        "check output",
-        "summary --check output"
-      ],
-      "runtime_records": [],
-      "allowed_callers": [
-        "human_owner",
-        "brain",
-        "workflow",
-        "local_cli"
-      ],
-      "forbidden_actions": [
-        "modify_files",
-        "approve",
-        "execute"
-      ],
-      "invariants": [
-        "Check must be idempotent and side-effect-free"
-      ]
-    },
-    "context_broker": {
-      "files": [
-        "abyss_cli/context_pack.py"
-      ],
-      "responsibility": [
-        "Build context packs for agent runs",
-        "Resolve task type to required modules and files",
-        "Provide system brief and architecture cognition to governance agents",
-        "Record context pack metadata for audit"
-      ],
-      "inputs": [
-        "agent id",
-        "target record",
-        "task type",
-        "rules/context_manifest.yaml",
-        "rules/modules.yaml",
-        "rules/architecture_cognition.yaml"
-      ],
-      "outputs": [
-        "abyss.context_pack.v1 record",
-        "rendered prompt context",
-        "context budget metadata"
-      ],
-      "permissions": [
-        "read_cognition_documents",
-        "read_selected_files",
-        "write_context_pack_record"
-      ],
-      "dependencies": [
-        "rules/context_manifest.yaml",
-        "rules/modules.yaml",
-        "rules/system_brief.yaml",
-        "rules/architecture_cognition.yaml"
-      ],
-      "risk_level": "medium",
-      "validation": [
-        "python -m abyss_cli prompt build-external \"test\"",
-        "python -m abyss_cli check"
-      ],
-      "failure_modes": [
-        "over-disclosure",
-        "missing required context",
-        "runtime noise included by default",
-        "oversized prompt package"
-      ],
-      "observability": [
-        ".local/runtime/process/context_packs/",
-        ".local/runtime/process/prompt_packages/"
-      ],
-      "runtime_records": [
-        ".local/runtime/process/context_packs/",
-        ".local/runtime/process/prompt_packages/"
-      ],
-      "allowed_callers": [
-        "agent_runner",
-        "prompt_builder",
-        "human_owner",
-        "local_cli"
-      ],
-      "forbidden_actions": [
-        "grant_execution_authority",
-        "silently_skip_missing_files",
-        "include_runtime_or_provider_workspace_by_default"
-      ],
-      "invariants": [
-        "Context pack must be recorded with every agent run",
-        "File inclusion must be justified",
-        "Missing files must be reported, not silently skipped"
-      ]
-    },
-    "external_collab": {
-      "files": [
-        "abyss_cli/external_collab.py",
-        "abyss_cli/prompt_builder.py"
-      ],
-      "responsibility": [
-        "Build governed external model task packages",
-        "Import external model output as candidate feedback cards"
-      ],
-      "inputs": [
-        "external collaboration objective",
-        "external model response file"
-      ],
-      "outputs": [
-        "external developer prompt package",
-        "abyss.external_work_feedback_card.v1 record"
-      ],
-      "permissions": [
-        "build_candidate_task_package",
-        "store_external_result",
-        "write_feedback_card"
-      ],
-      "dependencies": [
-        "context_broker",
-        "rules/contracts/external_work_feedback_card.v1.yaml",
-        "rules/context_manifest.yaml"
-      ],
-      "risk_level": "medium",
-      "validation": [
-        "python -m abyss_cli prompt build-external \"test\"",
-        "python -m abyss_cli external import-result <file>"
-      ],
-      "failure_modes": [
-        "external output mistaken as approval",
-        "oversized task package",
-        "missing expected sections"
-      ],
-      "observability": [
-        ".local/runtime/process/external_results/",
-        ".local/runtime/process/feedback_cards/"
-      ],
-      "runtime_records": [
-        ".local/runtime/process/external_results/",
-        ".local/runtime/process/feedback_cards/"
-      ],
-      "allowed_callers": [
-        "human_owner",
-        "brain",
-        "local_cli"
-      ],
-      "forbidden_actions": [
-        "create_proposal_automatically",
-        "approve",
-        "execute",
-        "modify_files",
-        "change_workflow_state"
-      ],
-      "invariants": [
-        "External output is candidate material only",
-        "Feedback cards do not create proposals or approvals"
-      ]
-    },
-    "brain": {
-      "files": [
-        "abyss_cli/brain.py"
-      ],
-      "responsibility": [
-        "render Brain Agent v0 read-only system status brief",
-        "summarize integrity, disclosure audit, feedback cards, reports, and next candidates"
-      ],
-      "inputs": [
-        "ABYSS.md",
-        "rules/architecture_cognition.yaml",
-        "summary data",
-        "integrity result",
-        "disclosure audit",
-        "feedback cards",
-        "recent reports"
-      ],
-      "outputs": [
-        "abyss.brain_brief.v1 human-readable or JSON brief"
-      ],
-      "permissions": [
-        "read_cognition_documents",
-        "read_runtime_summaries",
-        "render_status_brief"
-      ],
-      "dependencies": [
-        "summary",
-        "integrity",
-        "disclosure",
-        "external_collab"
-      ],
-      "risk_level": "low",
-      "validation": [
-        "python -m abyss_cli brain brief",
-        "python -m abyss_cli brain brief --json",
-        "python -m abyss_cli check"
-      ],
-      "failure_modes": [
-        "misleading status interpretation",
-        "overstated authority",
-        "missing feedback card summary"
-      ],
-      "observability": [
-        "stdout brief"
-      ],
-      "runtime_records": [],
-      "allowed_callers": [
-        "human_owner",
-        "local_cli"
-      ],
-      "forbidden_actions": [
-        "modify_files",
-        "approve",
-        "execute",
-        "schedule_work",
-        "bypass_harness",
-        "replace_owner",
-        "run_commands_as_brain"
-      ],
-      "invariants": [
-        "Brain brief is read-only",
-        "Brain brief grants no approval or execution authority"
-      ]
-    },
-    "disclosure": {
-      "files": [
-        "abyss_cli/disclosure.py"
-      ],
-      "responsibility": [
-        "classify paths into L0-L7 disclosure levels",
-        "audit context_manifest for over-disclosure without replacing context pack behavior"
-      ],
-      "inputs": [
-        "rules/context_manifest.yaml",
-        "rules/architecture_cognition.yaml disclosure model"
-      ],
-      "outputs": [
-        "abyss.disclosure_audit.v1",
-        "human-readable disclosure audit"
-      ],
-      "permissions": [
-        "read_context_manifest",
-        "classify_context_paths",
-        "emit_warnings"
-      ],
-      "dependencies": [
-        "rules/context_manifest.yaml",
-        "rules/architecture_cognition.yaml"
-      ],
-      "risk_level": "low",
-      "validation": [
-        "python -m abyss_cli disclosure audit",
-        "python -m abyss_cli check"
-      ],
-      "failure_modes": [
-        "false positive over-disclosure warning",
-        "path classification drift"
-      ],
-      "observability": [
-        "stdout audit",
-        "integrity messages"
-      ],
-      "runtime_records": [],
-      "allowed_callers": [
-        "integrity",
-        "brain",
-        "human_owner",
-        "local_cli"
-      ],
-      "forbidden_actions": [
-        "modify_context_manifest",
-        "grant_source_access",
-        "include_runtime_by_default"
-      ],
-      "invariants": [
-        "Disclosure audit is advisory/checking only",
-        "Existing context pack behavior remains unchanged until separately governed"
-      ]
-    },
-    "schema_validator": {
-      "files": [
-        "abyss_cli/schema_validator.py"
-      ],
-      "responsibility": [
-        "validate records against the Abyss-supported JSON Schema subset",
-        "validate schema files without external dependencies"
-      ],
-      "inputs": [
-        "rules/schemas/*.schema.json",
-        "structured records"
-      ],
-      "outputs": [
-        "schema validation error lists"
-      ],
-      "permissions": [
-        "read_schema_files",
-        "validate_in_memory_records"
-      ],
-      "dependencies": [
-        "rules/schemas/",
-        "rules/contracts/"
-      ],
-      "risk_level": "low",
-      "validation": [
-        "python -m abyss_cli check",
-        "python -m compileall -q abyss_cli"
-      ],
-      "failure_modes": [
-        "schema subset too weak",
-        "schema/business semantics confused"
-      ],
-      "observability": [
-        "integrity messages"
-      ],
-      "runtime_records": [],
-      "allowed_callers": [
-        "integrity",
-        "future record importers",
-        "human_owner",
-        "local_cli"
-      ],
-      "forbidden_actions": [
-        "approve",
-        "execute",
-        "modify_records",
-        "replace_business_validation"
-      ],
-      "invariants": [
-        "JSON Schema validation is structural only",
-        "governance semantics remain in domain code"
-      ]
+    "schema": "abyss.module_manifest.v2",
+    "purpose": "Structured capsule map of Abyss modules. Used by Context Broker and future Brain Agent to understand module responsibilities, boundaries, records, validation, and disclosure before reading source code.",
+    "capsule_required_fields": [
+        "files",
+        "responsibility",
+        "inputs",
+        "outputs",
+        "permissions",
+        "dependencies",
+        "risk_level",
+        "validation",
+        "failure_modes",
+        "observability",
+        "runtime_records",
+        "allowed_callers",
+        "forbidden_actions",
+        "invariants"
+    ],
+    "modules": {
+        "cli_entry": {
+            "files": [
+                "abyss_cli/__main__.py"
+            ],
+            "responsibility": [
+                "argparse command registration and routing",
+                "CLI subcommand dispatch",
+                "user-facing output formatting"
+            ],
+            "inputs": [
+                "command line arguments",
+                "record ids",
+                "file paths"
+            ],
+            "outputs": [
+                "stdout summaries",
+                "delegated module calls"
+            ],
+            "permissions": [
+                "route_to_modules",
+                "format_local_output"
+            ],
+            "dependencies": [
+                "all command handler modules"
+            ],
+            "risk_level": "medium",
+            "validation": [
+                "python -m abyss_cli --help",
+                "python -m abyss_cli check"
+            ],
+            "failure_modes": [
+                "command not registered",
+                "wrong argument mapping",
+                "business logic accidentally embedded in CLI"
+            ],
+            "observability": [
+                "command output",
+                "audit events from delegated modules"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "perform_business_logic_directly",
+                "bypass_module_boundaries",
+                "grant_approval_or_execution_authority"
+            ],
+            "related_commands": [
+                "intent",
+                "prompt",
+                "llm",
+                "result",
+                "evolution",
+                "workflow",
+                "owner",
+                "changeset",
+                "summary",
+                "agent",
+                "check",
+                "external"
+            ],
+            "invariants": [
+                "All new CLI commands must be registered here",
+                "No business logic in routing — delegate to modules"
+            ]
+        },
+        "agent_runner": {
+            "files": [
+                "abyss_cli/agent_runner.py"
+            ],
+            "responsibility": [
+                "Build prompt packages for each agent type",
+                "Invoke LLM provider with prompt package",
+                "Parse agent outputs into structured records"
+            ],
+            "inputs": [
+                "agent id",
+                "target record",
+                "context pack",
+                "provider config"
+            ],
+            "outputs": [
+                "agent run record",
+                "provider result file",
+                "parsed candidate records"
+            ],
+            "permissions": [
+                "build_prompt_package",
+                "invoke_configured_provider",
+                "write_runtime_agent_records"
+            ],
+            "dependencies": [
+                "context_broker",
+                "llm_executor",
+                "rules/agents.yaml",
+                "rules/llm_providers.yaml"
+            ],
+            "risk_level": "medium",
+            "validation": [
+                "python -m abyss_cli agent run harness --target latest",
+                "python -m abyss_cli check"
+            ],
+            "failure_modes": [
+                "provider failure",
+                "invalid structured output",
+                "oversized context",
+                "missing role prompt"
+            ],
+            "observability": [
+                ".local/runtime/process/agent_runs/",
+                ".local/runtime/process/prompt_packages/",
+                ".local/runtime/process/llm_results/",
+                ".local/runtime/audit/audit.md"
+            ],
+            "runtime_records": [
+                ".local/runtime/process/agent_runs/",
+                ".local/runtime/process/prompt_packages/",
+                ".local/runtime/process/llm_results/"
+            ],
+            "allowed_callers": [
+                "workflow",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "execute_actions",
+                "approve_changesets",
+                "modify_files_directly",
+                "bypass_harness_or_owner"
+            ],
+            "related_agents": [
+                "harness",
+                "self_evolution",
+                "implementation"
+            ],
+            "invariants": [
+                "Agent runner never executes actions",
+                "All agent runs produce audit records"
+            ]
+        },
+        "workflow": {
+            "files": [
+                "abyss_cli/workflow.py"
+            ],
+            "responsibility": [
+                "Roadmap execution state machine",
+                "Orchestrate: implementation → dry-run → harness → owner → executor",
+                "Handle blocked/failed/retry states"
+            ],
+            "inputs": [
+                "approved roadmap/proposal target",
+                "workflow id",
+                "changeset id",
+                "owner decision",
+                "stage retry request"
+            ],
+            "outputs": [
+                "workflow record",
+                "owner inbox item",
+                "execution trigger after approval",
+                "report record"
+            ],
+            "permissions": [
+                "advance_workflow_state",
+                "request_agent_runs",
+                "request_dry_run",
+                "create_owner_inbox_item",
+                "continue_after_owner_approval"
+            ],
+            "dependencies": [
+                "agent_runner",
+                "changeset",
+                "harness_review",
+                "owner",
+                "summary",
+                "integrity"
+            ],
+            "risk_level": "high",
+            "validation": [
+                "python -m abyss_cli workflow list",
+                "python -m abyss_cli check",
+                "python -m abyss_cli summary --check"
+            ],
+            "failure_modes": [
+                "stale state",
+                "broken changeset reference",
+                "missing owner item",
+                "dry-run failure",
+                "provider output invalid",
+                "execution failure"
+            ],
+            "observability": [
+                ".local/runtime/process/workflows/",
+                ".local/runtime/process/reports/",
+                ".local/runtime/audit/audit.md"
+            ],
+            "runtime_records": [
+                ".local/runtime/process/workflows/",
+                ".local/runtime/process/reports/"
+            ],
+            "allowed_callers": [
+                "human_owner",
+                "local_cli",
+                "owner_after_approval"
+            ],
+            "forbidden_actions": [
+                "apply_without_owner_approval",
+                "skip_dry_run",
+                "skip_harness_review",
+                "silently_ignore_blockers"
+            ],
+            "states": [
+                "implementation_pending",
+                "implementation_running",
+                "changeset_proposed",
+                "dry_run_passed",
+                "harness_review_running",
+                "waiting_owner_approval",
+                "approved_for_execution",
+                "executing",
+                "checking",
+                "done",
+                "failed",
+                "blocked",
+                "rejected"
+            ],
+            "invariants": [
+                "Cannot apply changeset without owner approval",
+                "Blocked state must expose reason",
+                "Terminal states: done, failed, blocked, rejected"
+            ]
+        },
+        "changeset": {
+            "files": [
+                "abyss_cli/changeset.py"
+            ],
+            "responsibility": [
+                "ChangeSet schema validation",
+                "Dry-run simulation (old_content matching)",
+                "ChangeSet execution (fs operations)",
+                "Import from agent output"
+            ],
+            "inputs": [
+                "abyss.change_set.v1 record",
+                "operation list",
+                "approval status"
+            ],
+            "outputs": [
+                "validated changeset record",
+                "dry-run result",
+                "execution record"
+            ],
+            "permissions": [
+                "validate_changeset",
+                "dry_run_changeset",
+                "apply_approved_allowlisted_fs_operations"
+            ],
+            "dependencies": [
+                "rules/capabilities.yaml",
+                "rules/contracts/change_set.v1.yaml",
+                "audit"
+            ],
+            "risk_level": "high",
+            "validation": [
+                "python -m abyss_cli changeset dry-run <id>",
+                "python -m abyss_cli check"
+            ],
+            "failure_modes": [
+                "old_content mismatch",
+                "unsupported operation",
+                "path outside allowlist",
+                "unapproved execution attempt"
+            ],
+            "observability": [
+                ".local/runtime/process/changesets/",
+                ".local/runtime/process/executions/",
+                ".local/runtime/audit/audit.md"
+            ],
+            "runtime_records": [
+                ".local/runtime/process/changesets/",
+                ".local/runtime/process/executions/"
+            ],
+            "allowed_callers": [
+                "workflow",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "run_arbitrary_shell",
+                "modify_policy_without_governance",
+                "apply_unapproved_changeset",
+                "write_outside_allowlist"
+            ],
+            "operations": [
+                "fs.create_file",
+                "fs.replace_exact",
+                "fs.append_file",
+                "check.command"
+            ],
+            "invariants": [
+                "old_content must match exactly for replace_exact",
+                "Only allowlisted roots can be modified",
+                "Execution requires prior approval"
+            ]
+        },
+        "evolution": {
+            "files": [
+                "abyss_cli/evolution.py",
+                "abyss_cli/evolution_analysis.py"
+            ],
+            "responsibility": [
+                "Evolution request creation and management",
+                "Proposal generation consuming self-evolution analysis",
+                "ROADMAP approval chain"
+            ],
+            "inputs": [
+                "evolution request",
+                "self-evolution analysis",
+                "owner approval/rejection"
+            ],
+            "outputs": [
+                "evolution request record",
+                "proposal record",
+                "ROADMAP item"
+            ],
+            "permissions": [
+                "create_request",
+                "create_proposal",
+                "record_owner_decision",
+                "append_approved_roadmap_item"
+            ],
+            "dependencies": [
+                "agent_runner",
+                "rules/agents.yaml",
+                "rules/governance.yaml",
+                "ROADMAP.md"
+            ],
+            "risk_level": "high",
+            "validation": [
+                "python -m abyss_cli evolution status",
+                "python -m abyss_cli check"
+            ],
+            "failure_modes": [
+                "analysis missing",
+                "duplicate roadmap reference",
+                "proposal enters roadmap without approval"
+            ],
+            "observability": [
+                ".local/runtime/evolution/requests/",
+                ".local/runtime/evolution/proposals/",
+                ".local/runtime/audit/audit.md"
+            ],
+            "runtime_records": [
+                ".local/runtime/evolution/requests/",
+                ".local/runtime/evolution/proposals/"
+            ],
+            "allowed_callers": [
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "auto_approve_proposal",
+                "modify_files",
+                "bypass_owner"
+            ],
+            "invariants": [
+                "Proposals require user explicit approval to enter ROADMAP",
+                "Evolution analysis is advisory only"
+            ]
+        },
+        "owner": {
+            "files": [
+                "abyss_cli/owner.py"
+            ],
+            "responsibility": [
+                "Owner inbox queue management",
+                "Approval/rejection of changeset items",
+                "Workflow state coordination on owner decisions"
+            ],
+            "inputs": [
+                "owner inbox item",
+                "human approve/reject command"
+            ],
+            "outputs": [
+                "owner decision record",
+                "workflow continuation or rejection"
+            ],
+            "permissions": [
+                "record_owner_decision",
+                "signal_workflow_after_approval"
+            ],
+            "dependencies": [
+                "workflow",
+                "changeset"
+            ],
+            "risk_level": "high",
+            "validation": [
+                "python -m abyss_cli owner inbox",
+                "python -m abyss_cli check"
+            ],
+            "failure_modes": [
+                "broken workflow reference",
+                "broken changeset reference",
+                "ambiguous decision target"
+            ],
+            "observability": [
+                ".local/runtime/process/owner_inbox/",
+                ".local/runtime/audit/audit.md"
+            ],
+            "runtime_records": [
+                ".local/runtime/process/owner_inbox/"
+            ],
+            "allowed_callers": [
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "simulate_human_approval",
+                "auto_approve",
+                "hide_rejection_reason"
+            ],
+            "invariants": [
+                "Only human owner can approve or reject",
+                "Rejection must propagate to workflow"
+            ]
+        },
+        "harness_review": {
+            "files": [
+                "abyss_cli/harness_review.py"
+            ],
+            "responsibility": [
+                "Parse HarnessAgent structured output",
+                "Store harness review records"
+            ],
+            "inputs": [
+                "HarnessAgent output",
+                "target action or changeset"
+            ],
+            "outputs": [
+                "abyss.harness_review.v1 record"
+            ],
+            "permissions": [
+                "parse_review",
+                "write_review_record"
+            ],
+            "dependencies": [
+                "agent_runner",
+                "rules/contracts/harness_review.v1.yaml"
+            ],
+            "risk_level": "medium",
+            "validation": [
+                "python -m abyss_cli harness changeset-review latest",
+                "python -m abyss_cli check"
+            ],
+            "failure_modes": [
+                "invalid review JSON",
+                "missing target reference",
+                "advisory output mistaken as approval"
+            ],
+            "observability": [
+                ".local/runtime/process/harness_reviews/"
+            ],
+            "runtime_records": [
+                ".local/runtime/process/harness_reviews/"
+            ],
+            "allowed_callers": [
+                "workflow",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "approve_or_reject",
+                "execute",
+                "modify_files"
+            ],
+            "verdicts": [
+                "ok",
+                "review_required",
+                "violation"
+            ],
+            "invariants": [
+                "Harness cannot approve or reject — only advise",
+                "Must check implementation completeness, not just safety"
+            ]
+        },
+        "llm_executor": {
+            "files": [
+                "abyss_cli/llm_executor.py"
+            ],
+            "responsibility": [
+                "LLM provider invocation (CLI and HTTP API)",
+                "Provider configuration loading",
+                "Response capture and storage"
+            ],
+            "inputs": [
+                "prompt package path",
+                "provider config",
+                "model args"
+            ],
+            "outputs": [
+                "LLM result file",
+                "imported response candidate"
+            ],
+            "permissions": [
+                "invoke_provider",
+                "write_llm_result"
+            ],
+            "dependencies": [
+                "rules/llm_providers.yaml"
+            ],
+            "risk_level": "medium",
+            "validation": [
+                "python -m abyss_cli llm run latest --provider cli"
+            ],
+            "failure_modes": [
+                "provider unavailable",
+                "model returns invalid structure",
+                "secret missing"
+            ],
+            "observability": [
+                ".local/runtime/process/llm_results/",
+                ".local/runtime/audit/audit.md"
+            ],
+            "runtime_records": [
+                ".local/runtime/process/llm_results/"
+            ],
+            "allowed_callers": [
+                "agent_runner",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "treat_provider_output_as_approval",
+                "store_secrets_in_repo",
+                "execute_model_suggestions"
+            ],
+            "providers": [
+                "cli",
+                "api"
+            ],
+            "invariants": [
+                "Provider is a transport layer only",
+                "No business logic in provider execution"
+            ]
+        },
+        "summary": {
+            "files": [
+                "abyss_cli/summary.py"
+            ],
+            "responsibility": [
+                "System status rendering",
+                "Integrity check display",
+                "Workflow and evolution status aggregation"
+            ],
+            "inputs": [
+                "runtime records",
+                "integrity result"
+            ],
+            "outputs": [
+                "human-readable status summary"
+            ],
+            "permissions": [
+                "read_runtime_status",
+                "render_summary"
+            ],
+            "dependencies": [
+                "integrity",
+                "workflow",
+                "changeset",
+                "owner"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli summary --check"
+            ],
+            "failure_modes": [
+                "hidden blocked reason",
+                "unclassified failure",
+                "misleading status"
+            ],
+            "observability": [
+                "stdout summary"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "human_owner",
+                "brain",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "modify_state",
+                "approve",
+                "execute"
+            ],
+            "invariants": [
+                "Must surface blocked reasons from workflow history",
+                "Must show dry-run failure messages"
+            ]
+        },
+        "integrity": {
+            "files": [
+                "abyss_cli/integrity.py"
+            ],
+            "responsibility": [
+                "Structural integrity checks",
+                "Security boundary validation",
+                "Rule consistency verification",
+                "Cognition layer and minimum disclosure consistency checks"
+            ],
+            "inputs": [
+                "repository structure",
+                "rules",
+                "runtime references",
+                "tracked file list"
+            ],
+            "outputs": [
+                "ok flag",
+                "integrity messages"
+            ],
+            "permissions": [
+                "read_repo_structure",
+                "read_runtime_records",
+                "run_git_ls_files"
+            ],
+            "dependencies": [
+                "rules/capabilities.yaml",
+                "rules/agents.yaml",
+                "rules/modules.yaml",
+                "rules/context_manifest.yaml",
+                "rules/architecture_cognition.yaml",
+                "rules/contracts/"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check"
+            ],
+            "failure_modes": [
+                "false positive",
+                "missing rule coverage",
+                "unreadable malformed record"
+            ],
+            "observability": [
+                "check output",
+                "summary --check output"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "human_owner",
+                "brain",
+                "workflow",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "modify_files",
+                "approve",
+                "execute"
+            ],
+            "invariants": [
+                "Check must be idempotent and side-effect-free"
+            ]
+        },
+        "context_broker": {
+            "files": [
+                "abyss_cli/context_pack.py"
+            ],
+            "responsibility": [
+                "Build context packs for agent runs",
+                "Resolve task type to required modules and files",
+                "Provide system brief and architecture cognition to governance agents",
+                "Record context pack metadata for audit"
+            ],
+            "inputs": [
+                "agent id",
+                "target record",
+                "task type",
+                "rules/context_manifest.yaml",
+                "rules/modules.yaml",
+                "rules/architecture_cognition.yaml"
+            ],
+            "outputs": [
+                "abyss.context_pack.v1 record",
+                "rendered prompt context",
+                "context budget metadata"
+            ],
+            "permissions": [
+                "read_cognition_documents",
+                "read_selected_files",
+                "write_context_pack_record"
+            ],
+            "dependencies": [
+                "rules/context_manifest.yaml",
+                "rules/modules.yaml",
+                "rules/system_brief.yaml",
+                "rules/architecture_cognition.yaml"
+            ],
+            "risk_level": "medium",
+            "validation": [
+                "python -m abyss_cli prompt build-external \"test\"",
+                "python -m abyss_cli check"
+            ],
+            "failure_modes": [
+                "over-disclosure",
+                "missing required context",
+                "runtime noise included by default",
+                "oversized prompt package"
+            ],
+            "observability": [
+                ".local/runtime/process/context_packs/",
+                ".local/runtime/process/prompt_packages/"
+            ],
+            "runtime_records": [
+                ".local/runtime/process/context_packs/",
+                ".local/runtime/process/prompt_packages/"
+            ],
+            "allowed_callers": [
+                "agent_runner",
+                "prompt_builder",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "grant_execution_authority",
+                "silently_skip_missing_files",
+                "include_runtime_or_provider_workspace_by_default"
+            ],
+            "invariants": [
+                "Context pack must be recorded with every agent run",
+                "File inclusion must be justified",
+                "Missing files must be reported, not silently skipped"
+            ]
+        },
+        "external_collab": {
+            "files": [
+                "abyss_cli/external_collab.py",
+                "abyss_cli/prompt_builder.py"
+            ],
+            "responsibility": [
+                "Build governed external model task packages",
+                "Import external model output as candidate feedback cards"
+            ],
+            "inputs": [
+                "external collaboration objective",
+                "external model response file"
+            ],
+            "outputs": [
+                "external developer prompt package",
+                "abyss.external_work_feedback_card.v1 record"
+            ],
+            "permissions": [
+                "build_candidate_task_package",
+                "store_external_result",
+                "write_feedback_card"
+            ],
+            "dependencies": [
+                "context_broker",
+                "rules/contracts/external_work_feedback_card.v1.yaml",
+                "rules/context_manifest.yaml"
+            ],
+            "risk_level": "medium",
+            "validation": [
+                "python -m abyss_cli prompt build-external \"test\"",
+                "python -m abyss_cli external import-result <file>"
+            ],
+            "failure_modes": [
+                "external output mistaken as approval",
+                "oversized task package",
+                "missing expected sections"
+            ],
+            "observability": [
+                ".local/runtime/process/external_results/",
+                ".local/runtime/process/feedback_cards/"
+            ],
+            "runtime_records": [
+                ".local/runtime/process/external_results/",
+                ".local/runtime/process/feedback_cards/"
+            ],
+            "allowed_callers": [
+                "human_owner",
+                "brain",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "create_proposal_automatically",
+                "approve",
+                "execute",
+                "modify_files",
+                "change_workflow_state"
+            ],
+            "invariants": [
+                "External output is candidate material only",
+                "Feedback cards do not create proposals or approvals"
+            ]
+        },
+        "brain": {
+            "files": [
+                "abyss_cli/brain.py"
+            ],
+            "responsibility": [
+                "render Brain Agent v0 read-only system status brief (backward compatible)",
+                "summarize integrity, disclosure audit, feedback cards, reports, and next candidates",
+                "render a deterministic direction-alignment view over Memory v0 records (R086, no LLM)",
+                "assemble Brain Agent v1 system-understanding context (R091, no LLM)",
+                "evaluate trigger conditions and write needs to the outbox (R091)",
+                "read and integrate fulfilled needs from the outbox (R091)",
+                "draft candidate evolution proposals for Owner approval (R091)"
+            ],
+            "inputs": [
+                "ABYSS.md",
+                "rules/architecture_cognition.yaml",
+                "summary data",
+                "integrity result",
+                "disclosure audit",
+                "feedback cards",
+                "recent reports",
+                ".local/runtime/memory/records/ (abyss.memory_record.v1)",
+                ".local/runtime/outbox/needs/ (abyss.external_need.v1)",
+                ".local/runtime/outbox/fulfillments/ (fulfillment records)",
+                "roadmap current window"
+            ],
+            "outputs": [
+                "abyss.brain_brief.v1 human-readable or JSON brief",
+                "abyss.direction_alignment_view.v1 embedded in the brief",
+                "abyss.brain_context.v1 system-understanding snapshot",
+                "abyss.brain_tick.v1 trigger evaluation and need writing",
+                "abyss.brain_intake.v1 fulfillment integration view",
+                "abyss.brain_propose.v1 candidate proposal draft"
+            ],
+            "permissions": [
+                "read_cognition_documents",
+                "read_runtime_summaries",
+                "read_memory_records",
+                "read_outbox_needs",
+                "read_outbox_fulfillments",
+                "write_outbox_needs",
+                "render_status_brief",
+                "draft_evolution_proposal"
+            ],
+            "dependencies": [
+                "summary",
+                "integrity",
+                "disclosure",
+                "external_collab",
+                "external_adapter",
+                "memory",
+                "roadmap_current",
+                "audit"
+            ],
+            "risk_level": "L2",
+            "validation": [
+                "python -m abyss_cli brain brief",
+                "python -m abyss_cli brain brief --json",
+                "python -m abyss_cli brain context",
+                "python -m abyss_cli brain tick",
+                "python -m abyss_cli brain intake",
+                "python -m abyss_cli brain propose",
+                "python -m abyss_cli check"
+            ],
+            "failure_modes": [
+                "misleading status interpretation",
+                "overstated authority",
+                "missing feedback card summary",
+                "writing duplicate needs for same trigger",
+                "proposing without system understanding"
+            ],
+            "observability": [
+                "stdout brief",
+                "audit events: brain.tick, brain.intake, brain.propose",
+                "outbox need files with created_by=brain_tick"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "modify_files",
+                "approve",
+                "execute",
+                "schedule_work",
+                "bypass_harness",
+                "replace_owner",
+                "run_commands_as_brain",
+                "make_outbound_calls",
+                "approve_own_proposals"
+            ],
+            "invariants": [
+                "Brain brief is read-only",
+                "Brain brief grants no approval or execution authority",
+                "Brain may write needs to outbox only; it does not fulfill them",
+                "Brain proposals require Owner approval before implementation",
+                "Brain never makes outbound calls"
+            ]
+        },
+        "disclosure": {
+            "files": [
+                "abyss_cli/disclosure.py"
+            ],
+            "responsibility": [
+                "classify paths into L0-L7 disclosure levels",
+                "audit context_manifest for over-disclosure without replacing context pack behavior"
+            ],
+            "inputs": [
+                "rules/context_manifest.yaml",
+                "rules/architecture_cognition.yaml disclosure model"
+            ],
+            "outputs": [
+                "abyss.disclosure_audit.v1",
+                "human-readable disclosure audit"
+            ],
+            "permissions": [
+                "read_context_manifest",
+                "classify_context_paths",
+                "emit_warnings"
+            ],
+            "dependencies": [
+                "rules/context_manifest.yaml",
+                "rules/architecture_cognition.yaml"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli disclosure audit",
+                "python -m abyss_cli check"
+            ],
+            "failure_modes": [
+                "false positive over-disclosure warning",
+                "path classification drift"
+            ],
+            "observability": [
+                "stdout audit",
+                "integrity messages"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "integrity",
+                "brain",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "modify_context_manifest",
+                "grant_source_access",
+                "include_runtime_by_default"
+            ],
+            "invariants": [
+                "Disclosure audit is advisory/checking only",
+                "Existing context pack behavior remains unchanged until separately governed"
+            ]
+        },
+        "schema_validator": {
+            "files": [
+                "abyss_cli/schema_validator.py"
+            ],
+            "responsibility": [
+                "validate records against the Abyss-supported JSON Schema subset",
+                "validate schema files without external dependencies"
+            ],
+            "inputs": [
+                "rules/schemas/*.schema.json",
+                "structured records"
+            ],
+            "outputs": [
+                "schema validation error lists"
+            ],
+            "permissions": [
+                "read_schema_files",
+                "validate_in_memory_records"
+            ],
+            "dependencies": [
+                "rules/schemas/",
+                "rules/contracts/"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "schema subset too weak",
+                "schema/business semantics confused"
+            ],
+            "observability": [
+                "integrity messages"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "integrity",
+                "future record importers",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "approve",
+                "execute",
+                "modify_records",
+                "replace_business_validation"
+            ],
+            "invariants": [
+                "JSON Schema validation is structural only",
+                "governance semantics remain in domain code"
+            ]
+        },
+        "memory": {
+            "files": [
+                "abyss_cli/memory.py"
+            ],
+            "responsibility": [
+                "record Owner direction/decision knowledge as abyss.memory_record.v1",
+                "list and show memory records",
+                "project a single record into an Obsidian-friendly Markdown note"
+            ],
+            "inputs": [
+                "owner cli arguments",
+                "memory record ids"
+            ],
+            "outputs": [
+                "abyss.memory_record.v1 records",
+                "Obsidian projection notes under user_data/memory/"
+            ],
+            "permissions": [
+                "write_memory_records",
+                "read_memory_records",
+                "write_obsidian_projection_note"
+            ],
+            "dependencies": [
+                "abyss_cli/utils.py",
+                "abyss_cli/audit.py"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "invalid kind accepted",
+                "projection treated as storage promotion",
+                "premature schema fields forcing future migration"
+            ],
+            "observability": [
+                "memory.record.created audit events",
+                "memory.record.projected audit events",
+                "integrity memory store check"
+            ],
+            "runtime_records": [
+                ".local/runtime/memory/records/"
+            ],
+            "allowed_callers": [
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "call_llm",
+                "modify_policy",
+                "modify_governance",
+                "modify_prompt",
+                "modify_roadmap",
+                "approve",
+                "execute_action",
+                "promote_storage_to_user_data",
+                "grant_agent_write_authority"
+            ],
+            "invariants": [
+                "memory records are candidate knowledge written only by the Owner",
+                "creating a record approves nothing and triggers no workflow transition",
+                "project is a read-only projection, not storage->user_data promotion",
+                "v0 schema stays minimal until an explicit contract revision"
+            ]
+        },
+        "fsm": {
+            "files": [
+                "abyss_cli/fsm.py"
+            ],
+            "responsibility": [
+                "run periodic integrity-check ticks",
+                "transition FSM states via FSM_TRANSITIONS table",
+                "record tick history to .local/runtime/fsm/ticks/",
+                "persist current FSM state to .local/runtime/fsm/state.yaml"
+            ],
+            "inputs": [
+                "integrity check result",
+                ".local/runtime/fsm/state.yaml"
+            ],
+            "outputs": [
+                "abyss.fsm_tick.v1",
+                "abyss.fsm_state.v1"
+            ],
+            "permissions": [
+                "read_integrity",
+                "write_fsm_state",
+                "write_fsm_ticks",
+                "append_audit"
+            ],
+            "dependencies": [
+                "integrity",
+                "audit"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli fsm tick",
+                "python -m abyss_cli check"
+            ],
+            "failure_modes": [
+                "stale state if ticks not run",
+                "missed integrity regression between ticks",
+                "state file corruption"
+            ],
+            "observability": [
+                ".local/runtime/fsm/ticks/*.yaml",
+                ".local/runtime/fsm/state.yaml",
+                "audit events (fsm.tick)"
+            ],
+            "runtime_records": [
+                ".local/runtime/fsm/ticks/"
+            ],
+            "allowed_callers": [
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "execute_action",
+                "approve_changeset",
+                "modify_files",
+                "run_commands",
+                "bypass_harness",
+                "replace_owner"
+            ],
+            "invariants": [
+                "FSM transitions must follow the FSM_TRANSITIONS table",
+                "every tick must call integrity check",
+                "state must persist to state.yaml after each tick"
+            ]
+        },
+        "audit": {
+            "files": [
+                "abyss_cli/audit.py"
+            ],
+            "responsibility": [
+                "append structured audit events to .local/runtime/audit/audit.md",
+                "provide append_event() utility for all modules to record audit trails"
+            ],
+            "inputs": [
+                "event_type",
+                "summary",
+                "fields dict"
+            ],
+            "outputs": [
+                "appended Markdown audit log entries"
+            ],
+            "permissions": [
+                "append_audit_log"
+            ],
+            "dependencies": [
+                "utils"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "audit log file corrupted",
+                "concurrent write race"
+            ],
+            "observability": [
+                ".local/runtime/audit/audit.md"
+            ],
+            "runtime_records": [
+                ".local/runtime/audit/audit.md"
+            ],
+            "allowed_callers": [
+                "all_internal_modules",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "delete_audit_entries",
+                "modify_existing_audit_log",
+                "suppress_events"
+            ],
+            "invariants": [
+                "Audit log is append-only",
+                "Every state-changing operation must produce an audit event"
+            ]
+        },
+        "data_sync": {
+            "files": [
+                "abyss_cli/data_sync.py"
+            ],
+            "responsibility": [
+                "initialize and configure external data repository (abyss-data)",
+                "sync user_data and storage between local and remote Git",
+                "ensure data repository directory structure"
+            ],
+            "inputs": [
+                "data sync config",
+                "git remote URL",
+                "branch name"
+            ],
+            "outputs": [
+                "abyss.data_sync_config.v1 config file",
+                "git push/pull results"
+            ],
+            "permissions": [
+                "run_git_on_data_repo",
+                "write_data_sync_config",
+                "create_directory_structure"
+            ],
+            "dependencies": [
+                "audit",
+                "utils"
+            ],
+            "risk_level": "medium",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "git remote unreachable",
+                "merge conflicts in data repo",
+                "path not a git repository"
+            ],
+            "observability": [
+                ".local/data_sync.json",
+                ".local/runtime/audit/audit.md"
+            ],
+            "runtime_records": [
+                ".local/data_sync.json"
+            ],
+            "allowed_callers": [
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "push_to_abyss_source_repo",
+                "force_push",
+                "delete_user_data",
+                "bypass_git_checks"
+            ],
+            "invariants": [
+                "Data sync operates only on the external data repository, never the source repo",
+                "Push requires explicit human-initiated command"
+            ]
+        },
+        "direct_auth": {
+            "files": [
+                "abyss_cli/direct_auth.py"
+            ],
+            "responsibility": [
+                "manage direct modification authorization secret (init, verify, rotate)",
+                "issue time-limited direct modification tickets with scoped permissions",
+                "list and expire direct modification authorizations"
+            ],
+            "inputs": [
+                "owner secret (getpass)",
+                "scope",
+                "reason",
+                "ttl_minutes"
+            ],
+            "outputs": [
+                "abyss.direct_modification_secret.v1",
+                "abyss.direct_modification_authorization.v1",
+                "abyss.direct_modification_auth_status.v1"
+            ],
+            "permissions": [
+                "write_secret_record",
+                "write_ticket_record",
+                "expire_tickets",
+                "verify_secret"
+            ],
+            "dependencies": [
+                "audit",
+                "utils"
+            ],
+            "risk_level": "high",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "secret not initialized",
+                "secret verification failed",
+                "ticket expired",
+                "scope not in allowlist"
+            ],
+            "observability": [
+                ".local/runtime/process/direct_modification_auth/",
+                ".local/runtime/audit/audit.md"
+            ],
+            "runtime_records": [
+                ".local/runtime/process/direct_modification_auth/secret.yaml",
+                ".local/runtime/process/direct_modification_auth/tickets/"
+            ],
+            "allowed_callers": [
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "store_plain_text_secret",
+                "bypass_ttl",
+                "grant_unlimited_scope",
+                "auto_renew_expired_tickets"
+            ],
+            "invariants": [
+                "Secret is stored as sha256(salt+secret), never plain text",
+                "Tickets have max TTL of 120 minutes",
+                "Only 3 scopes allowed: bootstrap_fix, diagnostics, emergency_repair"
+            ]
+        },
+        "fenced_blocks": {
+            "files": [
+                "abyss_cli/fenced_blocks.py"
+            ],
+            "responsibility": [
+                "parse named fenced code blocks from Markdown text",
+                "extract and parse JSON objects from fenced blocks with tolerance for triple-backticks inside strings",
+                "repair trailing-comma JSON syntax errors"
+            ],
+            "inputs": [
+                "raw Markdown text",
+                "block name(s)"
+            ],
+            "outputs": [
+                "parsed JSON dict",
+                "parse error message",
+                "saw_block flag"
+            ],
+            "permissions": [
+                "parse_text"
+            ],
+            "dependencies": [],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "malformed JSON",
+                "nested backticks causing premature fence close",
+                "block not found"
+            ],
+            "observability": [],
+            "runtime_records": [],
+            "allowed_callers": [
+                "agent_runner",
+                "patch_compiler",
+                "result",
+                "harness_review",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "execute_code_in_blocks",
+                "modify_input_text"
+            ],
+            "invariants": [
+                "Parser is pure text processing with no side effects",
+                "JSON repair only fixes trailing commas, no other mutations"
+            ]
+        },
+        "harness": {
+            "files": [
+                "abyss_cli/harness.py"
+            ],
+            "responsibility": [
+                "render a safe read-only Harness snapshot for LLM consumption",
+                "expose action proposal format and policy constraints to agents",
+                "render harness snapshot as Markdown or JSON"
+            ],
+            "inputs": [
+                "rules/policy.yaml",
+                "rules/capabilities.yaml"
+            ],
+            "outputs": [
+                "abyss.harness_snapshot.v1",
+                "harness Markdown",
+                "harness JSON"
+            ],
+            "permissions": [
+                "read_policy",
+                "read_capabilities"
+            ],
+            "dependencies": [
+                "policy",
+                "utils"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "policy file missing",
+                "capabilities file missing",
+                "overstated execution authority in snapshot"
+            ],
+            "observability": [
+                "stdout snapshot"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "context_broker",
+                "agent_runner",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "grant_execution_authority",
+                "modify_policy",
+                "approve_actions"
+            ],
+            "invariants": [
+                "Harness snapshot is read-only and grants no execution authority",
+                "Snapshot must clearly state LLM must not claim actions were executed"
+            ]
+        },
+        "intent": {
+            "files": [
+                "abyss_cli/intent.py"
+            ],
+            "responsibility": [
+                "create intent records from user goals",
+                "define scope boundaries for intent (allowed/denied actions)"
+            ],
+            "inputs": [
+                "goal text",
+                "mode",
+                "source"
+            ],
+            "outputs": [
+                "abyss.intent.v1 record"
+            ],
+            "permissions": [
+                "write_intent_record"
+            ],
+            "dependencies": [
+                "audit",
+                "utils"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "empty goal",
+                "invalid mode"
+            ],
+            "observability": [
+                ".local/runtime/process/intents/",
+                ".local/runtime/audit/audit.md"
+            ],
+            "runtime_records": [
+                ".local/runtime/process/intents/"
+            ],
+            "allowed_callers": [
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "auto_execute",
+                "grant_write_authority",
+                "bypass_review"
+            ],
+            "invariants": [
+                "Intent scope denies automatic.execute, git.push, outbound.message by default",
+                "Intent is a declaration, not an authorization to act"
+            ]
+        },
+        "policy": {
+            "files": [
+                "abyss_cli/policy.py"
+            ],
+            "responsibility": [
+                "load and cache rules/policy.yaml",
+                "classify actions into risk levels (L0-L5) based on capability, path, and operation",
+                "map risk levels to decisions (allow, review, deny)"
+            ],
+            "inputs": [
+                "rules/policy.yaml",
+                "action dict (capability, operation, path)"
+            ],
+            "outputs": [
+                "risk level",
+                "decision",
+                "reason"
+            ],
+            "permissions": [
+                "read_policy"
+            ],
+            "dependencies": [
+                "utils"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "policy file missing",
+                "unknown capability defaults to L3 review",
+                "path escape undetected"
+            ],
+            "observability": [
+                "integrity messages"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "harness",
+                "result",
+                "integrity",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "modify_policy",
+                "grant_approval",
+                "override_decision"
+            ],
+            "invariants": [
+                "Unknown capabilities default to L3 (review)",
+                "Path escaping repository always results in L5 (deny)",
+                "Policy is cached with lru_cache and must not be mutated at runtime"
+            ]
+        },
+        "result": {
+            "files": [
+                "abyss_cli/result.py"
+            ],
+            "responsibility": [
+                "import LLM response files and extract abyss-action proposals",
+                "classify each proposed action through policy",
+                "create review records for actions requiring human review"
+            ],
+            "inputs": [
+                "LLM response file path",
+                "intent path (optional)"
+            ],
+            "outputs": [
+                "abyss.action_proposal.v1 records",
+                "abyss.review.v1 records",
+                "imported response copy"
+            ],
+            "permissions": [
+                "write_action_proposal",
+                "write_review_record",
+                "import_response_file"
+            ],
+            "dependencies": [
+                "audit",
+                "policy",
+                "utils"
+            ],
+            "risk_level": "medium",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "malformed action block",
+                "policy classification failure",
+                "response file unreadable"
+            ],
+            "observability": [
+                ".local/runtime/process/actions/",
+                ".local/runtime/process/reviews/",
+                ".local/runtime/process/imports/",
+                ".local/runtime/audit/audit.md"
+            ],
+            "runtime_records": [
+                ".local/runtime/process/actions/",
+                ".local/runtime/process/reviews/",
+                ".local/runtime/process/imports/"
+            ],
+            "allowed_callers": [
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "execute_action",
+                "auto_approve",
+                "skip_policy_classification",
+                "bypass_review_gate"
+            ],
+            "invariants": [
+                "Every imported action must pass through policy classification",
+                "Actions with review decision must create pending review records",
+                "Imported LLM output is candidate material only"
+            ]
+        },
+        "review": {
+            "files": [
+                "abyss_cli/review.py"
+            ],
+            "responsibility": [
+                "list pending action reviews",
+                "approve or reject pending reviews",
+                "propagate review status to linked action proposals"
+            ],
+            "inputs": [
+                "review record path",
+                "status (approved/rejected)"
+            ],
+            "outputs": [
+                "updated abyss.review.v1 record",
+                "updated abyss.action_proposal.v1 status"
+            ],
+            "permissions": [
+                "read_reviews",
+                "write_review_status",
+                "write_action_status"
+            ],
+            "dependencies": [
+                "audit",
+                "utils"
+            ],
+            "risk_level": "medium",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "review not pending",
+                "invalid status",
+                "broken action reference"
+            ],
+            "observability": [
+                ".local/runtime/process/reviews/",
+                ".local/runtime/audit/audit.md"
+            ],
+            "runtime_records": [
+                ".local/runtime/process/reviews/"
+            ],
+            "allowed_callers": [
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "auto_approve",
+                "approve_non_pending_review",
+                "skip_audit"
+            ],
+            "invariants": [
+                "Only pending reviews can be approved or rejected",
+                "Review status must propagate to linked action proposal",
+                "Only human owner can approve or reject"
+            ]
+        },
+        "utils": {
+            "files": [
+                "abyss_cli/utils.py"
+            ],
+            "responsibility": [
+                "provide shared utility functions: repo_root, runtime_root, now_iso, new_id",
+                "provide record I/O: write_record, read_record, list_records, resolve_record_arg",
+                "provide git wrapper, path normalization, clipboard copy"
+            ],
+            "inputs": [
+                "file paths",
+                "record data",
+                "git args"
+            ],
+            "outputs": [
+                "resolved paths",
+                "serialized JSON records",
+                "git command output"
+            ],
+            "permissions": [
+                "read_write_runtime_records",
+                "run_git_on_source_repo",
+                "create_directories"
+            ],
+            "dependencies": [],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "record file not found",
+                "ambiguous record id",
+                "git command failure"
+            ],
+            "observability": [],
+            "runtime_records": [],
+            "allowed_callers": [
+                "all_internal_modules",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "mutate_repo_config",
+                "force_git_operations",
+                "delete_records"
+            ],
+            "invariants": [
+                "All records are JSON with UTF-8 encoding",
+                "Record IDs are timestamp+random based, globally unique within prefix",
+                "repo_root and runtime_root respect ABYSS_REPO_ROOT and ABYSS_RUNTIME_ROOT env overrides"
+            ]
+        },
+        "failure_probe": {
+            "files": [
+                "abyss_cli/failure_probe.py"
+            ],
+            "responsibility": [
+                "identify and classify failure probe candidates from workflow history",
+                "build abyss.failure_probe_candidates.v1 read-only view"
+            ],
+            "inputs": [
+                "workflow records",
+                "changeset records",
+                "failure taxonomy"
+            ],
+            "outputs": [
+                "abyss.failure_probe_candidates.v1",
+                "abyss.failure_probe_candidate.v1 entries"
+            ],
+            "permissions": [
+                "read_workflows",
+                "read_changesets",
+                "read_failure_taxonomy"
+            ],
+            "dependencies": [
+                "workflow",
+                "changeset",
+                "failure_taxonomy"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "missing workflow history",
+                "unclassifiable failure pattern"
+            ],
+            "observability": [
+                "stdout JSON"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "brain",
+                "summary",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "modify_workflows",
+                "approve",
+                "execute",
+                "create_gates"
+            ],
+            "invariants": [
+                "Failure probe candidates are descriptive read-only observations",
+                "No action is executed and no gate is created"
+            ]
+        },
+        "failure_taxonomy": {
+            "files": [
+                "abyss_cli/failure_taxonomy.py"
+            ],
+            "responsibility": [
+                "describe the canonical failure taxonomy for self-iteration",
+                "provide abyss.failure_taxonomy.v1 read-only classification reference"
+            ],
+            "inputs": [
+                "failure taxonomy definition (inline)"
+            ],
+            "outputs": [
+                "abyss.failure_taxonomy.v1"
+            ],
+            "permissions": [
+                "render_taxonomy"
+            ],
+            "dependencies": [],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "taxonomy drift from actual failure patterns"
+            ],
+            "observability": [
+                "stdout JSON"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "failure_probe",
+                "summary",
+                "brain",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "modify_taxonomy_without_governance",
+                "approve",
+                "execute"
+            ],
+            "invariants": [
+                "Taxonomy is a static reference, not a runtime classification engine",
+                "Taxonomy changes require governance mutation approval"
+            ]
+        },
+        "git_checkpoint": {
+            "files": [
+                "abyss_cli/git_checkpoint.py"
+            ],
+            "responsibility": [
+                "create Git checkpoints (commits) of the source repository",
+                "tag checkpoints for traceability",
+                "record checkpoint metadata in audit log"
+            ],
+            "inputs": [
+                "commit message",
+                "tag name (optional)"
+            ],
+            "outputs": [
+                "git commit hash",
+                "git tag",
+                "audit event"
+            ],
+            "permissions": [
+                "run_git_on_source_repo",
+                "append_audit"
+            ],
+            "dependencies": [
+                "audit",
+                "utils"
+            ],
+            "risk_level": "medium",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "git not available",
+                "nothing to commit",
+                "tag already exists"
+            ],
+            "observability": [
+                ".local/runtime/audit/audit.md"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "force_push",
+                "push_to_remote",
+                "amend_commits",
+                "delete_tags"
+            ],
+            "invariants": [
+                "Checkpoints are local commits only, never pushed automatically",
+                "Checkpoint must record audit evidence"
+            ]
+        },
+        "health": {
+            "files": [
+                "abyss_cli/health.py"
+            ],
+            "responsibility": [
+                "build read-only operations health view",
+                "classify workflow outcomes into health gate categories",
+                "aggregate health counts and active gate signals"
+            ],
+            "inputs": [
+                "workflow records",
+                "changeset records",
+                "summary data"
+            ],
+            "outputs": [
+                "abyss.operations_health.v1",
+                "health gate counts"
+            ],
+            "permissions": [
+                "read_workflows",
+                "read_changesets",
+                "read_summary"
+            ],
+            "dependencies": [
+                "workflow",
+                "changeset",
+                "summary"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "missing workflow records",
+                "unclassifiable outcome"
+            ],
+            "observability": [
+                "stdout JSON"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "summary",
+                "brain",
+                "roadmap_current",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "modify_workflows",
+                "create_gates",
+                "approve",
+                "execute"
+            ],
+            "invariants": [
+                "Health view is read-only descriptive",
+                "Health gates do not block operations automatically"
+            ]
+        },
+        "insight": {
+            "files": [
+                "abyss_cli/insight.py"
+            ],
+            "responsibility": [
+                "build read-only insight snapshot from workflow and evolution history",
+                "surface patterns, trends, and notable observations"
+            ],
+            "inputs": [
+                "workflow records",
+                "evolution records",
+                "summary data"
+            ],
+            "outputs": [
+                "abyss.insight_snapshot.v1"
+            ],
+            "permissions": [
+                "read_workflows",
+                "read_evolution",
+                "read_summary"
+            ],
+            "dependencies": [
+                "workflow",
+                "evolution",
+                "summary"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "insufficient data for patterns",
+                "misleading trend inference"
+            ],
+            "observability": [
+                "stdout JSON"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "brain",
+                "summary",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "modify_records",
+                "approve",
+                "execute",
+                "create_proposals"
+            ],
+            "invariants": [
+                "Insight snapshot is read-only",
+                "Insights are observations, not directives or approvals"
+            ]
+        },
+        "meta_governance": {
+            "files": [
+                "abyss_cli/meta_governance.py"
+            ],
+            "responsibility": [
+                "handle meta-governance and governance-mutation request types",
+                "enforce meta-governance review requirements (old-rule review, risk assessment, rollback plan, activation policy)",
+                "prevent same-cycle activation and self-approval for governance-core changes"
+            ],
+            "inputs": [
+                "governance_mutation request",
+                "meta_evolution_request",
+                "governance core detection result"
+            ],
+            "outputs": [
+                "meta-governance review packet",
+                "forbidden_closure notices"
+            ],
+            "permissions": [
+                "read_governance_surfaces",
+                "detect_governance_core_scope",
+                "render_review_packet"
+            ],
+            "dependencies": [
+                "request_rules",
+                "evolution",
+                "utils"
+            ],
+            "risk_level": "high",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "governance-core surface not detected",
+                "same-cycle activation attempted",
+                "self-approval attempted"
+            ],
+            "observability": [
+                ".local/runtime/audit/audit.md"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "evolution",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "self_approval",
+                "ordinary_self_evolution_apply",
+                "same_cycle_activation",
+                "retroactive_legitimization"
+            ],
+            "invariants": [
+                "Governance-core mutations require explicit owner approval",
+                "Same-cycle activation is forbidden for governance-core changes",
+                "Meta-governance review must include old-rule review, risk assessment, rollback plan, and activation policy"
+            ]
+        },
+        "patch_compiler": {
+            "files": [
+                "abyss_cli/patch_compiler.py"
+            ],
+            "responsibility": [
+                "compile agent output into structured changeset operations",
+                "build context recovery packets for failed implementations",
+                "parse fenced JSON blocks from agent responses"
+            ],
+            "inputs": [
+                "agent response text",
+                "target record",
+                "context pack"
+            ],
+            "outputs": [
+                "abyss.change_set.v1 operations",
+                "abyss.context_recovery_packet.v1"
+            ],
+            "permissions": [
+                "parse_agent_output",
+                "build_recovery_packet"
+            ],
+            "dependencies": [
+                "fenced_blocks",
+                "changeset",
+                "utils"
+            ],
+            "risk_level": "medium",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "unparseable agent output",
+                "missing required fields in changeset",
+                "recovery packet insufficient"
+            ],
+            "observability": [
+                ".local/runtime/process/context_recovery/",
+                ".local/runtime/audit/audit.md"
+            ],
+            "runtime_records": [
+                ".local/runtime/process/context_recovery/"
+            ],
+            "allowed_callers": [
+                "agent_runner",
+                "workflow",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "execute_changeset",
+                "approve",
+                "modify_policy",
+                "bypass_harness"
+            ],
+            "invariants": [
+                "Patch compiler produces candidate changesets only, never executes them",
+                "Context recovery packets are diagnostic, not approval"
+            ]
+        },
+        "prompt_builder": {
+            "files": [
+                "abyss_cli/prompt_builder.py"
+            ],
+            "responsibility": [
+                "build prompt packages for agent runs and external collaboration",
+                "assemble context packs, system briefs, and role prompts into deliverable packages",
+                "record prompt package metadata"
+            ],
+            "inputs": [
+                "agent id",
+                "target record",
+                "context pack",
+                "role prompt"
+            ],
+            "outputs": [
+                "abyss.prompt_package.v1",
+                "rendered prompt file"
+            ],
+            "permissions": [
+                "read_context_packs",
+                "read_role_prompts",
+                "write_prompt_package"
+            ],
+            "dependencies": [
+                "context_pack",
+                "utils"
+            ],
+            "risk_level": "medium",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "oversized prompt",
+                "missing role prompt file",
+                "context pack missing"
+            ],
+            "observability": [
+                ".local/runtime/process/prompt_packages/",
+                ".local/runtime/audit/audit.md"
+            ],
+            "runtime_records": [
+                ".local/runtime/process/prompt_packages/"
+            ],
+            "allowed_callers": [
+                "agent_runner",
+                "external_collab",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "grant_execution_authority",
+                "include_secrets_in_prompt",
+                "bypass_context_manifest"
+            ],
+            "invariants": [
+                "Prompt packages must be recorded for audit",
+                "No secrets or credentials in prompt content"
+            ]
+        },
+        "provider_reliability": {
+            "files": [
+                "abyss_cli/provider_reliability.py"
+            ],
+            "responsibility": [
+                "compute provider reliability baseline from LLM result history",
+                "classify prompt sizes and provider response patterns",
+                "build read-only reliability reference for self-iteration metrics"
+            ],
+            "inputs": [
+                "LLM result records",
+                "provider config"
+            ],
+            "outputs": [
+                "abyss.provider_reliability_baseline.v1"
+            ],
+            "permissions": [
+                "read_llm_results",
+                "read_provider_config"
+            ],
+            "dependencies": [
+                "utils"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "no LLM results available",
+                "provider config missing"
+            ],
+            "observability": [
+                "stdout JSON"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "self_iteration_metrics",
+                "summary",
+                "brain",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "modify_llm_results",
+                "create_gates",
+                "approve",
+                "execute"
+            ],
+            "invariants": [
+                "Provider reliability is a read-only descriptive baseline",
+                "No gates or blocks are created from reliability data"
+            ]
+        },
+        "request_envelope": {
+            "files": [
+                "abyss_cli/request_envelope.py"
+            ],
+            "responsibility": [
+                "parse and validate abyss.request_envelope.v1 records",
+                "enforce request envelope hard boundaries (no execution, no approval, no file mutation)",
+                "provide request envelope construction utilities"
+            ],
+            "inputs": [
+                "request envelope JSON/YAML",
+                "rules/contracts/request_envelope.v1.yaml"
+            ],
+            "outputs": [
+                "validated request envelope",
+                "validation errors"
+            ],
+            "permissions": [
+                "read_request_contracts",
+                "validate_envelope"
+            ],
+            "dependencies": [
+                "request_rules",
+                "utils"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "envelope schema mismatch",
+                "missing required fields",
+                "forbidden action in envelope"
+            ],
+            "observability": [
+                "integrity messages"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "evolution",
+                "meta_governance",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "execute_action",
+                "approve",
+                "modify_files",
+                "bypass_contract"
+            ],
+            "invariants": [
+                "Request envelope grants no execution or approval authority",
+                "Envelope hard boundaries are enforced structurally"
+            ]
+        },
+        "request_rules": {
+            "files": [
+                "abyss_cli/request_rules.py"
+            ],
+            "responsibility": [
+                "load and validate request type definitions from rules/request_types.v1.yaml",
+                "map request types to context task types and routes",
+                "detect governance-core scope in requests and proposals"
+            ],
+            "inputs": [
+                "rules/request_types.v1.yaml",
+                "rules/contracts/request_envelope.v1.yaml",
+                "request text and paths"
+            ],
+            "outputs": [
+                "request type definitions",
+                "governance core detection result (abyss.governance_core_detection.v1)",
+                "validation errors"
+            ],
+            "permissions": [
+                "read_request_types",
+                "read_request_envelope_contract",
+                "detect_governance_core"
+            ],
+            "dependencies": [
+                "utils"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "request types file missing",
+                "invalid request type definition",
+                "governance-core surface missed"
+            ],
+            "observability": [
+                "integrity messages"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "evolution",
+                "meta_governance",
+                "context_pack",
+                "integrity",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "grant_authority",
+                "approve",
+                "execute",
+                "modify_request_types"
+            ],
+            "invariants": [
+                "Governance core detector grants no authority, only marks requests for meta-governance review",
+                "Request type definitions are read-only at runtime"
+            ]
+        },
+        "roadmap_current": {
+            "files": [
+                "abyss_cli/roadmap_current.py"
+            ],
+            "responsibility": [
+                "build a read-only current roadmap view focused on operator attention",
+                "parse roadmap items from ROADMAP.md and archived roadmap files",
+                "correlate roadmap items with workflow records and health gates"
+            ],
+            "inputs": [
+                "ROADMAP.md",
+                "docs/archive/ROADMAP_*.md",
+                "summary data",
+                "workflow records"
+            ],
+            "outputs": [
+                "abyss.roadmap_current.v1",
+                "text or JSON rendering"
+            ],
+            "permissions": [
+                "read_roadmap",
+                "read_workflows",
+                "read_summary"
+            ],
+            "dependencies": [
+                "summary",
+                "workflow",
+                "utils"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "ROADMAP.md missing",
+                "stale workflow references",
+                "misleading next-action recommendation"
+            ],
+            "observability": [
+                "stdout text or JSON"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "brain",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "modify_roadmap",
+                "approve",
+                "execute",
+                "create_proposals"
+            ],
+            "invariants": [
+                "Roadmap current view is strictly read-only",
+                "Recommended next safe action is advisory only"
+            ]
+        },
+        "rule_registry": {
+            "files": [
+                "abyss_cli/rule_registry.py"
+            ],
+            "responsibility": [
+                "load and validate the rule source registry (rules/rule_sources.v1.yaml)",
+                "list declared rule sources with metadata",
+                "validate rule source entries: file existence, validation command allowlist, consumer validity",
+                "provide rule sources for a given task type (Context Broker integration)"
+            ],
+            "inputs": [
+                "rules/rule_sources.v1.yaml"
+            ],
+            "outputs": [
+                "abyss.rule_sources_listing.v1",
+                "abyss.rule_source_validation.v1"
+            ],
+            "permissions": [
+                "read_rule_sources",
+                "validate_rule_sources"
+            ],
+            "dependencies": [
+                "utils"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "registry file missing",
+                "source file not found",
+                "validation command not in allowlist"
+            ],
+            "observability": [
+                "integrity messages",
+                "stdout JSON"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "context_pack",
+                "integrity",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "modify_rule_sources",
+                "approve",
+                "execute",
+                "grant_authority"
+            ],
+            "invariants": [
+                "Rule source registry is read-only at runtime",
+                "Validation commands must be in the ALLOWED_VALIDATION_COMMANDS set"
+            ]
+        },
+        "schema_registry": {
+            "files": [
+                "abyss_cli/schema_registry.py"
+            ],
+            "responsibility": [
+                "build a read-only registry of exposed schemas and contract files",
+                "track runtime-only schemas and contracts missing JSON Schema",
+                "provide diagnostics for schema stabilization progress"
+            ],
+            "inputs": [
+                "rules/contracts/",
+                "rules/schemas/",
+                "RUNTIME_SCHEMAS constant"
+            ],
+            "outputs": [
+                "abyss.schema_registry.v1"
+            ],
+            "permissions": [
+                "read_contracts_dir",
+                "read_schemas_dir"
+            ],
+            "dependencies": [
+                "utils"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "contracts dir missing",
+                "schema ID derivation mismatch"
+            ],
+            "observability": [
+                "stdout JSON"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "summary",
+                "integrity",
+                "brain",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "modify_schemas",
+                "approve",
+                "execute",
+                "create_gates"
+            ],
+            "invariants": [
+                "Schema registry is observational only",
+                "Registry does not validate, approve, or modify schemas"
+            ]
+        },
+        "self_iteration_metrics": {
+            "files": [
+                "abyss_cli/self_iteration_metrics.py"
+            ],
+            "responsibility": [
+                "build read-only reliability metrics for the self-iteration pipeline",
+                "compute first-pass success rate, invalid changeset rate, provider empty rate, manual correction rate, context recovery success rate",
+                "provide windowed metrics (all-time, recent-20, recent-50)"
+            ],
+            "inputs": [
+                "workflow records",
+                "changeset records",
+                "provider reliability baseline"
+            ],
+            "outputs": [
+                "abyss.self_iteration_reliability_metrics.v1"
+            ],
+            "permissions": [
+                "read_workflows",
+                "read_changesets",
+                "read_provider_reliability"
+            ],
+            "dependencies": [
+                "workflow",
+                "changeset",
+                "provider_reliability"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "no records available",
+                "small denominator noise in windowed metrics"
+            ],
+            "observability": [
+                "stdout JSON"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "summary",
+                "brain",
+                "roadmap_current",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "create_gates",
+                "approve",
+                "execute",
+                "modify_records",
+                "infer_missing_data_as_success"
+            ],
+            "invariants": [
+                "Metrics are descriptive read-only observations, not approval gates",
+                "Null values mean zero denominator, not zero success",
+                "Windowed metrics may be noisy for small denominators"
+            ]
+        },
+        "smoke_fixtures": {
+            "files": [
+                "abyss_cli/smoke_fixtures.py"
+            ],
+            "responsibility": [
+                "maintain a read-only manifest of smoke fixtures created during stabilization",
+                "track fixture existence, size, area, and purpose",
+                "enforce retention policy (keep under artifacts/drafts, not importable as changeset)"
+            ],
+            "inputs": [
+                "KNOWN_SMOKE_FIXTURES constant",
+                "artifacts/drafts/ files"
+            ],
+            "outputs": [
+                "abyss.smoke_fixture_manifest.v1"
+            ],
+            "permissions": [
+                "read_artifacts_drafts"
+            ],
+            "dependencies": [
+                "utils"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m compileall -q abyss_cli"
+            ],
+            "failure_modes": [
+                "fixture file missing",
+                "fixture treated as runtime record"
+            ],
+            "observability": [
+                "stdout JSON"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "summary",
+                "integrity",
+                "human_owner",
+                "local_cli"
+            ],
+            "forbidden_actions": [
+                "import_fixture_as_changeset",
+                "treat_as_approval",
+                "modify_fixtures"
+            ],
+            "invariants": [
+                "Smoke fixtures are candidate material only, not runtime records",
+                "Fixtures are safe to delete after equivalent tests exist"
+            ]
+        },
+        "skill_registry": {
+            "files": [
+                "abyss_cli/skill.py"
+            ],
+            "responsibility": [
+                "maintain a read-only skill registry declaring candidate capabilities",
+                "list, show, and check skills without execution authority",
+                "validate schema compliance of declared skills"
+            ],
+            "inputs": [
+                "rules/skills.yaml"
+            ],
+            "outputs": [
+                "abyss.skill_registry.v1"
+            ],
+            "permissions": [
+                "read_rules_dir"
+            ],
+            "dependencies": [
+                "utils"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m abyss_cli skill check"
+            ],
+            "failure_modes": [
+                "skill registry file missing",
+                "schema mismatch"
+            ],
+            "observability": [
+                "stdout JSON",
+                "stdout text"
+            ],
+            "runtime_records": [],
+            "allowed_callers": [
+                "human_owner",
+                "local_cli",
+                "integrity"
+            ],
+            "forbidden_actions": [
+                "execute_skills",
+                "invoke_llm",
+                "mutate_files",
+                "trigger_workflows"
+            ],
+            "invariants": [
+                "Skills are declarations only, never executed",
+                "Registry is read-only"
+            ]
+        },
+        "external_adapter": {
+            "files": [
+                "abyss_cli/external_adapter.py"
+            ],
+            "responsibility": [
+                "implement the Outbox Pattern for external platform interactions",
+                "write need declarations to local outbox directory",
+                "read fulfillment records from local fulfillment directory",
+                "list and show need templates, platform capability cards, and outbox state",
+                "validate registry and outbox consistency"
+            ],
+            "inputs": [
+                "rules/external_adapters.yaml",
+                "rules/schemas/external_need.v1.schema.json",
+                ".local/runtime/outbox/needs/*.json",
+                ".local/runtime/outbox/fulfillments/*.json"
+            ],
+            "outputs": [
+                "abyss.external_need.v1 records in outbox",
+                "abyss.external_need_registry.v1 registry"
+            ],
+            "permissions": [
+                "read_rules_dir",
+                "write_outbox_needs",
+                "read_outbox_fulfillments",
+                "write_audit_events"
+            ],
+            "dependencies": [
+                "utils",
+                "audit"
+            ],
+            "risk_level": "low",
+            "validation": [
+                "python -m abyss_cli check",
+                "python -m abyss_cli adapter check"
+            ],
+            "failure_modes": [
+                "registry file missing or unreadable",
+                "need file schema mismatch",
+                "fulfillment references unknown need"
+            ],
+            "observability": [
+                "stdout JSON",
+                "stdout text",
+                "audit events (external_need.written)"
+            ],
+            "runtime_records": [
+                ".local/runtime/outbox/needs/",
+                ".local/runtime/outbox/fulfillments/"
+            ],
+            "allowed_callers": [
+                "human_owner",
+                "local_cli",
+                "fsm",
+                "brain",
+                "integrity"
+            ],
+            "forbidden_actions": [
+                "make_outbound_network_calls",
+                "invoke_external_apis",
+                "send_notifications",
+                "execute_git_commands",
+                "upload_to_knowledge_base",
+                "mutate_rules"
+            ],
+            "invariants": [
+                "Abyss never makes outbound calls of any kind",
+                "Needs are passive declarations written to local files only",
+                "Fulfillment is entirely the external platform's responsibility",
+                "Need type is an open dotted string, never a closed enum",
+                "Registry is declarative and discoverable only"
+            ]
+        }
     }
-  }
 }

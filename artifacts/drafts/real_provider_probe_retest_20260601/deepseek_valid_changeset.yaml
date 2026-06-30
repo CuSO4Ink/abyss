@@ -1,0 +1,100 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_demo_iteration_marker_r085",
+  "roadmap_id": "R085",
+  "summary": "Add read-only demo helper function demo_iteration_marker to abyss_cli/utils.py",
+  "risk_level": "L2",
+  "status": "rejected",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/utils.py"
+      },
+      "input": {
+        "old_content": "    return proc.returncode == 0\n",
+        "new_content": "    return proc.returncode == 0\n\n\ndef demo_iteration_marker() -> str:\n    return \"abyss_demo_iteration_ok\"\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "check_001",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m compileall -q abyss_cli"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_002",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    }
+  ],
+  "generated_by": "implementation_edit_plan",
+  "agent_run_id": "agent_run_20260601_220209_68710f",
+  "result_path": "C:/Users/violinapeng/Documents/abyss/.local/runtime/process/llm_results/llm_result_20260601_220209_f66824.md",
+  "source_edit_plan": {
+    "schema": "abyss.edit_plan.v1",
+    "id": "chg_demo_iteration_marker_r085",
+    "roadmap_id": "R085",
+    "summary": "Add read-only demo helper function demo_iteration_marker to abyss_cli/utils.py",
+    "risk_level": "L2",
+    "edits": [
+      {
+        "id": "op_001",
+        "kind": "append_after_anchor",
+        "target": {
+          "path": "abyss_cli/utils.py"
+        },
+        "anchor": "    return proc.returncode == 0\n",
+        "new_content": "\n\ndef demo_iteration_marker() -> str:\n    return \"abyss_demo_iteration_ok\"\n"
+      }
+    ],
+    "checks": [
+      "python -m compileall -q abyss_cli",
+      "python -m abyss_cli check"
+    ]
+  },
+  "created_at": "2026-06-01T22:02:09+08:00",
+  "updated_at": "2026-06-01T22:03:54+08:00",
+  "no_action_executed": true,
+  "validation": {
+    "ok": true,
+    "messages": [
+      "OK"
+    ],
+    "validated_at": "2026-06-01T22:03:54+08:00"
+  },
+  "output_type": "changeset",
+  "rejected_at": "2026-06-01T22:03:54+08:00",
+  "rejection_reason": "smoke probe re-test cleanup: deepseek reached owner gate after anchor contract fix; rejecting without applying"
+}

@@ -1,0 +1,51 @@
+{
+  "schema": "abyss.request_envelope.v1",
+  "request_id": "REQ-META-SMOKE",
+  "request_type": "meta_evolution_request",
+  "source": "smoke",
+  "created_at": "2026-06-01T15:55:28+08:00",
+  "created_by": "owner",
+  "user_intent": "Smoke meta-governance packet generation",
+  "title": "Smoke meta-governance packet generation",
+  "description": "Validate the review-packet path for self evolution governance changes without execution.",
+  "scope": [
+    "abyss_cli/evolution.py",
+    "rules/request_types.v1.yaml"
+  ],
+  "risk_level": "L3",
+  "governance_route": "meta_governance",
+  "requires_code_change": true,
+  "requires_cognition_update": true,
+  "requires_owner_approval": true,
+  "required_context": [
+    "ABYSS.md",
+    "rules/request_types.v1.yaml"
+  ],
+  "expected_artifacts": [
+    "meta_governance_packet"
+  ],
+  "validation_plan": [
+    "compileall",
+    "abyss check"
+  ],
+  "related_documents": [
+    "ABYSS.md"
+  ],
+  "status": "normalized",
+  "request_fields": {
+    "affected_governance_surface": "self_evolution",
+    "reason": "smoke validation",
+    "current_problem": "Need a review packet for governance-core changes.",
+    "proposed_change": "Build read-only meta-governance review packet.",
+    "old_rule_review": "Use prior accepted ABYSS.md and request type rules.",
+    "risk_assessment": "L3 governance-core-adjacent review material only.",
+    "rollback_plan": "Remove generated packet/module changes before activation if validation fails.",
+    "validation_plan": "Run compileall, abyss check, and packet generation smoke.",
+    "activation_policy": "delayed activation in a later workflow cycle",
+    "owner_approval_required": "explicit"
+  },
+  "missing_required_fields": [],
+  "warnings": [],
+  "notes": "Smoke fixture only; no action executed.",
+  "contract_version": "abyss.request_envelope.v1"
+}

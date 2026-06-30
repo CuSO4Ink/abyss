@@ -1,0 +1,115 @@
+{
+  "schema": "abyss.workflow.v1",
+  "id": "wf_20260601_222702_97e181",
+  "proposal_id": "evo_prop_20260601_222623_eab6e4",
+  "roadmap_id": "R085",
+  "summary": "Add a small read-only helper function format_duration_seconds to abyss_cli/utils.py that converts an integer number of s",
+  "status": "waiting_owner_approval",
+  "provider": "deepseek",
+  "source": "workflow_start",
+  "attempts": {
+    "implementation": 1,
+    "harness_review": 1,
+    "execution": 0
+  },
+  "history": [
+    {
+      "at": "2026-06-01T22:27:02+08:00",
+      "state": "implementation_pending",
+      "event": "workflow_created",
+      "source": "workflow_start"
+    },
+    {
+      "at": "2026-06-01T22:27:02+08:00",
+      "state": "implementation_running",
+      "event": "implementation_agent_started",
+      "details": {
+        "provider": "deepseek"
+      }
+    },
+    {
+      "at": "2026-06-01T22:27:42+08:00",
+      "state": "changeset_proposed",
+      "event": "changeset_generated",
+      "details": {
+        "changeset_id": "chg_r085_add_format_duration_seconds"
+      }
+    },
+    {
+      "at": "2026-06-01T22:27:42+08:00",
+      "state": "dry_run_passed",
+      "event": "dry_run_passed",
+      "details": {
+        "changeset_id": "chg_r085_add_format_duration_seconds"
+      }
+    },
+    {
+      "at": "2026-06-01T22:27:42+08:00",
+      "state": "harness_review_running",
+      "event": "harness_review_started",
+      "details": {
+        "changeset_id": "chg_r085_add_format_duration_seconds",
+        "provider": "deepseek"
+      }
+    },
+    {
+      "at": "2026-06-01T22:27:57+08:00",
+      "state": "waiting_owner_approval",
+      "event": "owner_approval_required",
+      "details": {
+        "owner_item_id": "owner_20260601_222757_839fc6",
+        "harness_review_id": "hrev_20260601_222757_db66f0"
+      }
+    }
+  ],
+  "created_at": "2026-06-01T22:27:02+08:00",
+  "updated_at": "2026-06-01T22:27:57+08:00",
+  "context_pack_id": null,
+  "implementation_agent_run_id": "agent_run_20260601_222742_dc723d",
+  "changeset_id": "chg_r085_add_format_duration_seconds",
+  "changeset_valid": true,
+  "dry_run": {
+    "schema": "abyss.changeset_dry_run.v1",
+    "changeset_id": "chg_r085_add_format_duration_seconds",
+    "ok": true,
+    "messages": [
+      "OK"
+    ],
+    "preflight": {
+      "schema": "abyss.changeset_preflight.v1",
+      "ok": true,
+      "target_resolution_failures": [],
+      "output_contract_failures": [],
+      "findings": [
+        {
+          "op_id": "op_001",
+          "ok": true,
+          "category": "target_resolution",
+          "path": "abyss_cli/utils.py",
+          "message": "OLD_CONTENT_MATCH_COUNT",
+          "count": 1
+        },
+        {
+          "op_id": "op_002",
+          "ok": true,
+          "category": "target_resolution",
+          "path": "abyss_cli/utils.py",
+          "message": "OLD_CONTENT_MATCH_COUNT",
+          "count": 1
+        }
+      ],
+      "auto_recovery": {
+        "eligible": false,
+        "strategy": "not_needed",
+        "requires_harness_and_owner_boundaries": true
+      },
+      "no_action_executed": true,
+      "no_approval_granted": true
+    },
+    "checked_at": "2026-06-01T22:27:42+08:00",
+    "no_action_executed": true
+  },
+  "harness_agent_run_id": "agent_run_20260601_222757_6e2085",
+  "harness_review_id": "hrev_20260601_222757_db66f0",
+  "owner_item_id": "owner_20260601_222757_839fc6"
+}

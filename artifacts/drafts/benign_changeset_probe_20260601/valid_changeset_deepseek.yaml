@@ -1,0 +1,125 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_r085_add_format_duration_seconds",
+  "roadmap_id": "R085",
+  "summary": "Add format_duration_seconds helper to abyss_cli/utils.py",
+  "risk_level": "L2",
+  "status": "proposed",
+  "operations": [
+    {
+      "id": "op_001",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/utils.py"
+      },
+      "input": {
+        "old_content": "from __future__ import annotations",
+        "new_content": "from __future__ import annotations\n\n\"\"\"Abyss CLI utility functions.\n\nIncludes format_duration_seconds for human-readable duration formatting.\n\"\"\""
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "op_002",
+      "kind": "fs.replace_exact",
+      "capability": "fs.write",
+      "target": {
+        "path": "abyss_cli/utils.py"
+      },
+      "input": {
+        "old_content": "    return proc.returncode == 0",
+        "new_content": "    return proc.returncode == 0\n\ndef format_duration_seconds(seconds: int) -> str:\n    \"\"\"Convert an integer number of seconds to a human-readable string like '1h 02m 03s'.\"\"\"\n    if seconds < 0:\n        raise ValueError(\"seconds must be non-negative\")\n    hours = seconds // 3600\n    remaining = seconds % 3600\n    minutes = remaining // 60\n    secs = remaining % 60\n    return f\"{hours}h {minutes:02d}m {secs:02d}s\"\n"
+      },
+      "preconditions": [
+        "old_content_matches_once"
+      ],
+      "rollback": {
+        "strategy": "manual_revert_from_git_diff"
+      }
+    },
+    {
+      "id": "check_001",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m compileall -q abyss_cli"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    },
+    {
+      "id": "check_002",
+      "kind": "check.command",
+      "capability": "process.check",
+      "target": {
+        "path": "system"
+      },
+      "input": {
+        "command": "python -m abyss_cli check"
+      },
+      "preconditions": [
+        "changes_applied_before_check"
+      ],
+      "rollback": {
+        "strategy": "not_applicable"
+      }
+    }
+  ],
+  "generated_by": "implementation_edit_plan",
+  "agent_run_id": "agent_run_20260601_222742_dc723d",
+  "result_path": "C:/Users/violinapeng/Documents/abyss/.local/runtime/process/llm_results/llm_result_20260601_222742_430a19.md",
+  "source_edit_plan": {
+    "schema": "abyss.edit_plan.v1",
+    "id": "chg_r085_add_format_duration_seconds",
+    "roadmap_id": "R085",
+    "summary": "Add format_duration_seconds helper to abyss_cli/utils.py",
+    "risk_level": "L2",
+    "edits": [
+      {
+        "id": "op_001",
+        "kind": "append_after_anchor",
+        "target": {
+          "path": "abyss_cli/utils.py"
+        },
+        "anchor": "from __future__ import annotations",
+        "new_content": "\n\n\"\"\"Abyss CLI utility functions.\n\nIncludes format_duration_seconds for human-readable duration formatting.\n\"\"\""
+      },
+      {
+        "id": "op_002",
+        "kind": "append_after_anchor",
+        "target": {
+          "path": "abyss_cli/utils.py"
+        },
+        "anchor": "    return proc.returncode == 0",
+        "new_content": "\n\ndef format_duration_seconds(seconds: int) -> str:\n    \"\"\"Convert an integer number of seconds to a human-readable string like '1h 02m 03s'.\"\"\"\n    if seconds < 0:\n        raise ValueError(\"seconds must be non-negative\")\n    hours = seconds // 3600\n    remaining = seconds % 3600\n    minutes = remaining // 60\n    secs = remaining % 60\n    return f\"{hours}h {minutes:02d}m {secs:02d}s\"\n"
+      }
+    ],
+    "checks": [
+      "python -m compileall -q abyss_cli",
+      "python -m abyss_cli check"
+    ]
+  },
+  "created_at": "2026-06-01T22:27:42+08:00",
+  "updated_at": "2026-06-01T22:27:42+08:00",
+  "no_action_executed": true,
+  "validation": {
+    "ok": true,
+    "messages": [
+      "OK"
+    ],
+    "validated_at": "2026-06-01T22:27:42+08:00"
+  },
+  "output_type": "changeset"
+}

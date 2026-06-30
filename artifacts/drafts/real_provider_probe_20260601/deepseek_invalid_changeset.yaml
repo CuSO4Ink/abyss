@@ -1,0 +1,39 @@
+{
+  "schema": "abyss.change_set.v1",
+  "id": "chg_invalid_20260601_205707_9b08d6",
+  "roadmap_id": "R085",
+  "summary": "Invalid ImplementationAgent edit plan output",
+  "risk_level": "L2",
+  "status": "invalid",
+  "operations": [],
+  "generated_by": "implementation_edit_plan",
+  "agent_run_id": "agent_run_20260601_205707_1b32e6",
+  "result_path": "C:/Users/violinapeng/Documents/abyss/.local/runtime/process/llm_results/llm_result_20260601_205707_686a52.md",
+  "validation": {
+    "ok": false,
+    "messages": [
+      "EDIT_PLAN_CONTRACT_MISSING_ANCHOR op_001"
+    ],
+    "validated_at": "2026-06-01T20:57:07+08:00"
+  },
+  "validation_errors": [
+    "EDIT_PLAN_CONTRACT_MISSING_ANCHOR op_001"
+  ],
+  "recoverable": true,
+  "recovery_classification": "format_feedback",
+  "retry_guidance": "Retry with a strictly valid abyss-edit-plan JSON block and a non-empty edits array. Escape newlines and quotes inside JSON string values.",
+  "context_recovery_packet": null,
+  "created_at": "2026-06-01T20:57:07+08:00",
+  "updated_at": "2026-06-01T20:57:07+08:00",
+  "no_action_executed": true,
+  "output_type": "changeset",
+  "parse_diagnostics": {
+    "raw_length": null,
+    "had_parse_error": false,
+    "edit_count": 1,
+    "operation_count": 2,
+    "error_count": 1,
+    "recovery_classification": "format_feedback",
+    "retry_guidance": "Retry with a strictly valid abyss-edit-plan JSON block and a non-empty edits array. Escape newlines and quotes inside JSON string values."
+  }
+}

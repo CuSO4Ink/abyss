@@ -24,7 +24,7 @@ Direct modification mode must end for ordinary system changes once the governed 
 
 > The active ROADMAP.md keeps the current reading window only; archived items remain available as historical approval evidence.
 
-Current active/current-reading window: R070-R084.
+Current active/current-reading window: R070-R091.
 
 ### R070. R070 Insight v0 read-only snapshot
 
@@ -463,9 +463,252 @@ Implementation evidence:
 - Stability pass added abyss_cli/failure_taxonomy.py so summary, insight, Brain brief, and failure probes share one classification vocabulary.
 - Stability pass added a read-only smoke fixture manifest so negative/boundary smoke artifacts remain clearly candidate-only and cannot be confused with runtime records or approvals.
 
-## Pending proposals
+### R085. Memory v0 Direction and Decision Records
+
+Source proposal: `evo_prop_20260627_165537_8efd9c`.
+
+Purpose: Memory v0 Direction and Decision Records
+
+Why it is needed: Add abyss_cli/memory.py with record/list/show/project commands; store abyss.memory_record.v1 under .local/runtime/memory/records/; add contract+schema; project to Obsidian user_data note with provenance frontmatter; lightweight integrity check. Non-goals: no storage auto promote/demote, no vector search, no LLM, no policy/governance/prompt/ROADMAP changes, no agent write authority. Risk L2. Purpose: first runnable knowledge-precipitation mechanism, the food for Brain v1 direction alignment.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R086. Brain v1 read the direction layer (deterministic, no LLM)
+
+Source proposal: `evo_prop_20260627_171809_bb9da3`.
+
+Purpose: Brain v1 read the direction layer (deterministic, no LLM)
+
+Why it is needed: Extend abyss_cli/brain.py so the read-only Brain brief ALSO reads abyss.memory_record.v1 records from .local/runtime/memory/records/ and emits a deterministic direction-alignment view: list recent directions/decisions, group by kind, and surface a simple consistency note comparing recorded directions against recent system activity. Scope: brain.py read-side only, plus minimal __main__ wiring if needed. NON-GOALS: no LLM calls, no enabling the brain agent provider, no agents.yaml enabled/role_prompt change, no approval/execute/mutate/schedule authority, no policy/governance/prompt/ROADMAP changes, no Memory schema change. Brain stays read-only candidate cognition. Risk L2. Purpose: give the Memory layer its first reader so today's direction records produce value, before any LLM semantic alignment (which is a later separate proposal).
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R087. Register FSM module capsule in modules.yaml
+
+Source proposal: `evo_prop_20260627_193027_da32f2`.
+
+Purpose: Register FSM module capsule in modules.yaml
+
+Why it is needed: Add a 'fsm' entry to rules/modules.yaml describing the existing abyss_cli/fsm.py. The FSM module manages a periodic integrity-check state machine (unknown/idle/checking/needs_attention) with tick and watch commands. Capsule will declare: files=[abyss_cli/fsm.py], responsibility=[run periodic integrity ticks, transition FSM states, record tick history], inputs=[integrity check result, .local/runtime/fsm/state.yaml], outputs=[abyss.fsm_tick.v1, abyss.fsm_state.v1], permissions=[read_integrity, write_fsm_state, write_fsm_ticks, append_audit], dependencies=[integrity, audit], risk_level=low, validation=[python -m abyss_cli fsm tick, python -m abyss_cli check], failure_modes=[stale state, missed integrity regression], observability=[.local/runtime/fsm/ticks/, .local/runtime/fsm/state.yaml, audit events], runtime_records=[.local/runtime/fsm/ticks/*.yaml], allowed_callers=[human_owner, local_cli], forbidden_actions=[execute_action, approve_changeset, modify_files, run_commands, bypass_harness], invariants=[FSM transitions must follow FSM_TRANSITIONS table, tick must call integrity check, state must persist to state.yaml]. NON-GOALS: no new code in fsm.py, no new CLI commands, no FSM behavior change, no agents.yaml change, no policy/governance/ROADMAP change. Pure capsule registration of existing code. Risk L2. Purpose: bring the FSM module into the formal capsule map so cognition layer fully recognizes it.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+### R088. Batch register infrastructure module capsules in modules.yaml
+
+Source approval: current owner conversation.
+
+Purpose: Batch register all remaining unregistered abyss_cli/*.py modules as capsules in modules.yaml.
+
+Why it is needed: After R087 registered the FSM capsule, 26 infrastructure modules still had no capsule entries in modules.yaml. These modules are already implemented and functional but invisible to the cognition layer. This item registers all of them in a single batch so the capsule map achieves full coverage of abyss_cli/*.py files. Capsules added: audit, data_sync, direct_auth, fenced_blocks, harness, intent, policy, result, review, utils, failure_probe, failure_taxonomy, git_checkpoint, health, insight, meta_governance, patch_compiler, prompt_builder, provider_reliability, request_envelope, request_rules, roadmap_current, rule_registry, schema_registry, self_iteration_metrics, smoke_fixtures. Each capsule declares all 13 required fields based on actual source code analysis. NON-GOALS: no new code, no CLI commands, no behavior change, no agents.yaml change, no policy/governance change. Pure capsule registration of existing code. Risk L2. Purpose: bring the entire abyss_cli module set into the formal capsule map so Context Broker, Brain, and future agents can discover and understand all modules.
+
+Minimal implementation slice:
+
+- Convert the approved proposal into a bounded implementation plan.
+- Keep implementation within the proposal scope unless the user approves a new roadmap item.
+- Run integrity checks and capture review evidence before completion.
+
+Expected user-visible result: the approved proposal progresses through the governed self-iteration chain instead of ad-hoc direct modification.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- The proposal can be inspected independently of ROADMAP.md.
+- No external interface is used for anything other than standard LLM invocation.
+
+Implementation evidence:
+
+- modules.yaml capsule count increased from 17 to 43.
+- All 45 abyss_cli/*.py files now have capsule coverage (2 shared capsules cover multiple files).
+- python -m abyss_cli check passes.
+- python -m compileall -q abyss_cli passes.
+- python -m abyss_cli summary --check passes.
+
+### R089. R089 Skill v0 read-only skill registry
+
+Source proposal: `evo_prop_20260627_200800_skill_v0`.
+
+Purpose: R089 Skill v0 read-only skill registry
+
+Why it is needed: Skill infrastructure was the last completely blank module among the five foundational architectures (the others being Memory, Brain, FSM, and external executor). This item adds a minimal read-only skill registry that declares existing capabilities as named skills without granting execution authority. The registry follows the established v0 pattern: declare first, read first, execute later (with a future roadmap item).
+
+Scope: add abyss_cli/skill.py and rules/skills.yaml, wire CLI subcommands (skill list/show/check) in abyss_cli/__main__.py, register skill_registry capsule in rules/modules.yaml, register skill_registry_rules in rules/rule_sources.v1.yaml, add skill check to ALLOWED_VALIDATION_COMMANDS. Pre-register 4 skills: health_check, memory_record, git_checkpoint, integrity_check — each mapped to an existing read-only command.
+
+Minimal implementation slice:
+
+- rules/skills.yaml: abyss.skill_registry.v1 schema with v0_constraints (read_only, no_execution, no_llm_calls, no_file_mutation, no_workflow_transitions)
+- abyss_cli/skill.py: list_skills, show_skill, check_skill_registry functions
+- CLI: abyss skill list [--json], abyss skill show <name>, abyss skill check
+- modules.yaml: skill_registry capsule (files, responsibilities, forbidden_actions, invariants)
+- rule_sources.v1.yaml: skill_registry_rules entry
+
+Expected user-visible result: User can list, inspect, and validate declared skills via CLI. All skills are read-only declarations mapped to existing commands. No skill is executed.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- No external interface is used for anything other than standard LLM invocation.
+- python -m abyss_cli check passes.
+- python -m compileall -q abyss_cli passes.
+- python -m abyss_cli skill list/check/show all work.
+- python -m abyss_cli rules validate passes.
+
+Implementation evidence:
+
+- rules/skills.yaml created with abyss.skill_registry.v1 schema and 4 pre-registered skills.
+- abyss_cli/skill.py implemented with list/show/check functions.
+- CLI subcommands registered in abyss_cli/__main__.py.
+- modules.yaml capsule count increased from 43 to 44.
+- rule_sources.v1.yaml entry count increased from 9 to 10.
+- python -m abyss_cli check passes.
+- python -m compileall -q abyss_cli passes.
+- python -m abyss_cli skill check passes.
+- python -m abyss_cli rules validate passes.
+
+### R090. External Outbox Pattern v0 — need declarations, capability cards, and BoxAI fulfillment flow
+
+Source proposal: inline discussion (Owner-directed architecture design).
+
+Purpose: Establish the Outbox Pattern as Abyss's external platform interaction model. Abyss writes passive need declarations to a local outbox; external platforms (starting with BoxAI) poll, read, fulfill, and write back fulfillment records. Abyss never makes outbound calls.
+
+Why it is needed: The five foundational architectures (Memory, Brain, FSM, Skill, External Executor) were all in place except the external executor. The core challenge was that Abyss cannot directly invoke external platforms (zero external dependency principle), and BoxAI has no inbound endpoint for Abyss to call. The Outbox Pattern resolves this: Abyss declares needs locally, platforms fulfill at their discretion. The need_type namespace uses dotted open strings (like MIME types) with bidirectional prefix matching, enabling progressive generalization to future platforms without schema changes.
+
+Scope: add rules/schemas/external_need.v1.schema.json (need envelope schema), rewrite rules/external_adapters.yaml as Outbox Pattern registry (need templates, capability cards, transport contract), add abyss_cli/external_adapter.py (write needs, read fulfillments, list/show/check), wire CLI subcommands (adapter list/show/platforms/platform/write-need/needs/need/fulfillment/check), register external_adapter capsule in rules/modules.yaml, register external_adapter_rules in rules/rule_sources.v1.yaml, add adapter check to ALLOWED_VALIDATION_COMMANDS.
+
+Minimal implementation slice:
+
+- rules/schemas/external_need.v1.schema.json: abyss.external_need.v1 envelope (id, type as open dotted string, version, payload, lifecycle with status/created_at/fulfilled_at/fulfilled_by/error)
+- rules/external_adapters.yaml: abyss.external_need_registry.v1 — need_type_namespace with matching_rule, lifecycle_states, outbox_transport (v0=file_outbox), 4 need_templates (notify/notify/execute.git.commit/store.kb.box), 1 capability_card (boxai with 8 supported_types), hard_boundaries
+- abyss_cli/external_adapter.py: write_need(), list_needs(), show_need(), list_pending_needs(), read_fulfillment(), check_registry(), check_outbox(), plus registry list/show for templates and platforms
+- CLI: abyss adapter list/show/platforms/platform/write-need/needs/need/fulfillment/check
+- modules.yaml: external_adapter capsule (45 total, +skill_registry from R089 = 45)
+- rule_sources.v1.yaml: external_adapter_rules entry (11 total)
+- rule_registry.py: adapter check added to ALLOWED_VALIDATION_COMMANDS
+
+Expected user-visible result: User can write external needs to the outbox via CLI, list pending needs, and read fulfillment records written by BoxAI. The full flow works: Abyss writes need -> BoxAI reads pending -> BoxAI fulfills -> Abyss reads fulfillment. Registry and outbox consistency is validated by adapter check.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- No external interface is used for anything other than standard LLM invocation.
+- python -m abyss_cli check passes.
+- python -m compileall -q abyss_cli passes.
+- python -m abyss_cli adapter check passes.
+- python -m abyss_cli adapter list/platforms work.
+- python -m abyss_cli adapter write-need/needs/need/fulfillment flow works end-to-end.
+- python -m abyss_cli rules validate passes.
+
+Implementation evidence:
+
+- rules/schemas/external_need.v1.schema.json created with abyss.external_need.v1 schema.
+- rules/external_adapters.yaml rewritten as abyss.external_need_registry.v1 with 4 need templates and 1 capability card (boxai).
+- abyss_cli/external_adapter.py implemented with write/read/check functions.
+- CLI subcommands registered in abyss_cli/__main__.py.
+- modules.yaml capsule count increased from 43 to 45 (skill_registry + external_adapter).
+- rule_sources.v1.yaml entry count increased from 10 to 11.
+- python -m abyss_cli check passes.
+- python -m compileall -q abyss_cli passes.
+- python -m abyss_cli adapter check passes.
+- Full outbox flow tested: need written -> fulfillment written -> fulfillment read successfully.
+- python -m abyss_cli rules validate passes (11 entries, ok=true).
 
 
+
+
+### R091. Brain Agent v1 Internal Coordinator — system understanding, outbox driving, integration, and proposal drafting
+
+Source proposal: inline discussion (Owner-directed architecture upgrade).
+
+Purpose: Upgrade Brain Agent from v0 (disabled, read-only brief) to v1 (enabled, internal coordinator). Brain Agent v1 builds system understanding, evaluates trigger conditions to drive the Outbox Pattern, integrates external fulfillment results, and drafts candidate evolution proposals for Owner approval. Brain becomes the internal PM/coordinator bridging system state, external platforms, and Owner decisions.
+
+Why it is needed: R090 established the Outbox Pattern pipe but no one was driving it. Brain Agent v0 was disabled and purely a read-only brief renderer. The system needs an internal coordinator that can detect conditions requiring external action, write needs to the outbox, read fulfillment results, and surface candidate proposals — all without execution, approval, or outbound calls. This bridges the gap between system awareness and external collaboration.
+
+Scope: upgrade abyss_cli/brain.py with 4 coordinator functions (build_brain_context, brain_tick, brain_intake, brain_propose), create prompts/agents/brain_agent.md, update rules/agents.yaml (enabled=true, role_prompt, v1 permissions/forbidden), update rules/modules.yaml brain capsule (L2 risk, new responsibilities/outputs/dependencies), update abyss_cli/integrity.py brain check (remove disabled requirement, add role_prompt + outbound_calls + treat_suggestions forbidden checks), wire CLI subcommands (brain context/tick/intake/propose) in abyss_cli/__main__.py.
+
+Minimal implementation slice:
+
+- brain.py: build_brain_context() aggregates integrity/summary/memory/outbox/roadmap into abyss.brain_context.v1; _evaluate_triggers() matches registry templates against system state; brain_tick() writes needs when triggers fire (dedup by type); brain_intake() reads fulfilled needs and produces integration view with recommendations; brain_propose() drafts candidate evolution proposal for Owner
+- prompts/agents/brain_agent.md: v1 coordinator role prompt with mission, allowed/forbidden lists, workflow steps
+- agents.yaml: brain enabled=true, role=brain_agent_v1_internal_coordinator, role_prompt set, allowed includes write_outbox_needs/read_outbox_fulfillments/draft_evolution_proposal, forbidden includes make_outbound_calls/treat_suggestions_as_approved_tasks
+- modules.yaml: brain capsule updated with v1 responsibilities, L2 risk, new inputs (outbox/roadmap), outputs (5 schemas), dependencies (external_adapter/roadmap_current/audit), audit events observability
+- integrity.py: brain check updated from "must be disabled" to "enabled must be bool + role_prompt required + expanded forbidden list"
+- __main__.py: brain context/tick/intake/propose subcommands registered
+
+Expected user-visible result: User can run `abyss brain context` to see a system-understanding snapshot, `abyss brain tick` to evaluate triggers and write needs, `abyss brain intake` to read fulfilled needs, and `abyss brain propose` to draft a candidate evolution proposal. Brain Agent is enabled as an internal coordinator with bounded write authority (outbox needs only). The v0 `brain brief` command remains backward compatible.
+
+Risk level: L2.
+
+Acceptance check:
+
+- The request remains non-executable until explicit user approval.
+- No external interface is used for anything other than standard LLM invocation.
+- python -m abyss_cli check passes.
+- python -m compileall -q abyss_cli passes.
+- python -m abyss_cli brain brief/context/tick/intake/propose all work.
+- python -m abyss_cli rules validate passes.
+- End-to-end: write need -> brain intake reads pending -> write fulfillment -> brain intake reads fulfilled with recommendations.
+- Brain propose detects fulfilled items and drafts candidate proposal.
+
+Implementation evidence:
+
+- abyss_cli/brain.py upgraded with 4 v1 coordinator functions.
+- prompts/agents/brain_agent.md created with v1 coordinator role definition.
+- rules/agents.yaml brain entry updated: enabled=true, role_prompt set, v1 permissions/forbidden.
+- rules/modules.yaml brain capsule updated: L2 risk, 7 responsibilities, 6 outputs, 8 dependencies.
+- abyss_cli/integrity.py brain check updated: enabled-must-be-bool + role_prompt + expanded forbidden.
+- abyss_cli/__main__.py: 4 new brain subcommands registered.
+- python -m abyss_cli check passes (OK).
+- python -m compileall -q abyss_cli passes.
+- python -m abyss_cli brain brief/context/tick/intake/propose all produce valid output.
+- End-to-end verified: test need -> intake reads pending -> fulfillment -> intake reads fulfilled with recommendations -> propose detects fulfilled item.
+- python -m abyss_cli rules validate passes (11 entries, ok=true).
 
 
 None.

@@ -1,0 +1,17 @@
+```abyss-edit-plan
+{
+  "schema": "abyss.edit_plan.v1",
+  "roadmap_id": "R081",
+  "summary": "Smoke invalid edit plan contract",
+  "edits": [
+    {
+      "id": "op_001",
+      "kind": "replace_anchor",
+      "target": {
+        "path": "abyss_cli/context_pack.py"
+      },
+      "new_content": "replacement"
+    }
+  ]
+}
+```

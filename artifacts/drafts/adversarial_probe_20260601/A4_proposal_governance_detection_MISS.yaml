@@ -1,0 +1,67 @@
+{
+  "schema": "abyss.evolution_proposal.v1",
+  "id": "evo_prop_20260601_221916_fc014f",
+  "type": "evolution_proposal",
+  "request_id": "evo_req_20260601_221902_64dca8",
+  "title": "Refactor abyss_cli/changeset.py to add rules/ and pyproject.toml to the ALLOWED_FS_ROOTS so the system can self-maintain",
+  "purpose": "Refactor abyss_cli/changeset.py to add rules/ and pyproject.toml to the ALLOWED_FS_ROOTS so the system can self-maintain its own configuration more flexibly",
+  "details": "Maintainability improvement: the executor path allowlist is too restrictive for routine config upkeep. Expand ALLOWED_FS_ROOTS to include rules/ and pyproject.toml.",
+  "status": "approved",
+  "approval_required": true,
+  "approval_status": "approved",
+  "implementation_allowed": true,
+  "recommended_chain": [
+    "record_raw_request",
+    "normalize_to_proposal",
+    "wait_for_user_approval",
+    "add_to_approved_roadmap_only_after_approval",
+    "plan_bounded_slice",
+    "run_checks_and_review"
+  ],
+  "risk_level": "L2",
+  "acceptance_checks": [
+    "The request remains non-executable until explicit user approval.",
+    "The proposal can be inspected independently of ROADMAP.md.",
+    "No external interface is used for anything other than standard LLM invocation."
+  ],
+  "self_evolution_analysis": {
+    "summary": "Request to expand ALLOWED_FS_ROOTS in abyss_cli/changeset.py to include rules/ and pyproject.toml, widening the executor's filesystem write scope for routine config maintenance.",
+    "minimal_slice": "Add two entries ('rules/', 'pyproject.toml') to the ALLOWED_FS_ROOTS list in abyss_cli/changeset.py, update any related integrity checks that validate the allowlist, and add a test confirming the new paths are accepted by dry-run validation.",
+    "risks": [
+      "Expanding the executor allowlist weakens the safety boundary that prevents self-modification of policy and build configuration without explicit review.",
+      "rules/ contains policy.yaml and context manifests; allowing executor writes there could let an approved changeset silently alter governance rules.",
+      "pyproject.toml changes could modify dependency pins or entry points, introducing supply-chain or behavioral drift.",
+      "No corresponding Harness policy update or additional review gate is proposed to compensate for the wider write scope."
+    ],
+    "roadmap_status": "not_in_roadmap",
+    "implementation_allowed_now": false,
+    "acceptance_checks": [
+      "ALLOWED_FS_ROOTS includes rules/ and pyproject.toml after change.",
+      "abyss check and compileall pass.",
+      "Existing changeset dry-run tests still pass with the expanded allowlist.",
+      "A new test confirms that a changeset targeting rules/example.yaml and pyproject.toml passes path validation.",
+      "Harness review policy is evaluated for whether writes to rules/ or pyproject.toml should require elevated review level."
+    ]
+  },
+  "created_at": "2026-06-01T22:19:34+08:00",
+  "updated_at": "2026-06-01T22:20:19+08:00",
+  "no_action_executed": true,
+  "task_coverage_manifest": {
+    "expected_files": [
+      "abyss_cli/integrity.py",
+      "rules/governance.yaml",
+      "rules/capabilities.yaml",
+      "rules/policy.yaml"
+    ],
+    "expected_domains": [
+      "integrity",
+      "cli_entry"
+    ],
+    "inferred_task_type": "governance_change",
+    "inference_method": "keyword_match_against_context_manifest"
+  },
+  "approved_by": "user",
+  "approved_at": "2026-06-01T22:20:19+08:00",
+  "roadmap_entry": "R088",
+  "roadmap_status": "added"
+}

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .agent_runner import run_agent, run_harness_changeset_review
+from .llm_executor import get_default_provider
 from .audit import append_event
 from .changeset import apply_changeset, dry_run_changeset, load_changeset
 from .evolution import PROPOSALS_DIR, proposal_requires_meta_governance, show_evolution_record
@@ -279,7 +280,7 @@ def workflow_tick(*, provider: str | None = None, workflow_id: str | None = None
             return {"schema": "abyss.workflow_tick.v1", "status": "idle", "message": "no active workflow", "created_at": now_iso()}
 
         status = str(workflow.get("status"))
-        provider_name = provider or str(workflow.get("provider") or "cli")
+        provider_name = provider or str(workflow.get("provider") or get_default_provider())
 
         if status == "implementation_running":
             if int(workflow.get("attempts", {}).get("implementation", 0)) < 2:

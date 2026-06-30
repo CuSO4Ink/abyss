@@ -11,7 +11,7 @@ from .context_pack import build_context_pack, render_context_pack_for_prompt, re
 from .fenced_blocks import parse_named_json_block
 from .harness import render_harness_json
 from .harness_review import parse_harness_review
-from .llm_executor import LLM_RESULTS_DIR, _provider_response, load_provider_config
+from .llm_executor import LLM_RESULTS_DIR, _provider_response, get_default_provider, load_provider_config
 from .evolution import resolve_evolution_target
 from .evolution_analysis import parse_evolution_analysis
 from .patch_compiler import compile_edit_plan_from_agent_output
@@ -538,31 +538,7 @@ def _build_implementation_agent_prompt(spec: dict[str, Any], target: str) -> tup
     ppkg_id = new_id("ppkg_agent_implementation")
     body = f"""# Abyss Agent Prompt Package
 
-
-- prompt_package_id: {ppkg_id}
-- agent_id: implementation
-- target_id: {target_id}
-- target_path: {relative_to_repo(target_path)}
-- context_pack_id: {context_pack.get("id")}
-- task_type: {context_pack.get("task_type")}
-- created_at: {now_iso()}
-- executor: agent_cli_provider
-
----
-
-## Context Pack Summary
-
-```
-{context_pack_summary}
-```
-
-Important: If a file is listed under `Files included`, it is available in the Repository Files section below. Do not request a file that is already included; use an `abyss-edit-plan` if the included file contains the target symbol or unique anchor.
-
-Implementation output preflight: before producing any edit, verify target clarity, context sufficiency, contract completeness, patch locality, and boundary safety. If the target file, exact symbol, unique anchor, or exact old content is not visible in the provided Repository Files, output `abyss-context-request` instead of guessing. If recent failure evidence identifies malformed JSON, placeholders, target-resolution failure, or missing context, correct that specific failure class or request the missing context; do not repeat it.
-
----
-
-## Agent registry spec
+## Stable agent registry spec
 
 ```json
 {agents_text}
@@ -570,29 +546,13 @@ Implementation output preflight: before producing any edit, verify target clarit
 
 ---
 
-## Agent role prompt
+## Stable agent role prompt
 
 {role_prompt}
 
 ---
 
-## Target approved evolution / roadmap record
-
-```json
-{json.dumps(target_record, ensure_ascii=False, indent=2)}
-```
-
----
-
-## Roadmap snapshot
-
-```markdown
-{roadmap_text}
-```
-
----
-
-## Capability registry
+## Stable capability registry
 
 ```json
 {capabilities_text}
@@ -600,23 +560,7 @@ Implementation output preflight: before producing any edit, verify target clarit
 
 ---
 
-## Recent implementation failure evidence
-
-This evidence is provided to prevent false `already_satisfied` conclusions. If recent failed, blocked, rejected, placeholder, or invalid ChangeSet evidence is relevant to the target roadmap item, do not output `already_satisfied`; produce a concrete corrective ChangeSet or a specific context request instead.
-
-```json
-{json.dumps(implementation_evidence, ensure_ascii=False, indent=2)}
-```
-
----
-
-{placeholder_feedback_constraints}{context_pack_rendered}
-
----
-
-## Required output
-
-
+## Stable implementation output contract
 
 Return exactly one fenced block: `abyss-edit-plan`, `abyss-changeset`, `abyss-context-request`, or `abyss-blocked-result`.
 
@@ -647,6 +591,61 @@ Edit-plan JSON requirements:
 - If the task is fundamentally blocked by governance or infeasibility: output `abyss-blocked-result` with valid JSON for schema `abyss.blocked_result.v1`.
 
 Do not produce `abyss-action` blocks. Do not approve, reject, apply, run commands, or claim execution. Never invent exact `old_content`; prefer `abyss-edit-plan` so the deterministic Patch Compiler can read exact file content.
+
+---
+
+## Run metadata
+
+- prompt_package_id: {ppkg_id}
+- agent_id: implementation
+- target_id: {target_id}
+- target_path: {relative_to_repo(target_path)}
+- context_pack_id: {context_pack.get("id")}
+- task_type: {context_pack.get("task_type")}
+- created_at: {now_iso()}
+- executor: agent_cli_provider
+
+---
+
+## Context Pack Summary
+
+```
+{context_pack_summary}
+```
+
+Important: If a file is listed under `Files included`, it is available in the Repository Files section below. Do not request a file that is already included; use an `abyss-edit-plan` if the included file contains the target symbol or unique anchor.
+
+Implementation output preflight: before producing any edit, verify target clarity, context sufficiency, contract completeness, patch locality, and boundary safety. If the target file, exact symbol, unique anchor, or exact old content is not visible in the provided Repository Files, output `abyss-context-request` instead of guessing. If recent failure evidence identifies malformed JSON, placeholders, target-resolution failure, or missing context, correct that specific failure class or request the missing context; do not repeat it.
+
+---
+
+## Target approved evolution / roadmap record
+
+```json
+{json.dumps(target_record, ensure_ascii=False, indent=2)}
+```
+
+---
+
+## Roadmap snapshot
+
+```markdown
+{roadmap_text}
+```
+
+---
+
+## Recent implementation failure evidence
+
+This evidence is provided to prevent false `already_satisfied` conclusions. If recent failed, blocked, rejected, placeholder, or invalid ChangeSet evidence is relevant to the target roadmap item, do not output `already_satisfied`; produce a concrete corrective ChangeSet or a specific context request instead.
+
+```json
+{json.dumps(implementation_evidence, ensure_ascii=False, indent=2)}
+```
+
+---
+
+{placeholder_feedback_constraints}{context_pack_rendered}
 """
     AGENT_PROMPT_DIR.mkdir(parents=True, exist_ok=True)
     prompt_path = AGENT_PROMPT_DIR / f"{ppkg_id}.md"
@@ -669,6 +668,196 @@ Do not produce `abyss-action` blocks. Do not approve, reject, apply, run command
         "path": prompt_path.as_posix(),
     })
     return prompt_path, target_path, target_id, context_metadata
+
+
+
+
+def _build_brain_agent_prompt(spec: dict[str, Any], target: str = "latest", question: str | None = None, working_memory: list[dict[str, Any]] | None = None) -> tuple[Path, str]:
+    from .brain import build_brain_context
+
+    role_prompt_path = repo_root() / str(spec.get("role_prompt", ""))
+    role_prompt = _safe_read(role_prompt_path)
+    if not role_prompt.strip():
+        raise SystemExit(f"BrainAgent role prompt not found or empty: {role_prompt_path}")
+
+    brain_context = build_brain_context()
+    agents_text = json.dumps(spec, ensure_ascii=False, indent=2)
+    roadmap_text = _safe_read(repo_root() / "ROADMAP.md", limit=8000)
+    system_map_excerpt = _safe_read(repo_root() / "SYSTEM_MAP.md", limit=6000)
+    constitution_text = _safe_read(repo_root() / "ABYSS_CONSTITUTION.md", limit=4000)
+
+    # Read corrected development path for Brain awareness
+    dev_path_path = Path.home() / "Documents" / "abyss-data" / "user_data" / "projects" / "abyss-future-planning" / "Corrected Development Path 2026-06-30.md"
+    dev_path_text = _safe_read(dev_path_path, limit=4000) if dev_path_path.exists() else ""
+
+    ppkg_id = new_id("ppkg_agent_brain")
+    target_label = target if target != "latest" else "current_state"
+
+    # Build working memory section if available
+    memory_section = ""
+    if working_memory:
+        memory_lines = []
+        for entry in working_memory[-10:]:  # last 10 entries
+            ts = entry.get("timestamp", "")
+            kind = entry.get("kind", "")
+            text = entry.get("text", "")
+            memory_lines.append(f"- [{ts}] {kind}: {text}")
+        memory_section = f"""---
+
+## Working memory (recent Brain cognition, for continuity)
+
+The following are your recent cognitive outputs. Use them for continuity and
+progressive understanding — do not merely repeat them.
+
+{chr(10).join(memory_lines)}
+
+"""
+
+    # Build question section if a question was asked
+    question_section = ""
+    if question and question.strip():
+        question_section = f"""---
+
+## Owner question
+
+The Owner has asked you a specific question. Your primary task is to answer
+this question using the system context, your working memory, and your
+reasoning. You may still include the standard assessment sections if they
+are relevant, but the question answer comes first.
+
+**Question:** {question.strip()}
+
+---
+
+"""
+    else:
+        question_section = """---
+
+## Required output
+
+Produce a natural-language Brain Agent assessment. Your output must include:
+
+1. **Phase assessment**: Is the system stable, needs attention, or critical?
+2. **Key observations**: What are the most important findings from the context snapshot?
+3. **Trigger evaluation**: Are there conditions that warrant writing needs to the outbox?
+4. **Integration notes**: If there are fulfilled needs, what follow-up is recommended?
+5. **Candidate proposals**: If warranted, draft a candidate evolution proposal summary (advisory only).
+6. **Next steps**: Concrete recommendations for the Owner, clearly marked as advisory.
+
+"""
+
+    body = f"""# Abyss Agent Prompt Package
+
+- prompt_package_id: {ppkg_id}
+- agent_id: brain
+- target_type: system_state_analysis
+- target_id: {target_label}
+- created_at: {now_iso()}
+- executor: agent_cli_provider
+
+---
+
+## Agent registry spec
+
+```json
+{agents_text}
+```
+
+---
+
+## Agent role prompt
+
+{role_prompt}
+
+---
+
+## Deterministic brain context snapshot
+
+This snapshot was assembled deterministically (no LLM). Your job is to reason
+over it and produce an intelligent assessment. Do not re-emit this data verbatim;
+synthesize it into actionable observations and recommendations.
+
+```json
+{json.dumps(brain_context, ensure_ascii=False, indent=2)}
+```
+
+---
+
+## Roadmap snapshot
+
+```markdown
+{roadmap_text}
+```
+
+---
+
+## Constitution excerpt
+
+```markdown
+{constitution_text}
+```
+
+---
+
+## System map excerpt
+
+```markdown
+{system_map_excerpt}
+```
+"""
+    if dev_path_text.strip():
+        body += f"""
+---
+
+## Corrected Development Path (2026-06-30)
+
+The Owner has issued a course correction. You MUST be aware of these decisions:
+
+1. **Implementation Agent self-modification chain is FROZEN.** Do not recommend
+   improving the edit-plan contract, JSON changeset format, context_request loop,
+   patch_compiler, or Implementation Agent prompt. Do not recommend R080-R084
+   follow-up hardening. These are explicitly frozen.
+
+2. **Kernel updates go through Git collaboration.** Brain Agent may identify
+   cognitive gaps and draft GitHub Issues, but does not write or modify source
+   code directly.
+
+3. **Self-evolution happens in the data layer** (memory, SOPs, skills, direction
+   records), not through self-rewriting source code.
+
+4. **Current development focus is Brain Agent cognitive depth.** The active
+   phase is enhancing your (Brain Agent's) capabilities: working memory,
+   FSM-driven behavior, and SOP accumulation.
+
+5. **Abyss is a personal "Jarvis" exoskeleton**, not a commercial product.
+   Its value is persistent cognitive state, SOP-ification, information
+   filtering, and coordinating external AI tools — not competing with them.
+
+Full document excerpt:
+
+```markdown
+{dev_path_text}
+```
+"""
+    body += f"""{memory_section}{question_section}
+Hard boundaries (reiterated):
+- You may not execute, approve, reject, or mutate anything.
+- You may not make outbound calls or schedule work.
+- Your output is candidate material, not truth or approval.
+- If you believe an evolution is warranted, phrase it as a suggestion for the Owner,
+  not as a directive.
+- **Before suggesting any new command, feature, or module**, you MUST first check the
+  `cli_commands` field in the brain context snapshot and the system map. If a similar
+  capability already exists, acknowledge it and refine your suggestion accordingly.
+  Do not propose creating something that already exists.
+
+Return your assessment as plain text. Do not produce `abyss-action` blocks.
+"""
+    AGENT_PROMPT_DIR.mkdir(parents=True, exist_ok=True)
+    prompt_path = AGENT_PROMPT_DIR / f"{ppkg_id}.md"
+    prompt_path.write_text(body, encoding="utf-8")
+    append_event("agent.prompt_package.created", "Built brain agent prompt package", {"agent_id": "brain", "target_id": target_label, "path": prompt_path.as_posix(), "has_question": bool(question), "has_memory": bool(working_memory)})
+    return prompt_path, target_label
 
 
 def _parse_json_fenced_block(text: str, fence_name: str) -> dict[str, Any] | None:
@@ -858,7 +1047,7 @@ def _parse_implementation_output(response_text: str, *, agent_run_id: str, resul
         })
         return None
 
-    # Try context_request first (higher priority — if agent says it needs more context, respect that)
+    # Try context_request first (higher priority �?if agent says it needs more context, respect that)
     context_request = _parse_context_request(response_text)
     if context_request:
         record = {
@@ -989,9 +1178,9 @@ def _parse_implementation_output(response_text: str, *, agent_run_id: str, resul
 
 
 
-def run_agent(agent_id: str, target: str = "latest", provider: str | None = None) -> tuple[dict[str, Any], dict[str, Any] | None]:
+def run_agent(agent_id: str, target: str = "latest", provider: str | None = None, question: str | None = None, working_memory: list[dict[str, Any]] | None = None) -> tuple[dict[str, Any], dict[str, Any] | None]:
     spec = _agent_spec(agent_id)
-    provider_name = provider or str(spec.get("provider") or "cli")
+    provider_name = provider or str(spec.get("provider") or get_default_provider())
     deterministic_context = None
     target_type = "action_proposal"
     context_metadata: dict[str, Any] = {}
@@ -1003,7 +1192,12 @@ def run_agent(agent_id: str, target: str = "latest", provider: str | None = None
     elif agent_id == "implementation":
         prompt_path, _target_path, target_id, context_metadata = _build_implementation_agent_prompt(spec, target)
         target_record_for_validation = read_record(_target_path)
-
+    elif agent_id == "brain":
+        # Auto-load working memory if not explicitly provided
+        if working_memory is None:
+            from .brain import load_working_memory
+            working_memory = load_working_memory(limit=10)
+        prompt_path, target_id = _build_brain_agent_prompt(spec, target, question=question, working_memory=working_memory)
     else:
         raise SystemExit(f"Agent is configured but not implemented: {agent_id}")
     prompt_text = prompt_path.read_text(encoding="utf-8")
@@ -1014,7 +1208,7 @@ def run_agent(agent_id: str, target: str = "latest", provider: str | None = None
     if not isinstance(provider_config, dict) or not provider_config.get("enabled", False):
         raise SystemExit(f"LLM provider is not enabled or configured: {provider_name}")
 
-    response_text = _provider_response(provider_name, provider_config, prompt_path, prompt_text)
+    response_text, _usage_diagnostics = _provider_response(provider_name, provider_config, prompt_path, prompt_text)
     result_id = new_id("llm_result")
     result_path = LLM_RESULTS_DIR / f"{result_id}.md"
     result_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1044,6 +1238,26 @@ def run_agent(agent_id: str, target: str = "latest", provider: str | None = None
         specialized_record = parse_evolution_analysis(response_text, target_id=target_id, agent_run_id=agent_run["id"], result_path=result_path)
     elif agent_id == "implementation":
         specialized_record = _parse_implementation_output(response_text, agent_run_id=agent_run["id"], result_path=result_path, target_record=target_record_for_validation)
+    elif agent_id == "brain":
+        brain_record = {
+            "schema": "abyss.brain_agent_response.v1",
+            "agent_run_id": agent_run["id"],
+            "agent_id": "brain",
+            "target_id": target_id,
+            "result_path": result_path.as_posix(),
+            "response_text": response_text,
+            "no_action_executed": True,
+            "no_approval_granted": True,
+            "candidate_material_only": True,
+            "created_at": now_iso(),
+        }
+        brain_dir = runtime_root() / "process" / "brain_responses"
+        brain_dir.mkdir(parents=True, exist_ok=True)
+        write_record(brain_dir / f"{brain_record['agent_run_id']}.yaml", brain_record)
+        # Save to working memory for continuity across runs
+        from .brain import save_working_memory_entry
+        save_working_memory_entry(agent_run["id"], response_text, question=question)
+        specialized_record = brain_record
 
     return agent_run, specialized_record
 
@@ -1058,7 +1272,7 @@ def run_harness_review(target: str = "latest", provider: str | None = None) -> t
 
 def run_harness_changeset_review(target: str = "latest", provider: str | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
     spec = _agent_spec("harness")
-    provider_name = provider or str(spec.get("provider") or "cli")
+    provider_name = provider or str(spec.get("provider") or get_default_provider())
     prompt_path, _target_path, target_id, deterministic_context = _build_harness_changeset_prompt(spec, target)
     prompt_text = prompt_path.read_text(encoding="utf-8")
 
@@ -1068,7 +1282,7 @@ def run_harness_changeset_review(target: str = "latest", provider: str | None = 
     if not isinstance(provider_config, dict) or not provider_config.get("enabled", False):
         raise SystemExit(f"LLM provider is not enabled or configured: {provider_name}")
 
-    response_text = _provider_response(provider_name, provider_config, prompt_path, prompt_text)
+    response_text, _usage_diagnostics = _provider_response(provider_name, provider_config, prompt_path, prompt_text)
     result_id = new_id("llm_result")
     result_path = LLM_RESULTS_DIR / f"{result_id}.md"
     result_path.parent.mkdir(parents=True, exist_ok=True)

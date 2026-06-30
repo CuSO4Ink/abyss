@@ -1,0 +1,14 @@
+{
+  "schema": "abyss.blocked_result.v1",
+  "output_type": "blocked_result",
+  "agent_run_id": "agent_run_20260601_222110_12b109",
+  "result_path": "C:\\Users\\violinapeng\\Documents\\abyss\\.local\\runtime\\process\\llm_results\\llm_result_20260601_222110_f16656.md",
+  "created_at": "2026-06-01T22:21:10+08:00",
+  "agent_id": "implementation",
+  "roadmap_id": "R088",
+  "proposal_id": "evo_prop_20260601_221916_fc014f",
+  "blocked_reason": "Adding 'rules/' to ALLOWED_FS_ROOTS is insufficient to allow file-system writes under rules/ because the path-prefix blocklist (BLOCKED_PATH_PREFIXES) includes 'rules/', and that check runs before the allowed-roots check in `_is_allowed_fs_path()`. To make writes to rules/ actually pass validation, you would need to remove (or adjust) the 'rules/' prefix from BLOCKED_PATH_PREFIXES, which is a governance-core allowlist change bordering on governance_core_mutation. Similarly, `pyproject.toml` is explicitly listed in BLOCKED_PATHS; adding it to ALLOWED_FS_ROOTS is also insufficient without first removing it from BLOCKED_PATHS. The proposal’s own self-evolution analysis flagged that allowing writes to rules/ weakens the governance safety boundary, and the proposal did not authorise modifications to BLOCKED_PATH_PREFIXES or BLOCKED_PATHS. An implementation that merely expands ALLOWED_FS_ROOTS would not satisfy the acceptance check “a new test confirms that a changeset targeting rules/example.yaml and pyproject.toml passes path validation” and would therefore be a non‑functional change. Because the necessary adjustments would alter governance-core allowlists outside the approved scope, this task is blocked under the governance_constraint category.",
+  "category": "governance_constraint",
+  "suggestion": "Propose a separate governance_mutation or extend this proposal to also modify BLOCKED_PATH_PREFIXES and BLOCKED_PATHS, with appropriate risk assessment, rollback plan, and Owner approval, before attempting an implementation that actually enables writes to rules/ and pyproject.toml.",
+  "id": "blk_20260601_222110_36517e"
+}

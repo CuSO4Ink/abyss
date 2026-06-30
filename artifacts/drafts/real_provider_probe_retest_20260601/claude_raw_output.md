@@ -1,0 +1,3 @@
+```abyss-edit-plan
+{"schema":"abyss.edit_plan.v1","id":"chg_demo_iteration_tag","roadmap_id":"R086","summary":"Add read-only demo helper function demo_iteration_tag to abyss_cli/utils.py","risk_level":"L2","edits":[{"id":"op_001","kind":"append_after_anchor","target":{"path":"abyss_cli/utils.py"},"anchor":"def copy_to_clipboard(text: str) -> bool:\n    if os.name != \"nt\":\n        return False\n    proc = subprocess.run(\"clip\", input=text, text=True, shell=True)\n    return proc.returncode == 0","new_content":"\n\ndef demo_iteration_tag() -> str:\n    \"\"\"Return a short static string for workflow smoke testing. No side effects.\"\"\"\n    return \"abyss-demo-iteration-v0\"\n"}],"checks":["python -m compileall -q abyss_cli","python -m abyss_cli check"]}
+```

@@ -1,0 +1,26 @@
+{
+  "schema": "abyss.contract.v1",
+  "contract_id": "abyss.memory_record.v1",
+  "purpose": "Owner-authored knowledge record capturing a direction choice or key decision as candidate long-term knowledge for later Brain Agent direction alignment.",
+  "authority": "candidate_material_only",
+  "required_fields": ["schema", "id", "kind", "title", "body", "provenance"],
+  "optional_fields": ["related", "tags"],
+  "field_notes": {
+    "kind": "One of: decision, direction.",
+    "provenance": "Object with created_at and source; records where the knowledge came from.",
+    "related": "List of related ids (intent, roadmap, proposal, or other memory ids).",
+    "tags": "List of free-form tags for retrieval."
+  },
+  "hard_boundaries": [
+    "Memory records are candidate knowledge written explicitly by the Owner.",
+    "Creating a record approves nothing, executes nothing, and triggers no workflow transition.",
+    "The project command is a read-only Obsidian projection, NOT the storage->user_data promotion mechanism.",
+    "v0 schema is intentionally minimal; new fields require an explicit contract revision before Brain v1 depends on them."
+  ],
+  "producer_agents": [],
+  "writer_roles": ["human_owner"],
+  "consumer_modules": ["memory", "integrity"],
+  "runtime_records": [".local/runtime/memory/records/"],
+  "projection_target": "user_data/memory/ (Obsidian-first note projection)",
+  "disclosure_level": "L5_contracts"
+}

@@ -4,76 +4,253 @@
   "authority": "declarative_registry_only",
   "rule_sources": {
     "governance_rules": {
-      "source_files": ["rules/governance.yaml"],
-      "affected_scopes": ["governance_change", "governance_core_mutation"],
-      "consumers": ["integrity", "context_broker", "harness_review"],
-      "context_task_types": ["governance_change", "governance_core_mutation"],
-      "validation_commands": ["python -m abyss_cli check"],
+      "source_files": [
+        "rules/governance.yaml"
+      ],
+      "affected_scopes": [
+        "governance_change",
+        "governance_core_mutation"
+      ],
+      "consumers": [
+        "integrity",
+        "context_broker",
+        "harness_review"
+      ],
+      "context_task_types": [
+        "governance_change",
+        "governance_core_mutation"
+      ],
+      "validation_commands": [
+        "python -m abyss_cli check"
+      ],
       "description": "Core governance state including direct modification mode and evolution chain requirements."
     },
     "capabilities_rules": {
-      "source_files": ["rules/capabilities.yaml"],
-      "affected_scopes": ["changeset_validation_feature", "workflow_feature", "agent_feature"],
-      "consumers": ["changeset", "integrity", "context_broker", "harness_review"],
-      "context_task_types": ["changeset_validation_feature", "workflow_feature", "agent_feature", "governance_core_mutation"],
-      "validation_commands": ["python -m abyss_cli check"],
+      "source_files": [
+        "rules/capabilities.yaml"
+      ],
+      "affected_scopes": [
+        "changeset_validation_feature",
+        "workflow_feature",
+        "agent_feature"
+      ],
+      "consumers": [
+        "changeset",
+        "integrity",
+        "context_broker",
+        "harness_review"
+      ],
+      "context_task_types": [
+        "changeset_validation_feature",
+        "workflow_feature",
+        "agent_feature",
+        "governance_core_mutation"
+      ],
+      "validation_commands": [
+        "python -m abyss_cli check"
+      ],
       "description": "Executor capability allowlist and agent capability declarations."
     },
     "policy_rules": {
-      "source_files": ["rules/policy.yaml"],
-      "affected_scopes": ["governance_change", "governance_core_mutation"],
-      "consumers": ["harness", "integrity", "context_broker"],
-      "context_task_types": ["governance_change", "governance_core_mutation"],
-      "validation_commands": ["python -m abyss_cli check"],
+      "source_files": [
+        "rules/policy.yaml"
+      ],
+      "affected_scopes": [
+        "governance_change",
+        "governance_core_mutation"
+      ],
+      "consumers": [
+        "harness",
+        "integrity",
+        "context_broker"
+      ],
+      "context_task_types": [
+        "governance_change",
+        "governance_core_mutation"
+      ],
+      "validation_commands": [
+        "python -m abyss_cli check"
+      ],
       "description": "Risk level definitions, path constraints, and capability groups."
     },
     "request_types_rules": {
-      "source_files": ["rules/request_types.v1.yaml", "rules/contracts/request_envelope.v1.yaml", "rules/schemas/request_envelope.v1.schema.json"],
-      "affected_scopes": ["governance_core_mutation", "evolution_feature"],
-      "consumers": ["request_rules", "request_envelope", "context_broker", "integrity"],
-      "context_task_types": ["governance_core_mutation", "evolution_feature"],
-      "validation_commands": ["python -m abyss_cli check", "python -m abyss_cli request types --all --json"],
+      "source_files": [
+        "rules/request_types.v1.yaml",
+        "rules/contracts/request_envelope.v1.yaml",
+        "rules/schemas/request_envelope.v1.schema.json"
+      ],
+      "affected_scopes": [
+        "governance_core_mutation",
+        "evolution_feature"
+      ],
+      "consumers": [
+        "request_rules",
+        "request_envelope",
+        "context_broker",
+        "integrity"
+      ],
+      "context_task_types": [
+        "governance_core_mutation",
+        "evolution_feature"
+      ],
+      "validation_commands": [
+        "python -m abyss_cli check",
+        "python -m abyss_cli request types --all --json"
+      ],
       "description": "Canonical request type semantics, envelope contract, and schema."
     },
     "context_manifest_rules": {
-      "source_files": ["rules/context_manifest.yaml"],
-      "affected_scopes": ["context_broker_feature", "agent_feature"],
-      "consumers": ["context_broker", "integrity"],
-      "context_task_types": ["context_broker_feature", "governance_core_mutation"],
-      "validation_commands": ["python -m abyss_cli check"],
+      "source_files": [
+        "rules/context_manifest.yaml"
+      ],
+      "affected_scopes": [
+        "context_broker_feature",
+        "agent_feature"
+      ],
+      "consumers": [
+        "context_broker",
+        "integrity"
+      ],
+      "context_task_types": [
+        "context_broker_feature",
+        "governance_core_mutation"
+      ],
+      "validation_commands": [
+        "python -m abyss_cli check"
+      ],
       "description": "Task type to context module/file mapping for Context Broker."
     },
     "agent_rules": {
-      "source_files": ["rules/agents.yaml"],
-      "affected_scopes": ["agent_feature", "workflow_feature"],
-      "consumers": ["agent_runner", "integrity", "context_broker"],
-      "context_task_types": ["agent_feature", "changeset_validation_feature"],
-      "validation_commands": ["python -m abyss_cli check"],
+      "source_files": [
+        "rules/agents.yaml"
+      ],
+      "affected_scopes": [
+        "agent_feature",
+        "workflow_feature"
+      ],
+      "consumers": [
+        "agent_runner",
+        "integrity",
+        "context_broker"
+      ],
+      "context_task_types": [
+        "agent_feature",
+        "changeset_validation_feature"
+      ],
+      "validation_commands": [
+        "python -m abyss_cli check"
+      ],
       "description": "Agent role declarations, boundaries, and provider configuration."
     },
     "module_manifest_rules": {
-      "source_files": ["rules/modules.yaml"],
-      "affected_scopes": ["context_broker_feature"],
-      "consumers": ["context_broker", "integrity"],
-      "context_task_types": ["context_broker_feature", "governance_core_mutation"],
-      "validation_commands": ["python -m abyss_cli check"],
+      "source_files": [
+        "rules/modules.yaml"
+      ],
+      "affected_scopes": [
+        "context_broker_feature"
+      ],
+      "consumers": [
+        "context_broker",
+        "integrity"
+      ],
+      "context_task_types": [
+        "context_broker_feature",
+        "governance_core_mutation"
+      ],
+      "validation_commands": [
+        "python -m abyss_cli check"
+      ],
       "description": "Module capsule declarations with files, responsibilities, and boundaries."
     },
     "architecture_cognition_rules": {
-      "source_files": ["rules/architecture_cognition.yaml"],
-      "affected_scopes": ["context_broker_feature", "brain_onboarding_readiness"],
-      "consumers": ["context_broker", "integrity"],
-      "context_task_types": ["context_broker_feature", "brain_onboarding_readiness", "governance_core_mutation"],
-      "validation_commands": ["python -m abyss_cli check"],
+      "source_files": [
+        "rules/architecture_cognition.yaml"
+      ],
+      "affected_scopes": [
+        "context_broker_feature",
+        "brain_onboarding_readiness"
+      ],
+      "consumers": [
+        "context_broker",
+        "integrity"
+      ],
+      "context_task_types": [
+        "context_broker_feature",
+        "brain_onboarding_readiness",
+        "governance_core_mutation"
+      ],
+      "validation_commands": [
+        "python -m abyss_cli check"
+      ],
       "description": "Progressive disclosure cognition protocol for system understanding."
     },
+    "skill_registry_rules": {
+      "source_files": [
+        "rules/skills.yaml"
+      ],
+      "affected_scopes": [
+        "skill_feature"
+      ],
+      "consumers": [
+        "skill",
+        "integrity",
+        "context_broker"
+      ],
+      "context_task_types": [
+        "skill_feature",
+        "governance_core_mutation"
+      ],
+      "validation_commands": [
+        "python -m abyss_cli check",
+        "python -m abyss_cli skill check"
+      ],
+      "description": "Skill v0 read-only registry declaring candidate capabilities without execution authority."
+    },
     "rule_source_registry": {
-      "source_files": ["rules/rule_sources.v1.yaml", "rules/contracts/rule_source_registry.v1.yaml", "rules/schemas/rule_source_registry.v1.schema.json"],
-      "affected_scopes": ["governance_core_mutation"],
-      "consumers": ["rule_registry", "integrity", "context_broker"],
-      "context_task_types": ["governance_core_mutation"],
-      "validation_commands": ["python -m abyss_cli check", "python -m abyss_cli rules validate --json"],
+      "source_files": [
+        "rules/rule_sources.v1.yaml",
+        "rules/contracts/rule_source_registry.v1.yaml",
+        "rules/schemas/rule_source_registry.v1.schema.json"
+      ],
+      "affected_scopes": [
+        "governance_core_mutation"
+      ],
+      "consumers": [
+        "rule_registry",
+        "integrity",
+        "context_broker"
+      ],
+      "context_task_types": [
+        "governance_core_mutation"
+      ],
+      "validation_commands": [
+        "python -m abyss_cli check",
+        "python -m abyss_cli rules validate --json"
+      ],
       "description": "Self-referential registry entry for the rule source registry itself."
+    },
+    "external_adapter_rules": {
+      "source_files": [
+        "rules/external_adapters.yaml",
+        "rules/schemas/external_need.v1.schema.json"
+      ],
+      "affected_scopes": [
+        "external_adapter_feature"
+      ],
+      "consumers": [
+        "external_adapter",
+        "integrity",
+        "context_broker"
+      ],
+      "context_task_types": [
+        "external_adapter_feature",
+        "governance_core_mutation"
+      ],
+      "validation_commands": [
+        "python -m abyss_cli check",
+        "python -m abyss_cli adapter check"
+      ],
+      "description": "External Outbox Pattern registry declaring need templates, platform capability cards, and transport contract. Abyss writes needs locally; external platforms poll and fulfill."
     }
   },
   "hard_boundaries": [

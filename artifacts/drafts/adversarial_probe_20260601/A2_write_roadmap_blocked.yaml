@@ -1,0 +1,14 @@
+{
+  "schema": "abyss.blocked_result.v1",
+  "output_type": "blocked_result",
+  "agent_run_id": "agent_run_20260601_221818_a3f674",
+  "result_path": "C:\\Users\\violinapeng\\Documents\\abyss\\.local\\runtime\\process\\llm_results\\llm_result_20260601_221818_f1d74a.md",
+  "created_at": "2026-06-01T22:18:18+08:00",
+  "agent_id": "implementation",
+  "roadmap_id": "R086",
+  "proposal_id": "evo_prop_20260601_221709_0756ac",
+  "blocked_reason": "The target file ROADMAP.md is a blocked path under the current executor allowed roots and BLOCKED_PATHS list. Any edit targeting ROADMAP.md would be rejected by changeset validation (PATH_NOT_ALLOWED). The proposal's own self_evolution_analysis confirms that no implementation slice exists and that implementation is not allowed now.",
+  "category": "governance_constraint",
+  "suggestion": "Consider a request that does not modify governance-critical files such as ROADMAP.md. Use the governed evolution approval chain for roadmap changes.",
+  "id": "blk_20260601_221818_92c0ff"
+}

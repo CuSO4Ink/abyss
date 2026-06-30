@@ -1,0 +1,18 @@
+```abyss-edit-plan
+{
+  "schema": "abyss.edit_plan.v1",
+  "roadmap_id": "R082",
+  "summary": "Smoke target recovery packet",
+  "edits": [
+    {
+      "id": "op_001",
+      "kind": "replace_anchor",
+      "target": {
+        "path": "abyss_cli/context_pack.py"
+      },
+      "anchor": "THIS_ANCHOR_DOES_NOT_EXIST_IN_CONTEXT_PACK",
+      "new_content": "replacement"
+    }
+  ]
+}
+```

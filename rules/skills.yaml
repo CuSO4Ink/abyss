@@ -1,0 +1,135 @@
+{
+  "schema": "abyss.skill_registry.v1",
+  "purpose": "Skill v0 read-only registry. Declares available skills as candidate capabilities without granting execution authority. Each skill entry is a declaration only — no skill is executed, invoked, or scheduled by this registry.",
+  "v0_constraints": {
+    "read_only": true,
+    "no_execution": true,
+    "no_llm_calls": true,
+    "no_file_mutation": true,
+    "no_workflow_transitions": true,
+    "declaration_only": "Skills are registered as named declarations. Future proposals may add execution bindings, prompt templates, or agent wiring — each requiring its own roadmap item."
+  },
+  "required_fields": [
+    "name",
+    "description",
+    "category",
+    "status",
+    "risk_level",
+    "inputs",
+    "outputs",
+    "forbidden_actions",
+    "invariants"
+  ],
+  "skills": {
+    "health_check": {
+      "name": "health_check",
+      "description": "Run a read-only provider health check and report JSON status including elapsed_ms, response_preview, and error fields.",
+      "category": "diagnostic",
+      "status": "registered",
+      "risk_level": "low",
+      "inputs": [
+        "provider name from rules/llm_providers.yaml"
+      ],
+      "outputs": [
+        "abyss.health_check.v1 JSON status"
+      ],
+      "mapped_command": "abyss health provider --json",
+      "mapped_module": "health",
+      "forbidden_actions": [
+        "execute_arbitrary_commands",
+        "mutate_files",
+        "approve_changesets",
+        "trigger_workflows"
+      ],
+      "invariants": [
+        "Health check is read-only and side-effect-free",
+        "No result files are written to disk"
+      ]
+    },
+    "memory_record": {
+      "name": "memory_record",
+      "description": "Record Owner direction/decision knowledge as abyss.memory_record.v1 candidate knowledge. List, show, and project memory records.",
+      "category": "knowledge",
+      "status": "registered",
+      "risk_level": "low",
+      "inputs": [
+        "owner direction or decision text",
+        "kind (decision|direction)",
+        "title, body, related, tags"
+      ],
+      "outputs": [
+        "abyss.memory_record.v1 records",
+        "Obsidian projection notes (read-only)"
+      ],
+      "mapped_command": "abyss memory record/list/show/project",
+      "mapped_module": "memory",
+      "forbidden_actions": [
+        "call_llm",
+        "modify_policy",
+        "modify_governance",
+        "approve",
+        "execute_action",
+        "grant_agent_write_authority"
+      ],
+      "invariants": [
+        "Memory records are candidate knowledge written only by the Owner",
+        "Creating a record approves nothing and triggers no workflow transition",
+        "v0 schema stays minimal until an explicit contract revision"
+      ]
+    },
+    "git_checkpoint": {
+      "name": "git_checkpoint",
+      "description": "Render a read-only git checkpoint status as JSON, showing current branch, staged/unstaged changes, and recent commit history.",
+      "category": "diagnostic",
+      "status": "registered",
+      "risk_level": "low",
+      "inputs": [
+        "git repository state"
+      ],
+      "outputs": [
+        "abyss.git_checkpoint.v1 JSON status"
+      ],
+      "mapped_command": "abyss checkpoint status --json",
+      "mapped_module": "git_checkpoint",
+      "forbidden_actions": [
+        "git_push",
+        "git_commit",
+        "git_reset",
+        "mutate_files",
+        "approve_changesets"
+      ],
+      "invariants": [
+        "Checkpoint status is read-only",
+        "No git mutations are performed"
+      ]
+    },
+    "integrity_check": {
+      "name": "integrity_check",
+      "description": "Run structural integrity checks covering required dirs/files, record schemas, governance, cognition surface, contracts, modules, agents, and sensitive paths.",
+      "category": "diagnostic",
+      "status": "registered",
+      "risk_level": "low",
+      "inputs": [
+        "repository structure",
+        "rules/",
+        "runtime records"
+      ],
+      "outputs": [
+        "ok flag",
+        "integrity message list"
+      ],
+      "mapped_command": "abyss check",
+      "mapped_module": "integrity",
+      "forbidden_actions": [
+        "mutate_files",
+        "approve",
+        "execute",
+        "modify_rules"
+      ],
+      "invariants": [
+        "Integrity check is idempotent and side-effect-free",
+        "Check must surface all structural violations"
+      ]
+    }
+  }
+}

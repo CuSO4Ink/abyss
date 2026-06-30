@@ -1,0 +1,57 @@
+{
+  "schema": "abyss.request_envelope.v1",
+  "request_id": "REQ-llm-usage-cache-telemetry-20260601",
+  "request_type": "governance_mutation",
+  "source": "owner_chat_deepseek_cache_observability",
+  "created_at": "2026-06-01T23:11:32+08:00",
+  "created_by": "owner",
+  "user_intent": "Add observability for OpenAI-compatible provider token usage and prompt cache statistics returned by DeepSeek or similar providers.",
+  "title": "Record OpenAI-compatible provider usage and cache telemetry",
+  "description": "Record provider usage diagnostics for self-iteration LLM runs so cache hit/miss behavior can be audited without changing prompt content, prompt ordering, agent contracts, governance rules, approval gates, provider credentials, or execution permissions.",
+  "scope": [
+    "abyss_cli/llm_executor.py",
+    "tests/test_llm_executor_usage_telemetry.py",
+    "tests/conftest.py"
+  ],
+  "risk_level": "medium",
+  "governance_route": "meta_governance",
+  "requires_code_change": true,
+  "requires_cognition_update": false,
+  "requires_owner_approval": true,
+  "required_context": [
+    "abyss_cli/llm_executor.py",
+    "abyss_cli/audit.py",
+    "tests/conftest.py"
+  ],
+  "expected_artifacts": [
+    "Persist sanitized provider usage/cache diagnostics when returned by OpenAI-compatible chat providers",
+    "Add audit event metadata for prompt cache hit/miss counts",
+    "Regression test using a mocked provider response"
+  ],
+  "validation_plan": [
+    "python -m pytest -q tests/test_llm_executor_usage_telemetry.py",
+    "python -m pytest -q",
+    "python -m abyss_cli check"
+  ],
+  "related_documents": [
+    "README.md",
+    "abyss_cli/llm_executor.py"
+  ],
+  "status": "normalized",
+  "request_fields": {
+    "owner_approval_required": "explicit",
+    "activation_policy": "delayed; this request records a candidate code change for review and validation only, and it does not grant approval, apply any external provider action, or alter provider credentials.",
+    "affected_governance_surface": "LLM provider execution diagnostics for self-iteration runs. This is observability-only and must not change prompts, approval gates, workflow state transitions, permissions, or provider request semantics.",
+    "current_problem": "Large DeepSeek self-iteration calls report zero cache hits externally, but Abyss currently discards provider usage fields, making it impossible to audit prompt_cache_hit_tokens and prompt_cache_miss_tokens from local run records.",
+    "old_rule_review": "Prior accepted rules require self-iteration and provider-facing infrastructure changes to preserve Owner/Harness gates, avoid credential exposure, and avoid changing execution authority without explicit meta-governance review.",
+    "owner_authority_impact": "No Owner authority is delegated or reduced. The change only records sanitized numeric usage diagnostics returned by the provider and does not approve, apply, or execute changes.",
+    "risk_assessment": "Low-to-medium. The main risk is accidentally storing provider response content or secrets. Mitigation: persist only whitelisted numeric usage/cache fields plus non-sensitive provider/model/interface identifiers and prompt/result paths already present in audit metadata.",
+    "rollback_plan": "Revert the llm_executor telemetry helper, remove the usage diagnostics directory constant and test, and remove any new conftest redirection for that directory. Existing LLM execution should return to content-only behavior.",
+    "validation_plan": "Mock an OpenAI-compatible provider response containing usage fields, verify sanitized usage diagnostics are written and audit metadata includes cache hit/miss counts, then run full pytest and abyss_cli check.",
+    "proposed_change": "Change provider response plumbing to return response text plus optional diagnostics, extract whitelisted usage/cache fields from OpenAI-compatible responses, persist them under runtime process diagnostics, and include a compact summary in the llm.run audit event."
+  },
+  "missing_required_fields": [],
+  "warnings": [],
+  "notes": "Round 1 of the DeepSeek cache investigation: observability only, no prompt reordering.",
+  "contract_version": "abyss.request_envelope.v1"
+}

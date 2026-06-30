@@ -18,7 +18,8 @@ from .harness import render_harness_json, render_harness_markdown
 from .health import render_provider_health_json
 from .integrity import run_checks
 from .intent import INTENTS_DIR, create_intent
-from .llm_executor import run_llm
+from .llm_executor import run_llm, get_default_provider
+from .memory import create_memory_record, project_memory_record, render_memory_record_json, render_memory_records_json
 from .meta_governance import build_meta_governance_packet, persist_meta_governance_packet, render_meta_governance_packet_json
 from .owner import approve_owner_item, list_owner_items, reject_owner_item, render_owner_item
 from .prompt_builder import build_external_developer_prompt, build_prompt
@@ -31,6 +32,21 @@ from .schema_registry import render_schema_registry_json
 from .smoke_fixtures import render_smoke_fixture_manifest_json
 
 from .rule_registry import list_rule_sources, render_rule_sources_json, render_validation_json, validate_rule_sources
+
+from .skill import check_skill_registry, render_skill_json, render_skills_json
+from .external_adapter import (
+    check_outbox as adapter_check_outbox,
+    check_registry as adapter_check_registry,
+    read_fulfillment as adapter_read_fulfillment,
+    render_fulfillment_json as adapter_render_fulfillment_json,
+    render_need_json as adapter_render_need_json,
+    render_needs_json as adapter_render_needs_json,
+    render_platform_json as adapter_render_platform_json,
+    render_platforms_json as adapter_render_platforms_json,
+    render_template_json as adapter_render_template_json,
+    render_templates_json as adapter_render_templates_json,
+    write_need as adapter_write_need,
+)
 
 
 
@@ -99,6 +115,29 @@ def cmd_result_import(args: argparse.Namespace) -> None:
         print(f"- {proposal['id']} {proposal['policy']['risk']} {proposal['policy']['decision']} {proposal.get('capability')} {proposal.get('path')}")
 
 
+def cmd_memory_record(args: argparse.Namespace) -> None:
+    record = create_memory_record(args.kind, args.title, args.body, related=args.related, tags=args.tags)
+    print(f"{record['id']} kind={record['kind']} title={record['title']}")
+
+
+def cmd_memory_list(args: argparse.Namespace) -> None:
+    if args.json:
+        print(render_memory_records_json(args.kind))
+        return
+    import json as _json
+    for record in _json.loads(render_memory_records_json(args.kind)):
+        print(f"- {record.get('id')} [{record.get('kind')}] {record.get('title')}")
+
+
+def cmd_memory_show(args: argparse.Namespace) -> None:
+    print(render_memory_record_json(args.id))
+
+
+def cmd_memory_project(args: argparse.Namespace) -> None:
+    note_path = project_memory_record(args.id)
+    print(f"projected to {note_path}")
+
+
 def cmd_health_provider(args: argparse.Namespace) -> None:
     if not args.json:
         raise SystemExit("health provider requires --json flag")
@@ -165,7 +204,8 @@ def cmd_harness_export(args: argparse.Namespace) -> None:
 
 
 def cmd_agent_run(args: argparse.Namespace) -> None:
-    agent_run, specialized = run_agent(args.agent, target=args.target, provider=args.provider)
+    question = getattr(args, "question", None)
+    agent_run, specialized = run_agent(args.agent, target=args.target, provider=args.provider, question=question)
     print(f"agent run saved: {Path(agent_run['prompt_package']).relative_to(repo_root())}")
     print(f"result saved: {Path(agent_run['result_path']).relative_to(repo_root())}")
     if specialized:
@@ -173,6 +213,9 @@ def cmd_agent_run(args: argparse.Namespace) -> None:
             print(f"{specialized['schema']} {specialized['id']} verdict={specialized['verdict']} risk={specialized['risk_level']}")
         elif specialized.get("schema") == "abyss.change_set.v1":
             print(f"{specialized['schema']} {specialized['id']} status={specialized.get('status')} valid={specialized.get('validation', {}).get('ok')}")
+        elif specialized.get('schema') == 'abyss.brain_agent_response.v1':
+            print(f"{specialized['schema']} {specialized['agent_run_id']} candidate_material_only={specialized.get('candidate_material_only')}")
+            print(f"result: {specialized.get('result_path')}")
         else:
             print(f"{specialized['schema']} {specialized['id']} verdict={specialized.get('verdict')} contract_valid={specialized.get('contract_valid')}")
     print("agent produced review/report/changeset proposal only; no action was executed")
@@ -431,6 +474,65 @@ def cmd_brain_brief(args: argparse.Namespace) -> None:
     print(render_brain_brief(as_json=args.json))
 
 
+def cmd_brain_context(args: argparse.Namespace) -> None:
+    from .brain import render_brain_context_json
+    print(render_brain_context_json())
+
+
+def cmd_brain_tick(args: argparse.Namespace) -> None:
+    from .brain import render_brain_tick_json
+    print(render_brain_tick_json())
+
+
+def cmd_brain_intake(args: argparse.Namespace) -> None:
+    from .brain import render_brain_intake_json
+    print(render_brain_intake_json())
+
+
+def cmd_brain_propose(args: argparse.Namespace) -> None:
+    from .brain import render_brain_propose_json
+    print(render_brain_propose_json())
+
+
+def cmd_brain_think(args: argparse.Namespace) -> None:
+    """Run Brain Agent with LLM, optionally answering a question, with working memory."""
+    from .agent_runner import run_agent
+    agent_run, specialized = run_agent("brain", target=args.target, provider=args.provider, question=args.question)
+    print(f"agent run saved: {Path(agent_run['prompt_package']).relative_to(repo_root())}")
+    print(f"result saved: {Path(agent_run['result_path']).relative_to(repo_root())}")
+    if specialized and specialized.get('schema') == 'abyss.brain_agent_response.v1':
+        print(f"\n{'='*60}")
+        print("Brain Agent Response")
+        print(f"{'='*60}\n")
+        print(specialized.get('response_text', ''))
+        print(f"\n{'='*60}")
+        print(f"candidate_material_only={specialized.get('candidate_material_only')}")
+    print("\nno action was executed; output is candidate material only")
+
+
+def cmd_brain_memory(args: argparse.Namespace) -> None:
+    """Show Brain Agent working memory."""
+    from .brain import render_working_memory_json, load_working_memory
+    if args.json:
+        print(render_working_memory_json())
+    else:
+        entries = load_working_memory(limit=50)
+        if not entries:
+            print("(no working memory entries yet)")
+            return
+        print(f"Brain Working Memory ({len(entries)} entries, most recent last)\n")
+        for entry in entries:
+            ts = entry.get('timestamp', '')
+            kind = entry.get('kind', '')
+            question = entry.get('question', '')
+            text = entry.get('text', '')[:200]
+            if question:
+                print(f"[{ts}] {kind}: Q: {question}")
+            else:
+                print(f"[{ts}] {kind}: {text[:120]}...")
+            print()
+
+
 def cmd_roadmap_current(args: argparse.Namespace) -> None:
     if args.json:
         print(render_roadmap_current_json())
@@ -637,6 +739,118 @@ def cmd_rules_validate(args: argparse.Namespace) -> None:
     result = validate_rule_sources()
     raise SystemExit(0 if result.get("ok") else 1)
 
+def cmd_skill_list(args: argparse.Namespace) -> None:
+    if args.json:
+        print(render_skills_json())
+        return
+    import json as _json
+    skills = _json.loads(render_skills_json())
+    if not skills:
+        print("no skills registered")
+        return
+    for skill in skills:
+        print(f"- {skill.get('name')} [{skill.get('category')}] status={skill.get('status')} risk={skill.get('risk_level')} cmd={skill.get('mapped_command')}")
+
+
+def cmd_skill_show(args: argparse.Namespace) -> None:
+    print(render_skill_json(args.skill))
+
+
+def cmd_skill_check(args: argparse.Namespace) -> None:
+    ok, messages = check_skill_registry()
+    for msg in messages:
+        print(msg)
+    raise SystemExit(0 if ok else 1)
+
+
+def cmd_adapter_list(args: argparse.Namespace) -> None:
+    if args.json:
+        print(adapter_render_templates_json())
+        return
+    import json as _json
+    templates = _json.loads(adapter_render_templates_json())
+    if not templates:
+        print("no need templates registered")
+        return
+    for t in templates:
+        tid = t.get("id", "")
+        ttype = t.get("type", "")
+        ttrig = t.get("trigger", "")
+        print(f"- {tid} type={ttype} trigger={ttrig}")
+
+
+def cmd_adapter_show(args: argparse.Namespace) -> None:
+    print(adapter_render_template_json(args.template))
+
+
+def cmd_adapter_platforms(args: argparse.Namespace) -> None:
+    if args.json:
+        print(adapter_render_platforms_json())
+        return
+    import json as _json
+    platforms = _json.loads(adapter_render_platforms_json())
+    if not platforms:
+        print("no platforms registered")
+        return
+    for pf in platforms:
+        pid = pf.get("platform_id", "")
+        pen = pf.get("enabled", False)
+        ptr = pf.get("transport", "")
+        pty = len(pf.get("supported_types", []))
+        print(f"- {pid} enabled={pen} transport={ptr} types={pty}")
+
+
+def cmd_adapter_platform(args: argparse.Namespace) -> None:
+    print(adapter_render_platform_json(args.platform))
+
+
+def cmd_adapter_write_need(args: argparse.Namespace) -> None:
+    import json as _json
+    payload = _json.loads(args.payload) if args.payload else {}
+    need = adapter_write_need(args.type, payload, created_by=args.created_by, template_id=args.template or "")
+    nid = need['id']
+    ntype = need['type']
+    print(f"need written: {nid} type={ntype} status=pending")
+    print(adapter_render_need_json(need['id']))
+
+
+def cmd_adapter_needs(args: argparse.Namespace) -> None:
+    status_filter = args.status if hasattr(args, "status") and args.status else None
+    if args.json:
+        print(adapter_render_needs_json(status_filter))
+        return
+    import json as _json
+    needs = _json.loads(adapter_render_needs_json(status_filter))
+    if not needs:
+        print("no needs in outbox")
+        return
+    for n in needs:
+        lc = n.get("lifecycle", {})
+        nid = n.get("id", "")
+        ntype = n.get("type", "")
+        nstatus = lc.get("status", "")
+        ncreated = lc.get("created_at", "")[:19]
+        print(f"- {nid} type={ntype} status={nstatus} created={ncreated}")
+
+
+def cmd_adapter_need(args: argparse.Namespace) -> None:
+    print(adapter_render_need_json(args.need_id))
+
+
+def cmd_adapter_fulfillment(args: argparse.Namespace) -> None:
+    print(adapter_render_fulfillment_json(args.need_id))
+
+
+def cmd_adapter_check(args: argparse.Namespace) -> None:
+    ok, messages = adapter_check_registry()
+    for msg in messages:
+        print(msg)
+    ok2, messages2 = adapter_check_outbox()
+    for msg in messages2:
+        print(msg)
+    raise SystemExit(0 if (ok and ok2) else 1)
+
+
 def cmd_checkpoint_status(args: argparse.Namespace) -> None:
     if not args.json:
         raise SystemExit("checkpoint status requires --json flag")
@@ -668,9 +882,7 @@ def cmd_smoke_fixtures(args: argparse.Namespace) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-
-
-
+    _dp = get_default_provider()
 
     parser = argparse.ArgumentParser(prog="abyss", description="Abyss MVP CLI")
     sub = parser.add_subparsers(required=True)
@@ -707,10 +919,30 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--intent", default=None, help="intent id, filename, prefix, or latest")
     p.set_defaults(func=cmd_result_import)
 
+    p_memory = sub.add_parser("memory", help="record and project direction/decision knowledge (Memory v0)")
+    memory_sub = p_memory.add_subparsers(required=True)
+    p = memory_sub.add_parser("record", help="record a direction or decision as candidate knowledge")
+    p.add_argument("--kind", required=True, choices=["decision", "direction"])
+    p.add_argument("--title", required=True)
+    p.add_argument("--body", required=True)
+    p.add_argument("--related", default=None, help="comma-separated related ids")
+    p.add_argument("--tags", default=None, help="comma-separated tags")
+    p.set_defaults(func=cmd_memory_record)
+    p = memory_sub.add_parser("list", help="list memory records")
+    p.add_argument("--kind", default=None, choices=["decision", "direction"])
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_memory_list)
+    p = memory_sub.add_parser("show", help="show one memory record as JSON")
+    p.add_argument("id", help="memory record id, prefix, or latest")
+    p.set_defaults(func=cmd_memory_show)
+    p = memory_sub.add_parser("project", help="project a record into an Obsidian note (read-only projection, not promotion)")
+    p.add_argument("id", help="memory record id, prefix, or latest")
+    p.set_defaults(func=cmd_memory_project)
+
     p_health = sub.add_parser("health")
     health_sub = p_health.add_subparsers(required=True)
     p = health_sub.add_parser("provider", help="call the configured real provider and report read-only health JSON")
-    p.add_argument("--provider", default="cli", help="provider name configured in rules/llm_providers.yaml or .local/llm_providers.json")
+    p.add_argument("--provider", default=_dp, help="provider name configured in rules/llm_providers.yaml or .local/llm_providers.json")
     p.add_argument("--json", action="store_true", help="output as JSON (required)")
     p.set_defaults(func=cmd_health_provider)
 
@@ -762,9 +994,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_agent = sub.add_parser("agent")
     agent_sub = p_agent.add_subparsers(required=True)
     p = agent_sub.add_parser("run")
-    p.add_argument("agent", choices=["harness", "self_evolution", "implementation"], help="agent id from rules/agents.yaml")
+    p.add_argument("agent", choices=["harness", "self_evolution", "implementation", "brain"], help="agent id from rules/agents.yaml")
     p.add_argument("--target", default="latest", help="target record id, filename, prefix, or latest")
     p.add_argument("--provider", default=None, help="override provider configured for the agent")
+    p.add_argument("--question", default=None, help="ask Brain Agent a question about the system (brain agent only)")
     p.set_defaults(func=cmd_agent_run)
 
     p_data = sub.add_parser("data")
@@ -810,7 +1043,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--confirmed-by", default="user")
     p.set_defaults(func=cmd_evolution_finalize)
     p = evolution_sub.add_parser("smoke")
-    p.add_argument("--provider", default="cli", help="standard LLM provider name")
+    p.add_argument("--provider", default=_dp, help="standard LLM provider name")
     p.set_defaults(func=cmd_evolution_smoke)
 
     p_changeset = sub.add_parser("changeset")
@@ -841,7 +1074,7 @@ def build_parser() -> argparse.ArgumentParser:
     workflow_sub = p_workflow.add_subparsers(required=True)
     p = workflow_sub.add_parser("start")
     p.add_argument("proposal", nargs="?", default="latest", help="approved proposal id, filename, prefix, or latest")
-    p.add_argument("--provider", default="cli")
+    p.add_argument("--provider", default=_dp)
     p.set_defaults(func=cmd_workflow_start)
     p = workflow_sub.add_parser("tick")
     p.add_argument("workflow", nargs="?", default=None, help="workflow id, filename, prefix, or latest active workflow")
@@ -934,6 +1167,22 @@ def build_parser() -> argparse.ArgumentParser:
     p = brain_sub.add_parser("brief", help="render a read-only Brain Agent v0 status brief")
     p.add_argument("--json", action="store_true", help="render the brief as JSON")
     p.set_defaults(func=cmd_brain_brief)
+    p = brain_sub.add_parser("context", help="assemble a Brain Agent v1 system-understanding snapshot")
+    p.set_defaults(func=cmd_brain_context)
+    p = brain_sub.add_parser("tick", help="evaluate triggers and write needs to the outbox")
+    p.set_defaults(func=cmd_brain_tick)
+    p = brain_sub.add_parser("intake", help="read and integrate fulfilled needs from the outbox")
+    p.set_defaults(func=cmd_brain_intake)
+    p = brain_sub.add_parser("propose", help="draft a candidate evolution proposal based on system state")
+    p.set_defaults(func=cmd_brain_propose)
+    p = brain_sub.add_parser("think", help="run Brain Agent with LLM: assemble context + working memory, ask a question, get intelligent assessment")
+    p.add_argument("--question", default=None, help="ask Brain Agent a specific question about the system")
+    p.add_argument("--target", default="latest", help="target label (defaults to current_state)")
+    p.add_argument("--provider", default=None, help="override LLM provider")
+    p.set_defaults(func=cmd_brain_think)
+    p = brain_sub.add_parser("memory", help="show Brain Agent working memory (recent cognitive outputs)")
+    p.add_argument("--json", action="store_true", help="render as JSON")
+    p.set_defaults(func=cmd_brain_memory)
 
     p_roadmap = sub.add_parser("roadmap")
     roadmap_sub = p_roadmap.add_subparsers(required=True)
@@ -1015,6 +1264,50 @@ def build_parser() -> argparse.ArgumentParser:
     p = checkpoint_sub.add_parser("status", help="read-only git checkpoint status as JSON")
     p.add_argument("--json", action="store_true", help="output as JSON (required)")
     p.set_defaults(func=cmd_checkpoint_status)
+
+    p_skill = sub.add_parser("skill", help="read-only Skill v0 registry (list/show/check)")
+    skill_sub = p_skill.add_subparsers(required=True)
+    p = skill_sub.add_parser("list", help="list all registered skills")
+    p.add_argument("--json", action="store_true", help="render as JSON")
+    p.set_defaults(func=cmd_skill_list)
+    p = skill_sub.add_parser("show", help="show a single skill spec as JSON")
+    p.add_argument("skill", help="skill name from the registry")
+    p.set_defaults(func=cmd_skill_show)
+    p = skill_sub.add_parser("check", help="validate the skill registry")
+    p.set_defaults(func=cmd_skill_check)
+
+    p_adapter = sub.add_parser("adapter", help="external Outbox Pattern adapter (list/show/check/needs/fulfillment)")
+    adapter_sub = p_adapter.add_subparsers(required=True)
+    p = adapter_sub.add_parser("list", help="list declared need templates")
+    p.add_argument("--json", action="store_true", help="render as JSON")
+    p.set_defaults(func=cmd_adapter_list)
+    p = adapter_sub.add_parser("show", help="show a single need template as JSON")
+    p.add_argument("template", help="need template id")
+    p.set_defaults(func=cmd_adapter_show)
+    p = adapter_sub.add_parser("platforms", help="list registered platform capability cards")
+    p.add_argument("--json", action="store_true", help="render as JSON")
+    p.set_defaults(func=cmd_adapter_platforms)
+    p = adapter_sub.add_parser("platform", help="show a single platform capability card as JSON")
+    p.add_argument("platform", help="platform id")
+    p.set_defaults(func=cmd_adapter_platform)
+    p = adapter_sub.add_parser("write-need", help="write an external need to the outbox")
+    p.add_argument("--type", required=True, help="dotted need type, e.g. notify, notify.im.wecom, execute.git.commit")
+    p.add_argument("--payload", default="", help="JSON payload string")
+    p.add_argument("--template", default="", help="optional need template id")
+    p.add_argument("--created-by", default="manual", help="module that created the need")
+    p.set_defaults(func=cmd_adapter_write_need)
+    p = adapter_sub.add_parser("needs", help="list needs in the outbox")
+    p.add_argument("--status", default=None, choices=["pending", "fulfilled", "failed"], help="filter by lifecycle status")
+    p.add_argument("--json", action="store_true", help="render as JSON")
+    p.set_defaults(func=cmd_adapter_needs)
+    p = adapter_sub.add_parser("need", help="show a single need as JSON")
+    p.add_argument("need_id", help="need id or prefix")
+    p.set_defaults(func=cmd_adapter_need)
+    p = adapter_sub.add_parser("fulfillment", help="show the fulfillment record for a need")
+    p.add_argument("need_id", help="need id or prefix")
+    p.set_defaults(func=cmd_adapter_fulfillment)
+    p = adapter_sub.add_parser("check", help="validate registry and outbox consistency")
+    p.set_defaults(func=cmd_adapter_check)
 
     p_rules = sub.add_parser("rules", help="work with the Rule Source Registry")
     rules_sub = p_rules.add_subparsers(required=True)

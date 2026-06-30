@@ -41,7 +41,7 @@ _RUNTIME_CONST_MAP: dict[str, dict[str, tuple[str, ...]]] = {
     "abyss_cli.harness_review": {"runtime": ("HARNESS_REVIEWS_DIR",)},
     "abyss_cli.result": {"runtime": ("ACTIONS_DIR", "REVIEWS_DIR", "IMPORTS_DIR")},
     "abyss_cli.review": {"runtime": ("REVIEWS_DIR", "ACTIONS_DIR")},
-    "abyss_cli.llm_executor": {"runtime": ("LLM_RESULTS_DIR",)},
+    "abyss_cli.llm_executor": {"runtime": ("LLM_RESULTS_DIR", "LLM_USAGE_DIR")},
     "abyss_cli.direct_auth": {"runtime": ("DIRECT_AUTH_DIR",)},
     "abyss_cli.external_collab": {"runtime": ("EXTERNAL_RESULTS_DIR", "FEEDBACK_CARDS_DIR")},
     "abyss_cli.evolution_analysis": {"runtime": ("EVOLUTION_ANALYSES_DIR",)},

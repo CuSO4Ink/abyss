@@ -1,0 +1,24 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "abyss.memory_record.v1",
+  "type": "object",
+  "required": ["schema", "id", "kind", "title", "body", "provenance"],
+  "properties": {
+    "schema": {"const": "abyss.memory_record.v1"},
+    "id": {"type": "string", "minLength": 1},
+    "kind": {"type": "string", "enum": ["decision", "direction"]},
+    "title": {"type": "string", "minLength": 1},
+    "body": {"type": "string", "minLength": 1},
+    "related": {"type": "array", "items": {"type": "string"}},
+    "tags": {"type": "array", "items": {"type": "string"}},
+    "provenance": {
+      "type": "object",
+      "required": ["created_at", "source"],
+      "properties": {
+        "created_at": {"type": "string", "minLength": 1},
+        "source": {"type": "string", "minLength": 1}
+      }
+    }
+  },
+  "additionalProperties": false
+}

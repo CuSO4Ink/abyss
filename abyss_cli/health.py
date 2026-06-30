@@ -1,4 +1,4 @@
-"""Read-only health checks for Abyss providers.
+﻿"""Read-only health checks for Abyss providers.
 
 Health checks are observational: they call configured providers and report
 structured status without importing actions, writing result files, or mutating
@@ -43,7 +43,7 @@ def check_provider_health(provider: str = "cli") -> dict[str, Any]:
 
     prompt = "Return exactly: ABYSS_PROVIDER_HEALTH_OK"
     try:
-        response = _provider_response(provider, provider_config, Path("provider_health_probe.md"), prompt)
+        response, _usage_diagnostics = _provider_response(provider, provider_config, Path("provider_health_probe.md"), prompt)
     except SystemExit as exc:
         result["error"] = str(exc)
     except Exception as exc:  # defensive health check boundary
