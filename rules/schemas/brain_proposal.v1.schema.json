@@ -1,0 +1,90 @@
+﻿{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Abyss Brain Proposal v1",
+  "description": "Candidate evolution proposal drafted by Brain Agent via LLM. Candidate material only — requires Owner approval before entering the governance chain.",
+  "type": "object",
+  "required": [
+    "schema",
+    "summary",
+    "proposal_type",
+    "anti_entropy_check",
+    "rationale",
+    "proposed_changes",
+    "risk_level",
+    "boundary"
+  ],
+  "properties": {
+    "schema": {
+      "const": "abyss.brain_proposal.v1"
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 300,
+      "description": "One-line summary of the proposal."
+    },
+    "proposal_type": {
+      "enum": ["simplify", "add", "expand", "fix", "maintain", "no_action"],
+      "description": "simplify=remove/simplify existing; add=new capability; expand=extend existing; fix=repair broken; maintain=upkeep; no_action=system stable."
+    },
+    "anti_entropy_check": {
+      "type": "object",
+      "required": [
+        "evaluated_simplify_alternative",
+        "chosen_approach",
+        "justification"
+      ],
+      "properties": {
+        "evaluated_simplify_alternative": {
+          "type": "boolean",
+          "description": "Did Brain evaluate whether a simplification alternative could achieve the same goal?"
+        },
+        "simplify_alternative_found": {
+          "type": "boolean",
+          "description": "Was a viable simplification alternative identified?"
+        },
+        "simplify_alternative_description": {
+          "type": "string",
+          "description": "Description of the simplification alternative, if found."
+        },
+        "chosen_approach": {
+          "enum": ["simplify", "add", "expand", "fix", "no_action"],
+          "description": "The approach chosen after anti-entropy evaluation."
+        },
+        "justification": {
+          "type": "string",
+          "description": "Why this approach was chosen. If add/expand was chosen over a found simplify alternative, this must explain why simplification was insufficient."
+        }
+      }
+    },
+    "rationale": {
+      "type": "string",
+      "description": "Why this proposal is needed, grounded in system state evidence."
+    },
+    "target_area": {
+      "type": "string",
+      "description": "Which part of the system this proposal targets (e.g. brain_agent, outbox, memory_layer, governance)."
+    },
+    "proposed_changes": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Concrete description of proposed changes. Each item should be a specific, actionable statement."
+    },
+    "risk_level": {
+      "enum": ["low", "medium", "high"],
+      "description": "Risk assessment. low=read-only/data-layer; medium=kernel-adjacent; high=governance-core."
+    },
+    "system_assessment": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Key findings from the system context that motivated this proposal."
+    },
+    "next_step": {
+      "type": "string",
+      "description": "Concrete instruction for the Owner to formally enter the governance chain."
+    },
+    "boundary": {
+      "type": "string",
+      "description": "Hard boundary statement. Must state that this is candidate material only."
+    }
+  }
+}
