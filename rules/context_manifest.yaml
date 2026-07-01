@@ -399,9 +399,10 @@
         "rules/contracts/external_work_feedback_card.v1.yaml",
         "rules/contracts/context_request.v1.yaml",
         "rules/contracts/blocked_result.v1.yaml",
-        "../abyss-data/user_data/projects/abyss-future-planning/Global Direction Brief.md",
-        "../abyss-data/user_data/projects/abyss-future-planning/Brain Agent v0.md",
-        "../abyss-data/user_data/projects/abyss-future-planning/External Developer Protocol.md"
+        "../abyss-data/user_data/projects/abyss-future-planning/_DEV_HUB.md",
+        "../abyss-data/user_data/projects/abyss-future-planning/archive/Global Direction Brief.md",
+        "../abyss-data/user_data/projects/abyss-future-planning/archive/Brain Agent v0.md",
+        "../abyss-data/user_data/projects/abyss-future-planning/archive/External Developer Protocol.md"
       ],
       "required_rules": [
         "rules/system_brief.yaml",
