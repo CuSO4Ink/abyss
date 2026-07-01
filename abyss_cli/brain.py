@@ -406,56 +406,177 @@ def render_brain_context_json() -> str:
     return json.dumps(build_brain_context(), ensure_ascii=False, indent=2)
 
 
+TRIGGER_COOLDOWN_HOURS = 2.0  # don't re-fire same template_id within 2h
+
+
+def _is_in_cooldown(template_id: str, all_needs: list[dict[str, Any]], now: datetime | None = None) -> bool:
+    """Check if a template_id was recently fired (within cooldown window).
+
+    R102 enhancement: replaces the old type-only pending check with a
+    template_id-based cooldown across pending, fulfilled, and failed needs.
+    """
+    if now is None:
+        now = datetime.now(BJ_TZ)
+    for need in all_needs:
+        if need.get("template_id") != template_id:
+            continue
+        created_str = need.get("lifecycle", {}).get("created_at", "")
+        if not created_str:
+            continue
+        try:
+            ts = datetime.fromisoformat(created_str)
+        except (ValueError, TypeError):
+            continue
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=BJ_TZ)
+        age_hours = (now - ts).total_seconds() / 3600.0
+        if age_hours < TRIGGER_COOLDOWN_HOURS:
+            return True
+    return False
+
+
+def _check_stale_owner_items(context: dict[str, Any]) -> dict[str, Any] | None:
+    """R102: detect stale Owner inbox items and return trigger payload if warranted."""
+    health = context.get("system_health", {})
+    pending_count = health.get("pending_owner_items", 0)
+    if pending_count < 3:
+        return None
+
+    # Load actual owner items for richer payload
+    try:
+        from .owner import list_owner_items
+        items = list_owner_items()
+        pending_items = [i for i in items if i.get("status") == "pending"]
+    except Exception:
+        pending_items = []
+
+    summaries = [
+        {"id": i.get("id"), "title": i.get("title", ""), "type": i.get("type")}
+        for i in pending_items[:5]
+    ]
+    return {
+        "pending_count": pending_count,
+        "oldest_item_id": pending_items[0].get("id", "") if pending_items else "",
+        "oldest_item_age_hours": 0.0,  # age not tracked in v0 items; placeholder
+        "item_summaries": summaries,
+    }
+
+
+def _check_recent_changeset_applied() -> dict[str, Any] | None:
+    """R102: detect a recently applied changeset that may need a git checkpoint."""
+    try:
+        from .changeset import list_changesets
+        from .changeset import load_changeset
+        changesets = list_changesets()
+    except Exception:
+        return None
+
+    now = datetime.now(BJ_TZ)
+    for cs in changesets:
+        status = cs.get("status", "")
+        if status != "applied":
+            continue
+        # Check execution records for this changeset
+        cs_id = cs.get("id", "")
+        try:
+            record = load_changeset(cs_id)
+        except Exception:
+            continue
+        execution = record.get("execution", {}) if isinstance(record, dict) else {}
+        if not execution:
+            continue
+        applied_at = execution.get("applied_at", "")
+        if not applied_at:
+            continue
+        try:
+            ts = datetime.fromisoformat(applied_at)
+        except (ValueError, TypeError):
+            continue
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=BJ_TZ)
+        age_hours = (now - ts).total_seconds() / 3600.0
+        # Only trigger for changesets applied within the last 1 hour
+        if age_hours > 1.0:
+            continue
+        files_changed = execution.get("files_changed", [])
+        return {
+            "changeset_id": cs_id,
+            "execution_id": execution.get("id", ""),
+            "files_changed": files_changed,
+            "commit_message": f"checkpoint: changeset {cs_id} applied",
+        }
+    return None
+
+
 def _evaluate_triggers(context: dict[str, Any]) -> list[dict[str, Any]]:
-    """Evaluate trigger conditions from the registry against current system state."""
-    from .external_adapter import _load_registry
+    """Evaluate trigger conditions from the registry against current system state.
+
+    R102 enhancements:
+    - Cooldown: skip template_id re-firing within TRIGGER_COOLDOWN_HOURS.
+    - New trigger: stale Owner pending items (>= 3 pending).
+    - New trigger: recently applied changeset needing git checkpoint.
+    """
+    from .external_adapter import _load_registry, list_needs
 
     registry = _load_registry()
     templates = registry.get("need_templates", {})
     integrity_ok = context.get("integrity", {}).get("ok", True)
     health = context.get("system_health", {})
 
+    # R102: load all needs for cooldown check (not just pending)
+    all_needs = list_needs()
+
     fired: list[dict[str, Any]] = []
+
+    def _try_fire(template_id: str, need_type: str, trigger_reason: str, payload: dict[str, Any]) -> None:
+        if _is_in_cooldown(template_id, all_needs):
+            return
+        fired.append({
+            "template_id": template_id,
+            "need_type": need_type,
+            "trigger_reason": trigger_reason,
+            "payload": payload,
+        })
 
     if not integrity_ok:
         tmpl = templates.get("notify_owner_on_integrity_failure", {})
         if tmpl:
-            fired.append({
-                "template_id": "notify_owner_on_integrity_failure",
-                "need_type": tmpl.get("type", "notify"),
-                "trigger_reason": "integrity check failed",
-                "payload": {
+            _try_fire(
+                "notify_owner_on_integrity_failure",
+                tmpl.get("type", "notify"),
+                "integrity check failed",
+                {
                     "event_type": "integrity_failure",
                     "severity": "high",
                     "summary": "Abyss integrity check failed; Owner review required.",
                     "failed_checks": context.get("integrity", {}).get("messages", []),
                 },
-            })
+            )
 
     if health.get("true_blocked", 0) > 0:
         tmpl = templates.get("notify_owner_on_workflow_blocked", {})
         if tmpl:
-            fired.append({
-                "template_id": "notify_owner_on_workflow_blocked",
-                "need_type": tmpl.get("type", "notify"),
-                "trigger_reason": f"{health.get('true_blocked', 0)} workflow(s) blocked",
-                "payload": {
+            _try_fire(
+                "notify_owner_on_workflow_blocked",
+                tmpl.get("type", "notify"),
+                f"{health.get('true_blocked', 0)} workflow(s) blocked",
+                {
                     "workflow_id": "",
                     "block_reason": "unknown",
                     "blocked_stage": "",
                 },
-            })
+            )
 
     # FSM needs_attention trigger
     fsm_state = context.get("fsm_state", {})
     if fsm_state.get("state") == "needs_attention":
         tmpl = templates.get("notify_owner_on_integrity_failure", {})
         if tmpl:
-            fired.append({
-                "template_id": "notify_owner_on_fsm_needs_attention",
-                "need_type": tmpl.get("type", "notify"),
-                "trigger_reason": "FSM is in needs_attention state",
-                "payload": {
+            _try_fire(
+                "notify_owner_on_fsm_needs_attention",
+                tmpl.get("type", "notify"),
+                "FSM is in needs_attention state",
+                {
                     "event_type": "fsm_needs_attention",
                     "severity": "medium",
                     "summary": "FSM transitioned to needs_attention; integrity issue may require Owner acknowledgment.",
@@ -463,31 +584,47 @@ def _evaluate_triggers(context: dict[str, Any]) -> list[dict[str, Any]]:
                     "last_ok": fsm_state.get("last_ok"),
                     "updated_at": fsm_state.get("updated_at"),
                 },
-            })
+            )
+
+    # R102: stale Owner pending items trigger
+    stale_info = _check_stale_owner_items(context)
+    if stale_info:
+        tmpl = templates.get("notify_owner_on_stale_pending_items", {})
+        if tmpl:
+            _try_fire(
+                "notify_owner_on_stale_pending_items",
+                tmpl.get("type", "notify"),
+                f"{stale_info['pending_count']} pending Owner item(s) need attention",
+                stale_info,
+            )
+
+    # R102: changeset checkpoint trigger
+    checkpoint_info = _check_recent_changeset_applied()
+    if checkpoint_info:
+        tmpl = templates.get("checkpoint_after_changeset", {})
+        if tmpl:
+            _try_fire(
+                "checkpoint_after_changeset",
+                tmpl.get("type", "execute.git.commit"),
+                f"changeset {checkpoint_info['changeset_id']} recently applied",
+                checkpoint_info,
+            )
 
     return fired
 
 
 def brain_tick() -> dict[str, Any]:
-    """Evaluate system state and write needs to the outbox when triggers fire."""
+    """Evaluate system state and write needs to the outbox when triggers fire.
+
+    R102: cooldown-based dedup replaces old type-only pending check.
+    """
     from .external_adapter import write_need as adapter_write_need
-    from .external_adapter import list_pending_needs
 
     context = build_brain_context()
     fired = _evaluate_triggers(context)
     needs_written: list[dict[str, Any]] = []
-    needs_skipped: list[dict[str, Any]] = []
-
-    existing_pending = list_pending_needs()
-    existing_types = {n.get("type", "") for n in existing_pending}
 
     for trigger in fired:
-        if trigger["need_type"] in existing_types:
-            needs_skipped.append({
-                "template_id": trigger["template_id"],
-                "reason": "pending need of same type already exists",
-            })
-            continue
         need = adapter_write_need(
             trigger["need_type"],
             trigger["payload"],
@@ -504,7 +641,6 @@ def brain_tick() -> dict[str, Any]:
     append_event("brain.tick", f"Brain tick: {len(fired)} trigger(s) fired, {len(needs_written)} need(s) written", {
         "triggers_fired": len(fired),
         "needs_written": len(needs_written),
-        "needs_skipped": len(needs_skipped),
     })
 
     return {
@@ -518,7 +654,7 @@ def brain_tick() -> dict[str, Any]:
             for t in fired
         ],
         "needs_written": needs_written,
-        "needs_skipped": needs_skipped,
+        "cooldown_window_hours": TRIGGER_COOLDOWN_HOURS,
         "boundary": "Brain may write needs to outbox only; it does not fulfill, execute, approve, or make outbound calls.",
     }
 
@@ -601,6 +737,155 @@ def brain_intake() -> dict[str, Any]:
         "recommendations": recommendations,
         "boundary": "Brain intake is read-only; it does not execute, approve, mutate, or make outbound calls.",
     }
+
+
+def brain_integrate() -> dict[str, Any]:
+    """R103: Integrate fulfilled external needs into Brain's cognitive layer.
+
+    Pipeline: fulfilled needs → feedback cards → working memory entries.
+    Brain reads fulfillment results, compresses them into structured feedback
+    cards, and saves concise summaries to working memory for future context.
+
+    This closes the loop: tick (write needs) → external fulfill → integrate (read back).
+    Brain does NOT execute, approve, mutate source files, or make outbound calls.
+    """
+    from .external_adapter import list_needs, read_fulfillment
+    from .external_collab import FEEDBACK_CARDS_DIR
+    from pathlib import Path
+
+    needs = list_needs()
+    integrated: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+
+    for need in needs:
+        lc = need.get("lifecycle", {})
+        if lc.get("status") != "fulfilled":
+            continue
+
+        need_id = need.get("id", "")
+        need_type = need.get("type", "")
+        template_id = need.get("template_id", "")
+
+        fulfillment = read_fulfillment(need_id)
+        if not fulfillment:
+            skipped.append({
+                "need_id": need_id,
+                "reason": "no fulfillment record found",
+            })
+            continue
+
+        result = fulfillment.get("result", "")
+        fulfilled_by = fulfillment.get("fulfilled_by", "")
+        fulfilled_at = fulfillment.get("fulfilled_at", "")
+
+        # Compress fulfillment into a feedback card
+        result_text = str(result) if result else ""
+        if len(result_text) > 4000:
+            result_excerpt = result_text[:4000] + "\n[...truncated for integration...]"
+        else:
+            result_excerpt = result_text
+
+        # Create a compact integration card
+        card_id = new_id("intcard")
+        integration_card = {
+            "schema": "abyss.integration_card.v1",
+            "id": card_id,
+            "source_need_id": need_id,
+            "need_type": need_type,
+            "template_id": template_id,
+            "fulfilled_by": fulfilled_by,
+            "fulfilled_at": fulfilled_at,
+            "created_at": now_iso(),
+            "candidate_material_only": True,
+            "no_action_executed": True,
+            "result_excerpt": result_excerpt,
+            "integration_assessment": _assess_fulfillment(need_type, result_text),
+        }
+
+        # Write integration card to feedback_cards dir (same area as external cards)
+        ensure_dir(FEEDBACK_CARDS_DIR)
+        write_record(FEEDBACK_CARDS_DIR / f"{card_id}.yaml", integration_card)
+
+        # Save a concise summary to working memory for future Brain context
+        wm_summary = f"[Integrated] {need_type} (need {need_id[:20]})\nFulfilled by: {fulfilled_by}\nResult: {result_excerpt[:500]}"
+        wm_entry = save_working_memory_entry(
+            agent_run_id=f"integrate_{need_id}",
+            response_text=wm_summary,
+            question=f"What was the result of external need {need_type}?",
+        )
+
+        integrated.append({
+            "need_id": need_id,
+            "need_type": need_type,
+            "template_id": template_id,
+            "integration_card_id": card_id,
+            "working_memory_id": wm_entry.get("id"),
+            "fulfilled_by": fulfilled_by,
+            "result_excerpt": result_excerpt[:200],
+            "integration_assessment": integration_card["integration_assessment"],
+        })
+
+    append_event("brain.integrate", f"Brain integrate: {len(integrated)} fulfilled need(s) integrated", {
+        "integrated_count": len(integrated),
+        "skipped_count": len(skipped),
+    })
+
+    notes: list[str] = []
+    if integrated:
+        notes.append(f"{len(integrated)} fulfilled need(s) integrated into feedback cards + working memory.")
+        notes.append("Review integration assessments; if cognition drift is detected, pause and run cognition check.")
+    if skipped:
+        notes.append(f"{len(skipped)} fulfilled need(s) skipped (missing fulfillment record).")
+    if not integrated and not skipped:
+        notes.append("No fulfilled needs to integrate; outbox has no completed external work.")
+
+    return {
+        "schema": "abyss.brain_integrate.v1",
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "mode": "read_only_integration",
+        "no_llm_used": True,
+        "no_action_executed": True,
+        "no_approval_granted": True,
+        "integrated": integrated,
+        "skipped": skipped,
+        "integration_notes": notes,
+        "boundary": "Brain integrate is read-only; it compresses results into cards and memory. It does not execute, approve, mutate source files, or make outbound calls.",
+        "kill_criteria": "If integrated understanding drifts from actual code state, pause integration and run cognition verification first.",
+    }
+
+
+def _assess_fulfillment(need_type: str, result_text: str) -> dict[str, Any]:
+    """R103: deterministic assessment of a fulfillment result.
+
+    Checks for common signals: error keywords, success markers, and type-specific
+    expectations. Returns a compact assessment dict — candidate material only.
+    """
+    assessment: dict[str, Any] = {
+        "has_error_signal": False,
+        "has_success_signal": False,
+        "result_length": len(result_text),
+        "type_specific_notes": [],
+    }
+
+    lower_result = result_text.lower()
+    error_keywords = ["error", "failed", "exception", "traceback", "fatal"]
+    success_keywords = ["success", "completed", "done", "applied", "committed"]
+
+    assessment["has_error_signal"] = any(kw in lower_result for kw in error_keywords)
+    assessment["has_success_signal"] = any(kw in lower_result for kw in success_keywords)
+
+    if need_type.startswith("notify"):
+        assessment["type_specific_notes"].append("Notification need; verify Owner received notification.")
+    elif need_type.startswith("execute.git"):
+        assessment["type_specific_notes"].append("Git operation; verify repo state matches expected.")
+    elif need_type.startswith("store.kb"):
+        assessment["type_specific_notes"].append("Knowledge store; verify data persisted correctly.")
+
+    return assessment
+
+
+def render_brain_integrate_json() -> str:
+    return json.dumps(brain_integrate(), ensure_ascii=False, indent=2)
 
 
 def render_brain_intake_json() -> str:

@@ -489,9 +489,35 @@ def cmd_brain_intake(args: argparse.Namespace) -> None:
     print(render_brain_intake_json())
 
 
+def cmd_brain_integrate(args: argparse.Namespace) -> None:
+    """R103: Integrate fulfilled external needs into Brain's cognitive layer."""
+    from .brain import render_brain_integrate_json
+    print(render_brain_integrate_json())
+
+
 def cmd_brain_propose(args: argparse.Namespace) -> None:
     from .brain import render_brain_propose_json
     print(render_brain_propose_json())
+
+
+def cmd_brain_draft(args: argparse.Namespace) -> None:
+    """Run Brain Agent with LLM to draft a candidate evolution proposal (R098)."""
+    import json
+    from .brain_proposal import draft_brain_proposal
+    proposal = draft_brain_proposal(provider=args.provider, question=args.question)
+    print(f"{'='*60}")
+    print("Brain Agent — Candidate Proposal (R098)")
+    print(f"{'='*60}\n")
+    print(json.dumps(proposal, ensure_ascii=False, indent=2))
+    print(f"\n{'='*60}")
+    print(f"candidate_material_only={proposal.get('candidate_material_only')}")
+    print(f"no_approval_granted={proposal.get('no_approval_granted')}")
+    if proposal.get("validation", {}).get("ok"):
+        print("validation=PASS")
+    else:
+        print(f"validation=FAIL: {proposal.get('validation', {}).get('messages', [])}")
+    print(f"\nnext_step: {proposal.get('next_step', '')}")
+    print(f"{'='*60}")
 
 
 def cmd_brain_think(args: argparse.Namespace) -> None:
@@ -1201,8 +1227,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_brain_tick)
     p = brain_sub.add_parser("intake", help="read and integrate fulfilled needs from the outbox")
     p.set_defaults(func=cmd_brain_intake)
-    p = brain_sub.add_parser("propose", help="draft a candidate evolution proposal based on system state")
+    p = brain_sub.add_parser("integrate", help="R103: integrate fulfilled external needs into feedback cards + working memory")
+    p.set_defaults(func=cmd_brain_integrate)
+    p = brain_sub.add_parser("propose", help="draft a candidate evolution proposal based on system state (deterministic, no LLM)")
     p.set_defaults(func=cmd_brain_propose)
+    p = brain_sub.add_parser("draft", help="run Brain Agent with LLM to draft a candidate evolution proposal (R098)")
+    p.add_argument("--question", default=None, help="optional: address a specific question in the proposal rationale")
+    p.add_argument("--provider", default=None, help="override LLM provider")
+    p.set_defaults(func=cmd_brain_draft)
     p = brain_sub.add_parser("think", help="run Brain Agent with LLM: assemble context + working memory, ask a question, get intelligent assessment")
     p.add_argument("--question", default=None, help="ask Brain Agent a specific question about the system")
     p.add_argument("--target", default="latest", help="target label (defaults to current_state)")

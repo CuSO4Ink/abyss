@@ -69,6 +69,28 @@
         "kb_target": "string",
         "format": "string"
       }
+    },
+    "notify_owner_on_stale_pending_items": {
+      "description": "When Owner inbox has items pending beyond a threshold, notify the Owner.",
+      "type": "notify",
+      "trigger": "owner inbox pending item count >= 3 OR oldest pending item older than 24h",
+      "payload_fields": {
+        "pending_count": "integer",
+        "oldest_item_id": "string",
+        "oldest_item_age_hours": "number",
+        "item_summaries": "array"
+      }
+    },
+    "checkpoint_after_changeset": {
+      "description": "After a changeset is successfully applied, checkpoint the repo via git commit.",
+      "type": "execute.git.commit",
+      "trigger": "changeset apply completes successfully (detected via recent execution record)",
+      "payload_fields": {
+        "changeset_id": "string",
+        "execution_id": "string",
+        "files_changed": "array",
+        "commit_message": "string"
+      }
     }
   },
   "capability_cards": {
