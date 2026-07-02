@@ -1110,3 +1110,241 @@ def archive_stale_working_memory(dry_run: bool = False) -> dict[str, Any]:
 
 def render_working_memory_json() -> str:
     return json.dumps(load_working_memory(limit=50), ensure_ascii=False, indent=2)
+
+
+# -- Pattern Recognition (R099) --
+
+PATTERN_MIN_OCCURRENCES = 2  # need at least 2 occurrences to be a "pattern"
+PATTERN_MAX_RESULTS = 10     # cap per detector to avoid noise
+
+
+def _extract_keywords(text: str, min_len: int = 4, max_keywords: int = 8) -> list[str]:
+    """Extract lowercase keyword tokens from text, filtering common stopwords."""
+    if not text:
+        return []
+    import re
+    stop = {
+        "the", "this", "that", "with", "from", "have", "been", "will", "would",
+        "could", "should", "what", "your", "about", "into", "they", "them",
+        "then", "than", "when", "where", "which", "their", "there", "these",
+        "those", "some", "more", "such", "also", "just", "only", "very",
+        "system", "brain", "agent", "abyss", "owner", "integrity", "status",
+        "none", "null", "true", "false",
+    }
+    tokens = re.findall(r"[a-zA-Z_][a-zA-Z_0-9]{%d,}" % (min_len - 1), text.lower())
+    return [t for t in tokens if t not in stop][:max_keywords]
+
+
+def _detect_topic_frequency() -> list[dict[str, Any]]:
+    """Detector 1: Find repeated question/interaction topics in brain_responses."""
+    directory = runtime_root() / "process" / "brain_responses"
+    if not directory.exists():
+        return []
+    keyword_counts: dict[str, int] = {}
+    for path in list_records(directory, "agent_run"):
+        try:
+            record = read_record(path)
+        except Exception:
+            continue
+        question = record.get("question") or ""
+        response_text = record.get("response_text") or ""
+        combined = question + " " + response_text[:500]
+        for kw in _extract_keywords(combined):
+            keyword_counts[kw] = keyword_counts.get(kw, 0) + 1
+
+    patterns = [
+        {"keyword": kw, "occurrences": cnt}
+        for kw, cnt in sorted(keyword_counts.items(), key=lambda x: -x[1])
+        if cnt >= PATTERN_MIN_OCCURRENCES
+    ][:PATTERN_MAX_RESULTS]
+    return patterns
+
+
+def _detect_proposal_type_distribution() -> list[dict[str, Any]]:
+    """Detector 2: Count brain_proposal types to surface dominant proposal patterns."""
+    directory = runtime_root() / "process" / "brain_proposals"
+    if not directory.exists():
+        return []
+    type_counts: dict[str, int] = {}
+    for path in list_records(directory, "brain_proposal"):
+        try:
+            record = read_record(path)
+        except Exception:
+            continue
+        ptype = record.get("proposal_type", "unknown")
+        type_counts[ptype] = type_counts.get(ptype, 0) + 1
+
+    patterns = [
+        {"proposal_type": t, "occurrences": cnt, "percentage": round(cnt / sum(type_counts.values()) * 100, 1)}
+        for t, cnt in sorted(type_counts.items(), key=lambda x: -x[1])
+        if cnt >= PATTERN_MIN_OCCURRENCES
+    ]
+    return patterns
+
+
+def _detect_owner_decision_pattern() -> list[dict[str, Any]]:
+    """Detector 3: Analyze Owner inbox for recurring approve/reject patterns by target type."""
+    try:
+        from .owner import list_owner_items
+        items = list_owner_items(include_closed=True)
+    except Exception:
+        return []
+    type_action_counts: dict[str, dict[str, int]] = {}
+    for item in items:
+        item_type = item.get("type", "unknown")
+        status = item.get("status", "unknown")
+        if item_type not in type_action_counts:
+            type_action_counts[item_type] = {}
+        type_action_counts[item_type][status] = type_action_counts[item_type].get(status, 0) + 1
+
+    patterns = []
+    for item_type, action_counts in sorted(type_action_counts.items()):
+        total = sum(action_counts.values())
+        if total < PATTERN_MIN_OCCURRENCES:
+            continue
+        dominant = max(action_counts.items(), key=lambda x: x[1])
+        patterns.append({
+            "target_type": item_type,
+            "total": total,
+            "dominant_action": dominant[0],
+            "dominant_percentage": round(dominant[1] / total * 100, 1),
+            "breakdown": action_counts,
+        })
+    return patterns[:PATTERN_MAX_RESULTS]
+
+
+def _detect_trigger_frequency() -> list[dict[str, Any]]:
+    """Detector 4: Count outbox needs by template_id to surface recurring trigger conditions."""
+    from .external_adapter import list_needs
+    try:
+        needs = list_needs()
+    except Exception:
+        return []
+    template_counts: dict[str, int] = {}
+    for need in needs:
+        tmpl_id = need.get("template_id", "(manual)")
+        template_counts[tmpl_id] = template_counts.get(tmpl_id, 0) + 1
+
+    patterns = [
+        {"template_id": t, "occurrences": cnt}
+        for t, cnt in sorted(template_counts.items(), key=lambda x: -x[1])
+        if cnt >= PATTERN_MIN_OCCURRENCES
+    ][:PATTERN_MAX_RESULTS]
+    return patterns
+
+
+def _detect_assessment_repeat() -> list[dict[str, Any]]:
+    """Detector 5: Find repeated assessment strings in brain_propose outputs."""
+    directory = runtime_root() / "process" / "brain_proposals"
+    if not directory.exists():
+        return []
+    summary_counts: dict[str, int] = {}
+    for path in list_records(directory, "brain_proposal"):
+        try:
+            record = read_record(path)
+        except Exception:
+            continue
+        summary = (record.get("summary") or "").strip()
+        if not summary or len(summary) < 10:
+            continue
+        # Normalize: first 80 chars as fingerprint
+        fingerprint = summary[:80]
+        summary_counts[fingerprint] = summary_counts.get(fingerprint, 0) + 1
+
+    patterns = [
+        {"assessment_fingerprint": fp, "occurrences": cnt}
+        for fp, cnt in sorted(summary_counts.items(), key=lambda x: -x[1])
+        if cnt >= PATTERN_MIN_OCCURRENCES
+    ][:PATTERN_MAX_RESULTS]
+    return patterns
+
+
+def brain_patterns() -> dict[str, Any]:
+    """R099: Detect repeated patterns from Owner interaction history.
+
+    Five deterministic, read-only detectors scan accumulated data layers:
+    1. Topic frequency — repeated keywords in brain responses
+    2. Proposal type distribution — dominant proposal types
+    3. Owner decision pattern — recurring approve/reject by target type
+    4. Trigger frequency — recurring outbox trigger templates
+    5. Assessment repeat — duplicated assessment strings
+
+    Kill criteria: if detected patterns are mostly noise (no actionable insight
+    after Owner review), pause pattern recognition and re-tune detectors.
+    """
+    topic_patterns = _detect_topic_frequency()
+    proposal_patterns = _detect_proposal_type_distribution()
+    owner_patterns = _detect_owner_decision_pattern()
+    trigger_patterns = _detect_trigger_frequency()
+    assessment_patterns = _detect_assessment_repeat()
+
+    all_patterns = topic_patterns + proposal_patterns + owner_patterns + trigger_patterns + assessment_patterns
+    total_detectors_with_results = sum(1 for x in [topic_patterns, proposal_patterns, owner_patterns, trigger_patterns, assessment_patterns] if x)
+
+    # Generate candidate insights (advisory only)
+    insights: list[str] = []
+    if topic_patterns:
+        top_topic = topic_patterns[0]
+        insights.append(f"Topic '{top_topic['keyword']}' appeared {top_topic['occurrences']} times in Brain responses; consider whether this warrants a structured SOP candidate (R100).")
+    if proposal_patterns:
+        dominant = proposal_patterns[0]
+        if dominant["percentage"] >= 80:
+            insights.append(f"{dominant['percentage']}% of brain proposals are '{dominant['proposal_type']}'; system may be in a stable idle phase, or proposal triggers may need broadening.")
+    if owner_patterns:
+        for p in owner_patterns[:2]:
+            insights.append(f"Owner tends to {p['dominant_action']} {p['target_type']} items ({p['dominant_percentage']}% of {p['total']}); this decision pattern may inform future proposal framing.")
+    if trigger_patterns:
+        top_trigger = trigger_patterns[0]
+        insights.append(f"Trigger '{top_trigger['template_id']}' fired {top_trigger['occurrences']} times; if recurring without resolution, consider whether the trigger condition needs adjustment.")
+    if assessment_patterns:
+        insights.append(f"{len(assessment_patterns)} repeated assessment(s) found; Brain may be producing boilerplate output for stable states.")
+    if not insights:
+        insights.append("No significant repeated patterns detected; data volume may be insufficient for pattern recognition (need more interactions).")
+
+    # Noise assessment
+    noise_risk = "low" if total_detectors_with_results >= 3 else ("medium" if total_detectors_with_results >= 1 else "high")
+
+    append_event("brain.patterns", f"Brain patterns: {len(all_patterns)} pattern(s) across {total_detectors_with_results} detector(s)", {
+        "total_patterns": len(all_patterns),
+        "detectors_with_results": total_detectors_with_results,
+        "noise_risk": noise_risk,
+    })
+
+    return {
+        "schema": "abyss.brain_patterns.v1",
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "mode": "read_only_pattern_detection",
+        "no_llm_used": True,
+        "no_action_executed": True,
+        "no_approval_granted": True,
+        "detectors": {
+            "topic_frequency": {
+                "description": "Repeated keywords in Brain Agent responses",
+                "patterns": topic_patterns,
+            },
+            "proposal_type_distribution": {
+                "description": "Dominant proposal types from brain_proposals",
+                "patterns": proposal_patterns,
+            },
+            "owner_decision_pattern": {
+                "description": "Recurring approve/reject patterns by Owner target type",
+                "patterns": owner_patterns,
+            },
+            "trigger_frequency": {
+                "description": "Recurring outbox trigger templates",
+                "patterns": trigger_patterns,
+            },
+            "assessment_repeat": {
+                "description": "Duplicated assessment strings in brain proposals",
+                "patterns": assessment_patterns,
+            },
+        },
+        "candidate_insights": insights,
+        "noise_risk": noise_risk,
+        "kill_criteria": "If Owner review concludes detected patterns are noise (no actionable insight), pause pattern recognition and re-tune detector thresholds.",
+        "boundary": "Brain patterns is read-only detection; it does not execute, approve, mutate files, or auto-generate SOPs. All insights are candidate material only.",
+    }
+
+
+def render_brain_patterns_json() -> str:
+    return json.dumps(brain_patterns(), ensure_ascii=False, indent=2)

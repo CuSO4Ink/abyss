@@ -572,6 +572,42 @@ def cmd_brain_memory(args: argparse.Namespace) -> None:
             print()
 
 
+def cmd_brain_patterns(args: argparse.Namespace) -> None:
+    """R099: Detect repeated patterns from Owner interaction history."""
+    from .brain import render_brain_patterns_json, brain_patterns
+
+    if args.json:
+        print(render_brain_patterns_json())
+        return
+
+    result = brain_patterns()
+    print(f"Brain Pattern Recognition (R099)")
+    print(f"{'='*60}\n")
+    print(f"mode: {result.get('mode')}")
+    print(f"noise_risk: {result.get('noise_risk')}")
+    print(f"no_action_executed={result.get('no_action_executed')}")
+    print()
+
+    detectors = result.get("detectors", {})
+    for name, info in detectors.items():
+        patterns = info.get("patterns", [])
+        print(f"--- {name} ({info.get('description', '')}) ---")
+        if not patterns:
+            print("  (no patterns detected)")
+        else:
+            for p in patterns:
+                print(f"  {p}")
+        print()
+
+    print(f"{'='*60}")
+    print("Candidate insights (advisory only):")
+    for insight in result.get("candidate_insights", []):
+        print(f"  - {insight}")
+    print()
+    print(f"Kill criteria: {result.get('kill_criteria', '')}")
+    print(f"{'='*60}")
+
+
 def cmd_roadmap_current(args: argparse.Namespace) -> None:
     if args.json:
         print(render_roadmap_current_json())
@@ -1245,6 +1281,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--archive", action="store_true", help="move stale entries (below decay floor) to archive")
     p.add_argument("--dry-run", action="store_true", help="with --archive: show what would be moved without moving")
     p.set_defaults(func=cmd_brain_memory)
+    p = brain_sub.add_parser("patterns", help="R099: detect repeated patterns from Owner interaction history")
+    p.add_argument("--json", action="store_true", help="render as JSON")
+    p.set_defaults(func=cmd_brain_patterns)
 
     p_roadmap = sub.add_parser("roadmap")
     roadmap_sub = p_roadmap.add_subparsers(required=True)
